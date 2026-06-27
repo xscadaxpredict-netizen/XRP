@@ -1,12 +1,15 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.db.models import Sum
+from decimal import Decimal
 
 class AdvanceGroup(models.Model):
     name = models.CharField(max_length=255)
     total_advance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_overdue = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     used_advance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     remaining_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_closed = models.BooleanField(default=False)
     leader = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="led_advance_groups")
@@ -25,6 +28,54 @@ class AdvanceGroup(models.Model):
     def __str__(self):
         leader_name = self.leader.get_full_name() if self.leader else "No Leader"
         return f"{self.name} (Leader: {leader_name})"
+
+    def get_calculated_used_advance(self):
+        """Calculates what the used_advance SHOULD be, without saving."""
+        used = self.expense_set.filter(
+            item_type="advances",
+            is_rejected=False,
+            is_draft=False,
+            is_allocation=False
+        ).exclude(status='rejected').aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        return used
+
+    def recalculate_balance(self):
+        """Calculates and saves the new balance including adjustments."""
+        used = self.get_calculated_used_advance()
+        adjustments = self.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        self.used_advance = used
+        self.remaining_balance = max((self.total_advance + self.paid_overdue) - (used + adjustments), Decimal("0.00"))
+        self.save(update_fields=["used_advance", "remaining_balance"])
+        return self.remaining_balance
+
+
+class AdvanceAdjustment(models.Model):
+    ADJUSTMENT_TYPES = [
+        ('salary', 'Salary Deduction'),
+        ('cash', 'Cash Return'),
+        ('credit_note', 'Credit Note / Adjustment'),
+    ]
+    group = models.ForeignKey(AdvanceGroup, on_delete=models.CASCADE, related_name="adjustments", null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="standalone_adjustments", null=True, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    adjustment_type = models.CharField(max_length=20, choices=ADJUSTMENT_TYPES, default='credit_note')
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    is_used = models.BooleanField(default=False)
+    attached_group = models.ForeignKey(AdvanceGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name="attached_credit_notes")
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.group:
+            new_balance = self.group.recalculate_balance()
+            self.group.is_closed = (new_balance <= 0)
+            self.group.save(update_fields=["is_closed"])
+
+    def __str__(self):
+        group_name = self.group.name if self.group else (self.user.username if self.user else "Standalone")
+        return f"{self.get_adjustment_type_display()} for {group_name} - ₹{self.amount}"
 
 
 class AdvanceAssignment(models.Model):
@@ -107,6 +158,9 @@ class Expense(models.Model):
     is_rejected = models.BooleanField(default=False)
     
     km = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Kilometers field
+    from_location = models.CharField(max_length=255, blank=True, null=True)
+    to_location = models.CharField(max_length=255, blank=True, null=True)
+    calculated_km = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     conveyance = models.ForeignKey('Conveyance', on_delete=models.SET_NULL, null=True, blank=True)  # Use string for Conveyance
     delete_requested = models.BooleanField(default=False)
     is_allocation = models.BooleanField(default=False)
@@ -219,6 +273,18 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=[('unread', 'Unread'), ('read', 'Read')], default='unread')
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=Notification)
+def trigger_push_notification(sender, instance, created, **kwargs):
+    if created:
+        from .fcm_push import send_push_notification
+        try:
+            send_push_notification(instance.user, instance.title, instance.message)
+        except Exception as e:
+            print(f"FCM Error: {e}")
+
 
 class FCMToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -241,6 +307,13 @@ class Conveyance(models.Model):
 
     def __str__(self):
         return f"{self.vehicle_type} - {self.price_per_km} per km"
+
+class ConveyanceSite(models.Model):
+    site_name = models.CharField(max_length=255)
+    kilometers = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    def __str__(self):
+        return f"{self.site_name} ({self.kilometers} km)"
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -302,6 +375,7 @@ class DirectPay(models.Model):
     proof_photo = models.FileField(upload_to="directpay/proofs/", null=True, blank=True)
     transaction_date = models.DateField()
     status = models.CharField(max_length=20, default="draft")  # draft / completed
+    delete_request = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -313,3 +387,32 @@ class MobileSession(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     token = models.CharField(max_length=128, unique=True)
     created = models.DateTimeField(auto_now_add=True)
+
+class GlobalSettings(models.Model):
+    restrict_transaction_date = models.BooleanField(
+        default=True,
+        help_text="If checked, restricts transaction date to prevent future and old past dates."
+    )
+
+    class Meta:
+        verbose_name = "Global Setting"
+        verbose_name_plural = "Global Settings"
+
+    def __str__(self):
+        return "Global Settings"
+
+    def save(self, *args, **kwargs):
+        if not self.pk and GlobalSettings.objects.exists():
+            return
+        super().save(*args, **kwargs)
+
+
+class Holiday(models.Model):
+    name = models.CharField(max_length=255)
+    date = models.DateField()
+
+    class Meta:
+        ordering = ['date']
+
+    def __str__(self):
+        return f"{self.name} - {self.date}"

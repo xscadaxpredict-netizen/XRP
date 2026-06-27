@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container-fluid py-5 px-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 pb-4 border-bottom border-secondary-subtle">
+        <div>
+            <h1 class="display-5 fw-bold text-dark mb-1">Dealerships Management</h1>
+            <p class="text-muted fs-5 mb-0">Create, edit, and configure dealership groups, sales targets, and member lists.</p>
+        </div>
+        <div class="mt-3 mt-md-0">
+            <a href="{% url 'dealership_dashboard' %}" class="btn btn-outline-primary px-4 rounded-pill">
+                <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    {% if messages %}
+        <div class="row">
+            <div class="col-12">
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- Dealership List -->
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+                <div class="card-body p-4">
+                    <h3 class="fw-bold text-dark mb-4"><i class="bi bi-building me-2"></i>Active Dealerships</h3>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr class="text-muted small uppercase">
+                                    <th>Dealership Name</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th class="text-end">Target Orders</th>
+                                    <th class="text-end">Target Revenue</th>
+                                    <th class="text-center">Members</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ds in dealerships %}
+                                    <tr>
+                                        <td>
+                                            <span class="fw-bold text-dark">{{ ds.name }}</span>
+                                        </td>
+                                        <td>{{ ds.start_date|date:"M d, Y" }}</td>
+                                        <td>{{ ds.end_date|date:"M d, Y" }}</td>
+                                        <td class="text-end fw-semibold">{{ ds.target_orders }}</td>
+                                        <td class="text-end fw-semibold">₹{{ ds.target_revenue|floatformat:2 }}</td>
+                                        <td class="text-center">
+                                             <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1 cursor-pointer" 
+                                                   data-bs-toggle="tooltip" 
+                                                   data-bs-html="true"
+                                                   title="<div class='text-start'>{% for m in ds.members.all %}• {{ m.first_name|default:m.username }} ({{ m.username }})<br>{% empty %}No members{% endfor %}</div>">
+                                                 {{ ds.members.count }} members
+                                             </span>
+                                        </td>
+                                         <td class="text-end">
+                                             <div class="d-inline-flex gap-2 flex-wrap justify-content-end">
+                                                 <button type="button" class="btn btn-outline-info btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#createUserModal-{{ ds.id }}">
+                                                     <i class="bi bi-person-plus-fill me-1"></i> Add User
+                                                 </button>
+                                                 <a href="{% url 'manage_dealership_pricing' ds.id %}" class="btn btn-outline-success btn-sm rounded-pill px-3">
+                                                     <i class="bi bi-tag-fill me-1"></i> Pricing
+                                                 </a>
+                                                 <a href="{% url 'edit_dealership' ds.id %}" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                                                     <i class="bi bi-pencil-square me-1"></i> Edit
+                                                 </a>
+                                             </div>
+                                         </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-5">
+                                            <i class="bi bi-building-exclamation display-6 d-block mb-3"></i>
+                                            No dealerships configured yet. Use the form to add one.
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add New Dealership Form -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+                <div class="card-body p-4">
+                    <h3 class="fw-bold text-dark mb-4"><i class="bi bi-plus-circle-fill me-2 text-primary"></i>New Dealership</h3>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="name" class="form-label fw-semibold text-dark">Dealership Name</label>
+                            <input type="text" class="form-control rounded-3" id="name" name="name" placeholder="e.g. Acme Motors" required>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label for="start_date" class="form-label fw-semibold text-dark">Start Date</label>
+                                <input type="date" class="form-control rounded-3" id="start_date" name="start_date">
+                            </div>
+                            <div class="col-6">
+                                <label for="end_date" class="form-label fw-semibold text-dark">End Date</label>
+                                <input type="date" class="form-control rounded-3" id="end_date" name="end_date">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="target_orders" class="form-label fw-semibold text-dark">Target Orders</label>
+                            <input type="number" class="form-control rounded-3" id="target_orders" name="target_orders" min="0" value="0" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="target_revenue" class="form-label fw-semibold text-dark">Target Revenue (₹)</label>
+                            <input type="number" step="0.01" class="form-control rounded-3" id="target_revenue" name="target_revenue" min="0.00" value="0.00" required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="members" class="form-label fw-semibold text-dark">Assign Members (Select Multiple)</label>
+                            <select multiple class="form-select rounded-3" id="members" name="members" style="height: 150px;">
+                                {% for user in all_users %}
+                                    <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Control/Cmd to select multiple members.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold">
+                            <i class="bi bi-check-lg me-1"></i> Register Dealership
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- Modals for User Creation -->
+{% for ds in dealerships %}
+<div class="modal fade" id="createUserModal-{{ ds.id }}" tabindex="-1" aria-labelledby="createUserModalLabel-{{ ds.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark" id="createUserModalLabel-{{ ds.id }}">
+                    <i class="bi bi-person-plus-fill text-primary me-2"></i>Create User for {{ ds.name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <form method="POST" action="{% url 'create_dealership_user' ds.id %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <!-- Left Column -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Username <span class="text-danger">*</span></label>
+                                <input type="text" name="username" class="form-control rounded-3" placeholder="Enter username" required autocomplete="off">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">First Name</label>
+                                <input type="text" name="first_name" class="form-control rounded-3" placeholder="First Name">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Last Name</label>
+                                <input type="text" name="last_name" class="form-control rounded-3" placeholder="Last Name">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control rounded-3" placeholder="email@example.com" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Password <span class="text-danger">*</span></label>
+                                <input type="password" name="password" class="form-control rounded-3" placeholder="Password" required>
+                            </div>
+                        </div>
+
+                        <!-- Right Column -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Contact Number</label>
+                                <input type="text" name="contact_number" class="form-control rounded-3" placeholder="e.g. 9876543210">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Date of Birth</label>
+                                <input type="date" name="date_of_birth" class="form-control rounded-3">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Zone</label>
+                                <select name="zone" class="form-select rounded-3">
+                                    <option value="" selected>No Zone</option>
+                                    {% for zone in zones %}
+                                        <option value="{{ zone.id }}">{{ zone.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Division</label>
+                                <select name="division" class="form-select rounded-3">
+                                    <option value="" selected>No Division</option>
+                                    {% for div in divisions %}
+                                        <option value="{{ div.id }}">{{ div.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check form-switch pt-4">
+                                    <input class="form-check-input" type="checkbox" id="is_xpredict-{{ ds.id }}" name="is_xpredict">
+                                    <label class="form-check-label fw-semibold text-dark" for="is_xpredict-{{ ds.id }}">Is Xpredict Staff</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer border-0 pb-0 pe-0 mt-3">
+                        <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">Create User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,472 +1,494 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container-fluid mt-5">
-    <h3>Welcome, {{ user.username }}!</h3>
-    <form method="get" class="mb-4">
-        <div class="row">
-            <!-- From Date Field -->
-            <div class="col-md-4">
-                <label for="from_date">From Date:</label>
-                <input type="date" id="from_date" name="from_date" class="form-control" value="{{ from_date }}">
-            </div>
-    
-            <!-- To Date Field with margin-bottom for gap -->
-            <div class="col-md-4 mb-3 mb-md-0"> <!-- Added mb-3 here -->
-                <label for="to_date">To Date:</label>
-                <input type="date" id="to_date" name="to_date" class="form-control" value="{{ to_date }}">
-            </div>
-    
-            <!-- Buttons (Filter and Clear) -->
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Filter</button>
-                <a href="{% url 'vouchers_dashboard' %}" class="btn btn-secondary ms-2 w-100">Clear</a>
-            </div>
+<div class="container-fluid mt-4 pb-5" style="background: #f8fafc; min-height: 100vh;">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h2 class="h1 font-weight-bold text-dark mb-1">Financial Overview</h2>
+            <p class="text-muted small">Viewing data from <span class="text-primary">{{ dashboard_data.from_date }}</span> to <span class="text-primary">{{ dashboard_data.to_date }}</span></p>
         </div>
-    </form>
-
-    <div class="row mt-4 ">
-        <h3>E-Vouchers</h3>
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Total E-Vouchers</h3>
+        <div class="col-auto">
+            <form method="get" class="filter-form d-flex align-items-center gap-3 p-2 bg-white shadow-sm border rounded-pill">
+                <!-- User Selector for Admin -->
+                {% if request.user.is_staff or request.user.is_superuser %}
+                <div class="ps-3 border-end pe-2">
+                    <select name="user_id" class="form-select border-0 bg-transparent font-weight-bold text-muted small" onchange="this.form.submit()" style="min-width: 150px;">
+                        <option value="">-- All Users --</option>
+                        {% for u in dashboard_data.users %}
+                        <option value="{{ u.id }}" {% if dashboard_data.selected_user_id == u.id|stringformat:"s" %}selected{% endif %}>
+                            {{ u.first_name|default:u.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_evouchers }}</h1>
-                    <p class="text-center">Total number of e-vouchers created.</p>
+                {% endif %}
+                
+                <div class="d-flex align-items-center gap-2 px-2">
+                    <input type="date" name="from_date" class="form-control border-0 bg-transparent small" value="{{ dashboard_data.from_date|date:'Y-m-d' }}">
+                    <span class="text-muted small">to</span>
+                    <input type="date" name="to_date" class="form-control border-0 bg-transparent small" value="{{ dashboard_data.to_date|date:'Y-m-d' }}">
                 </div>
-            </div>
+                
+                <div class="pe-1">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm btn-sm">Apply</button>
+                    <a href="{% url 'vouchers_dashboard' %}" class="btn btn-light rounded-pill px-3 border-0 btn-sm">Reset</a>
+                </div>
+            </form>
         </div>
-        <!-- Total Claiming Amount -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Total Claiming Amount</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_claiming_amount|floatformat:2 }}</h1>
-                    <p class="text-center">Total amount of all E-vouchers Claimed.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Paid Amount</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_paid_amount|floatformat:2 }}</h1>
-                    <p class="text-center">Total amount paid for E-vouchers.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Difference Card -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Difference Amount</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ claiming_approved_diff|floatformat:2 }}</h1>
-                    <p class="text-center">Claimed - Approved.</p>
-                </div>
-            </div>
-        </div>
-
     </div>
 
-    <!-- First Row: Vouchers Statistics -->
-    <div class="row mb-4">
-        <div class="mt-5">
-            <h3>Cash Vouchers</h3>
+    <!-- Advance Summary Cards -->
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h3 class="h3 font-weight-bold text-dark mb-0">Advance Summary</h3>
         </div>
-        <!-- Total Cash Vouchers -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Total Cash Vouchers</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_vouchers }}</h1>
-                    <p class="text-center">Total number of cash vouchers created.</p>
+    </div>
+    <div class="row g-4 mb-5">
+        <!-- Total Advance Card -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Total Advance</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(79, 70, 229, 0.1); color: #4f46e5;"><i class="ti ti-wallet fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.total_advance_assigned|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Overall assigned advances</div>
+                    <hr class="my-2 text-muted opacity-25">
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-muted">As Leader: <strong class="text-dark">₹{{ dashboard_data.leader_advance_assigned|floatformat:2 }}</strong></span>
+                        <span class="text-muted">As Member: <strong class="text-dark">₹{{ dashboard_data.member_advance_assigned|floatformat:2 }}</strong></span>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Approved Vouchers -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Approved Vouchers</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ approved_vouchers }}</h1>
-                    <p class="text-center">Number of vouchers that are approved.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Rejected Vouchers -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Rejected Vouchers</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ rejected_vouchers }}</h1>
-                    <p class="text-center">Number of vouchers that were rejected.</p>
+        <!-- Used Card -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Used</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(13, 148, 136, 0.1); color: #0d9488;"><i class="ti ti-shopping-cart fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.total_advance_used|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Expenses from advance</div>
+                    <hr class="my-2 text-muted opacity-25">
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-muted">As Leader: <strong class="text-dark">₹{{ dashboard_data.leader_advance_used|floatformat:2 }}</strong></span>
+                        <span class="text-muted">As Member: <strong class="text-dark">₹{{ dashboard_data.member_advance_used|floatformat:2 }}</strong></span>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Pending Vouchers -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Pending Vouchers</h3>
+        <!-- Remaining Card -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Remaining</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(217, 119, 6, 0.1); color: #d97706;"><i class="ti ti-cash fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.total_advance_remaining|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Available balance</div>
+                    <hr class="my-2 text-muted opacity-25">
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-muted">As Leader: <strong class="text-dark">₹{{ dashboard_data.leader_advance_remaining|floatformat:2 }}</strong></span>
+                        <span class="text-muted">As Member: <strong class="text-dark">₹{{ dashboard_data.member_advance_remaining|floatformat:2 }}</strong></span>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ pending_vouchers_count }}</h1>
-                    <p class="text-center">Vouchers are yet to be processed.</p>
+            </div>
+        </div>
+        <!-- Overdue Card -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Overdue</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(219, 39, 119, 0.1); color: #db2777;"><i class="ti ti-alert-circle fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.total_advance_overdue|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Spent beyond assigned</div>
+                    <hr class="my-2 text-muted opacity-25">
+                    <div class="d-flex justify-content-between small">
+                        <span class="text-muted">As Leader: <strong class="text-dark">₹{{ dashboard_data.leader_advance_overdue|floatformat:2 }}</strong></span>
+                        <span class="text-muted">As Member: <strong class="text-dark">₹{{ dashboard_data.member_advance_overdue|floatformat:2 }}</strong></span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Total Cleared Vouchers</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ cleared_vouchers_count }}</h1>
-                    <p class="text-center">Total cleared vouchers.</p>
-                </div>
-            </div>
+    <!-- Financial Overview Header -->
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h3 class="h3 font-weight-bold text-dark mb-0">Financial Overview</h3>
         </div>
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Total Claiming Amount</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_claiming_amount_cv|floatformat:2 }}</h1>
-                    <p class="text-center">Total Claiming Amount.</p>
-                </div>
-            </div>
-        </div>
+    </div>
 
-        <!-- Second Row: Financial Data and Additional Stats -->
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Total Approved Amount</h3>
-                </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_approved_amount|floatformat:2 }}</h1>
-                    <p class="text-center">Total approved amount.</p>
+    <!-- Key Metrics Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Total Claimed</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i class="ti ti-receipt fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.total_claimed|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Total submitted vouchers <span class="badge bg-light text-dark ms-1">(Excl. Advances)</span></div>
                 </div>
             </div>
         </div>
-
-        <div class="col-12 col-sm-6 col-md-3">
-            <div class="card" id="ch">
-                <div class="card-header">
-                    <h3 class="card-title">Paid Amount</h3>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Approved</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i class="ti ti-check fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.approved_amount|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Vetted and ready for pay</div>
                 </div>
-                <div class="card-body">
-                    <h1 class="text-center">{{ total_paid_amount_cv|floatformat:2 }}</h1>
-                    <p class="text-center">Paid Amount.</p>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Pending</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;"><i class="ti ti-clock fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.pending_amount|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Currently under review</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="metric-card bg-white shadow-sm border rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-muted text-uppercase small font-weight-bold tracking-wider mb-0">Rejected</h5>
+                        <div class="p-2 rounded-3" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"><i class="ti ti-x fs-5"></i></div>
+                    </div>
+                    <div class="h2 text-dark font-weight-bold mb-1">₹{{ dashboard_data.rejected_amount|floatformat:2 }}</div>
+                    <div class="small text-muted italic mb-3">Turned down or void</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Charts Section -->
+    <div class="row g-4 mb-4">
+        <!-- trend Chart -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h3 class="card-title font-weight-bold mb-0">Spending Trends</h3>
+                    <div class="badge bg-primary-lt px-3 py-2 rounded-pill">Claimed vs Paid</div>
+                </div>
+                <div class="card-body p-4">
+                    <canvas id="trendChart" style="max-height: 350px;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary Mini List or Info -->
+        <div class="col-lg-4">
+            <div class="card bg-white border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body p-4 text-dark">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="font-weight-bold mb-0">Final Disbursement</h4>
+                        <div class="p-2 rounded-3" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i class="ti ti-cash fs-5"></i></div>
+                    </div>
+                    <div class="text-center py-3">
+                        <div class="display-6 font-weight-bold text-success mb-2">₹{{ dashboard_data.paid_amount|floatformat:2 }}</div>
+                        <p class="text-muted small">Total Amount Paid to Date</p>
+                    </div>
+                    <hr class="my-3 text-muted opacity-25">
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small">Approved</span>
+                            <span class="font-weight-bold text-dark small">₹{{ dashboard_data.approved_amount|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted small">Paid</span>
+                            <span class="font-weight-bold text-success small">₹{{ dashboard_data.paid_amount|floatformat:2 }}</span>
+                        </div>
+                        <div class="progress progress-sm rounded-pill bg-light">
+                            <!-- Placeholder progress, would need real percentage ideally -->
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span class="text-muted" style="font-size: 0.75rem;">Payment completion for approved vouchers</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Type Bar Chart -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h3 class="card-title font-weight-bold">Expense Distribution by Category</h3>
+                    <p class="text-muted small">Compare count and value across all item types</p>
+                </div>
+                <div class="card-body p-4">
+                    <div class="chart-container">
+                        <canvas id="itemTypeChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Chart Section -->
-<div class="row mt-4 ms-0">
-    <!-- Existing Chart Section for Voucher Status and Month-wise Data -->
-    <div class="col-12 col-md-4 mb-4">
-        <div class="card" id="donut">
-            <div class="card-header">
-                <h3 class="card-title">Cash Voucher Status Chart</h3>
-            </div>
-            <div class="card-body">
-                <canvas id="voucherStatusChart" width="300" height="300"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- New Line Chart Section for E-Vouchers -->
-    <div class="col-12 col-md-8 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">E-Voucher Count Chart</h3>
-            </div>
-            <div class="card-body">
-                <!-- Chart.js Line Chart for E-Vouchers -->
-                <canvas id="evoucherChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4 ms-0">
-    <div class="col-12">
-        <div class="card" id="evoucher-item-types">
-            <div class="card-header">
-                <h3 class="card-title text-center">E-Voucher Item Types</h3>
-            </div>
-            <div class="card-body">
-                <canvas id="itemTypeChart" width="800" height="600"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-    {% comment %} <div class="col-12 col-md-4">
-        <div class="card gf">
-            <div class="card-header">
-                <h3 class="card-title">Month-wise Total Amount (Claimed vs Approved)</h3>
-            </div>
-            <div class="card-body">
-                <canvas id="monthWiseChart" width="400" height="250"></canvas>
-            </div>
-        </div>
-    </div> {% endcomment %}
-</div>
 <style>
-    #donut{
-        height: 477px;
-        overflow: hidden; 
-        padding: 30px;/* Prevent overflow */
+    /* Premium Styling */
+    .metric-card {
+        border-radius: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
     }
+    .metric-card:hover {
+        transform: translateY(-8px);
+    }
+    .metric-info { background: linear-gradient(45deg, #3b82f6, #6366f1); }
+    .metric-success { background: linear-gradient(45deg, #10b981, #059669); }
+    .metric-warning { background: linear-gradient(45deg, #f59e0b, #d97706); }
+    .metric-danger { background: linear-gradient(45deg, #ef4444, #dc2626); }
+
+    .bg-indigo { background: linear-gradient(45deg, #4f46e5, #7c3aed); }
+    .bg-teal { background: linear-gradient(45deg, #0d9488, #14b8a6); }
+    .bg-amber { background: linear-gradient(45deg, #d97706, #f59e0b); }
+    .bg-pink { background: linear-gradient(45deg, #db2777, #f472b6); }
+
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        margin-bottom: 20px;
+    }
+    .bg-white-transparent { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px); }
     
-   
+    .ti { line-height: 1; }
+    
+    .card-title { letter-spacing: -0.02em; }
+    
+    /* Chart Styles */
+    #trendChart { width: 100% !important; }
+    
+    .progress-sm { height: 6px; }
+    .bg-white-10 { background: rgba(255,255,255,0.1); }
+
     .chart-container {
-        width: 100%;  /* Full width */
-        height: 100%;  /* Full height */
+        height: 600px;
+        position: relative;
     }
 
- 
-    
-    canvas {
-        display: block; /* Prevent unwanted scrollbars */
-        max-width: 100%; /* Ensure the chart doesn't exceed the card width */
-        height: auto; /* Maintain aspect ratio */
-    }
-    #evoucher-item-types .card-header {
-        font-size: 18px; /* Increase font size of the header */
-        padding: 5px 10px; /* Adjust padding */
-        text-align: center;
-        font-weight: bold;
+    @media (max-width: 991.98px) {
+        .row.align-items-center.mb-4 {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 15px;
+        }
+        .row.align-items-center.mb-4 > .col-auto {
+            width: 100%;
+        }
     }
     
-    #evoucher-item-types .card-body {
-        padding: 10px;
-        height: 600px; /* Adjust height if needed */
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        font-weight: bold;
-    }
-    
-    #evoucher-item-types .chart-container {
-        width: 100%;
-        height: 100%;
-        overflow: auto;
+    @media (max-width: 767.98px) {
+        .filter-form {
+            flex-direction: column;
+            border-radius: 16px !important;
+            align-items: stretch !important;
+            padding: 1rem !important;
+            gap: 12px !important;
+        }
+        .filter-form > div {
+            border: none !important;
+            padding: 0 !important;
+            width: 100%;
+        }
+        .filter-form select, 
+        .filter-form input {
+            width: 100% !important;
+            background-color: #f8fafc !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            border: 1px solid #e2e8f0 !important;
+        }
+        .filter-form button,
+        .filter-form a {
+            width: 100%;
+            margin-top: 4px;
+        }
+        .filter-form .d-flex.align-items-center.gap-2 {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+        .filter-form .d-flex.align-items-center.gap-2 span {
+            text-align: center;
+        }
+        .filter-form .pe-1 {
+            display: flex;
+            gap: 8px;
+        }
+        .filter-form .pe-1 button,
+        .filter-form .pe-1 a {
+            flex: 1;
+        }
+        .chart-container {
+            height: 480px;
+        }
     }
 </style>
 
-
+<!-- Load Chart.js and Tabler Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const doughnutCtx = document.getElementById('voucherStatusChart').getContext('2d');
-        const barCtx = document.getElementById('evoucherChart').getContext('2d');
-        const voucherStatusChart = new Chart(doughnutCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Approved', 'Rejected', 'Pending'],
-                datasets: [{
-                    data: [
-                        {{ approved_vouchers|default:0 }},
-                        {{ rejected_vouchers|default:0 }},
-                        {{ pending_vouchers_count|default:0 }}
-                    ],
-                    backgroundColor: ['#28a745', '#dc3545', '#ffc107']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'top' },
-                }
-            }
-        });
-        
-        // Line Chart for E-Vouchers
-        const evoucherChart = new Chart(barCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Claiming Amount', 'Paid Amount', 'Claiming vs Paid Diff'],  // X-axis labels
-                datasets: [{
-                    data: [
-                        {{ total_claiming_amount|default:0 }},
-                        {{ total_paid_amount|default:0 }},
-                        {{ claiming_approved_diff|default:0 }}
-                    ],
-                    backgroundColor: ['#36a2eb', '#ffcd56', '#ff6384'],  // Color for each bar
-                    borderColor: ['#36a2eb', '#ffcd56', '#ff6384'],  // Border color for each bar
-                    borderWidth: 1,
-                    // You can use label to give each bar a name in the dataset
-                    label: '',  // Remove general label (we have individual labels on x-axis)
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false,  // Disable legend, as the x-axis labels provide sufficient info
-                    },
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: { 
-                            display: true, 
-                            text: 'Amount (₹)'  // Y-axis label
-                        }
-                    },
-                    x: {
-                        title: { 
-                            display: true, 
-                            text: 'Categories'  // X-axis label
-                        }
-                    }
-                }
-            }
-        });
-    });
-    document.addEventListener('DOMContentLoaded', function () {
-        const ctx = document.getElementById('itemTypeChart').getContext('2d');
-        
-        const colors = [
-            '#36a2eb', '#ffcd56', '#ff6384', '#4bc0c0', '#9966ff', '#ff9f40', '#ffbf00', '#c4001d', '#5d4037',
-            '#607d8b', '#cddc39', '#009688', '#9c27b0', '#8bc34a', '#ffc107', '#f44336'
-        ];
-    
-        const itemTypeChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: [
-                    'Fright/Transportation', 'Fuel and Oil', 'Food/Grocery', 'Others', 'Vendor', 'Reimbursement',
-                    'Site Services', 'Advances', 'Travelling', 'Electricity Bill', 'Internet Bill', 'Postage and Telegram',
-                    'Machine Repair', 'Conveyance', 'Stationary and Printing', 'Hospitality'
-                ],
-                datasets: [
-                    {
-                        label: 'Number of Vouchers',
-                        data: [
-                            {{ item_type_data.fright_transportation.count }},
-                            {{ item_type_data.fuel_oil.count }},
-                            {{ item_type_data.food_grocery.count }},
-                            {{ item_type_data.others.count }},
-                            {{ item_type_data.vendor.count }},
-                            {{ item_type_data.reimbursement.count }},
-                            {{ item_type_data.site_services.count }},
-                            {{ item_type_data.advances.count }},
-                            {{ item_type_data.travelling.count }},
-                            {{ item_type_data.electricity_bill.count }},
-                            {{ item_type_data.internet_bill.count }},
-                            {{ item_type_data.postage_telegram.count }},
-                            {{ item_type_data.machine_repair.count }},
-                            {{ item_type_data.conveyance.count }},
-                            {{ item_type_data.stationary_printing.count }},
-                            {{ item_type_data.hospitality.count }},
-                        ],
-                        backgroundColor: colors,
-                        barThickness: 12,
-                    },
-                    {
-                        label: 'Total Amount (₹)',
-                        data: [
-                            {{ item_type_data.fright_transportation.total_amount }},
-                            {{ item_type_data.fuel_oil.total_amount }},
-                            {{ item_type_data.food_grocery.total_amount }},
-                            {{ item_type_data.others.total_amount }},
-                            {{ item_type_data.vendor.total_amount }},
-                            {{ item_type_data.reimbursement.total_amount }},
-                            {{ item_type_data.site_services.total_amount }},
-                            {{ item_type_data.advances.total_amount }},
-                            {{ item_type_data.travelling.total_amount }},
-                            {{ item_type_data.electricity_bill.total_amount }},
-                            {{ item_type_data.internet_bill.total_amount }},
-                            {{ item_type_data.postage_telegram.total_amount }},
-                            {{ item_type_data.machine_repair.total_amount }},
-                            {{ item_type_data.conveyance.total_amount }},
-                            {{ item_type_data.stationary_printing.total_amount }},
-                            {{ item_type_data.hospitality.total_amount }},
-                        ],
-                        backgroundColor: colors,
-                        barThickness: 15,
-                    }
-                ]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { 
-                        display: true,
-                        position: 'bottom',
-                        labels: {
-                            font: { size: 14, weight: 'bold' } // Bold the legend font
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (tooltipItem) {
-                                if (tooltipItem.datasetIndex === 0) { // Number of Vouchers
-                                    return tooltipItem.label + ': ' + tooltipItem.raw + ' Vouchers';
-                                } else { // Total Amount
-                                    return tooltipItem.label + ': ₹' + tooltipItem.raw.toFixed(2);
-                                }
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        title: { 
-                            display: true, 
-                            text: 'Values',
-                            font: { size: 16, weight: 'bold' } // Bold the x-axis title
-                        },
-                        ticks: {
-                            font: { size: 14, weight: 'bold' } // Bold the x-axis ticks
-                        }
-                    },
-                    y: {
-                        title: { 
-                            display: true, 
-                            text: 'Item Types',
-                            font: { size: 16, weight: 'bold' } // Bold the y-axis title
-                        },
-                        ticks: {
-                            font: { size: 14, weight: 'bold' }, // Bold the y-axis ticks
-                            padding: 10
-                        }
-                    }
-                }
-            }
-        });
-    });
-</script>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    const itemCtx = document.getElementById('itemTypeChart').getContext('2d');
+
+    // 1. Trend Chart (Line)
+    const trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ dashboard_data.months_list|safe }},
+            datasets: [
+                {
+                    label: 'Claimed',
+                    data: {{ dashboard_data.claimed_amounts|safe }},
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#3b82f6'
+                },
+                {
+                    label: 'Paid',
+                    data: {{ dashboard_data.paid_amounts|safe }},
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#10b981'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
+                tooltip: { backgroundColor: '#1e293b', padding: 12, borderRadius: 8 }
+            },
+            scales: {
+                y: { grid: { borderDash: [5, 5], color: '#e2e8f0' }, ticks: { font: { size: 12 } } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 2. Item Type Chart (Horizontal Bar)
+    const accentColors = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#6366f1', '#ec4899', '#8b5cf6', '#14b8a6', 
+        '#f97316', '#06b6d4', '#475569', '#a855f7', '#0f172a', '#64748b', '#2dd4bf', '#fb923c'
+    ];
+
+    const itemTypeChart = new Chart(itemCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                'Fright/Transportation', 'Fuel and Oil', 'Food/Grocery', 'Others', 'Vendor', 'Reimbursement',
+                'Site Services', 'Advances', 'Travelling', 'Electricity Bill', 'Internet Bill', 'Postage and Telegram',
+                'Machine Repair', 'Conveyance', 'Stationary and Printing', 'Hospitality'
+            ],
+            datasets: [
+                {
+                    label: 'Vouchers Count',
+                    data: [
+                        {{ dashboard_data.item_type_data.fright_transportation.count }},
+                        {{ dashboard_data.item_type_data.fuel_oil.count }},
+                        {{ dashboard_data.item_type_data.food_grocery.count }},
+                        {{ dashboard_data.item_type_data.others.count }},
+                        {{ dashboard_data.item_type_data.vendor.count }},
+                        {{ dashboard_data.item_type_data.reimbursement.count }},
+                        {{ dashboard_data.item_type_data.site_services.count }},
+                        {{ dashboard_data.item_type_data.advances.count }},
+                        {{ dashboard_data.item_type_data.travelling.count }},
+                        {{ dashboard_data.item_type_data.electricity_bill.count }},
+                        {{ dashboard_data.item_type_data.internet_bill.count }},
+                        {{ dashboard_data.item_type_data.postage_telegram.count }},
+                        {{ dashboard_data.item_type_data.machine_repair.count }},
+                        {{ dashboard_data.item_type_data.conveyance.count }},
+                        {{ dashboard_data.item_type_data.stationary_printing.count }},
+                        {{ dashboard_data.item_type_data.hospitality.count }}
+                    ],
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderRadius: 5,
+                    barThickness: 12
+                },
+                {
+                    label: 'Total Value (₹)',
+                    data: [
+                        {{ dashboard_data.item_type_data.fright_transportation.total_amount }},
+                        {{ dashboard_data.item_type_data.fuel_oil.total_amount }},
+                        {{ dashboard_data.item_type_data.food_grocery.total_amount }},
+                        {{ dashboard_data.item_type_data.others.total_amount }},
+                        {{ dashboard_data.item_type_data.vendor.total_amount }},
+                        {{ dashboard_data.item_type_data.reimbursement.total_amount }},
+                        {{ dashboard_data.item_type_data.site_services.total_amount }},
+                        {{ dashboard_data.item_type_data.advances.total_amount }},
+                        {{ dashboard_data.item_type_data.travelling.total_amount }},
+                        {{ dashboard_data.item_type_data.electricity_bill.total_amount }},
+                        {{ dashboard_data.item_type_data.internet_bill.total_amount }},
+                        {{ dashboard_data.item_type_data.postage_telegram.total_amount }},
+                        {{ dashboard_data.item_type_data.machine_repair.total_amount }},
+                        {{ dashboard_data.item_type_data.conveyance.total_amount }},
+                        {{ dashboard_data.item_type_data.stationary_printing.total_amount }},
+                        {{ dashboard_data.item_type_data.hospitality.total_amount }}
+                    ],
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderRadius: 5,
+                    barThickness: 12
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: { 
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.dataset.label + ': ' + (ctx.datasetIndex === 1 ? '₹' : '') + ctx.raw.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: '#f1f5f9' }, ticks: { font: { weight: 'bold' } } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

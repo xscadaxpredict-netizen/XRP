@@ -2,158 +2,217 @@
 {% load static %}
 
 {% block content %}
-<div class="page-header d-print-none">
-  <div class="container-fluid">
-    <div class="row g-2 align-items-center">
-      <div class="col"><br>
-        <h2 class="page-title">Edit Enquiry</h2>
-      </div>
+
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<style>
+    .dashboard-transition-container {
+        opacity: 0;
+        transform: translateY(15px);
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .dashboard-transition-container.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .dashboard-transition-container.fade-out {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    
+    /* Ensure Django form controls look consistent and premium */
+    .form-control, .form-select {
+        border-radius: 8px !important;
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        padding: 0.6rem 0.9rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
+    }
+    [data-bs-theme=dark] .form-control, [data-bs-theme=dark] .form-select {
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        background-color: #1d2735 !important;
+        color: #f4f6f8 !important;
+    }
+    [data-bs-theme=dark] .form-control:focus, [data-bs-theme=dark] .form-select:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25) !important;
+    }
+</style>
+
+<div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h1 class="h2 fw-bold text-dark mb-0">Edit Enquiry</h1>
     </div>
-  </div>
-</div>
 
-<div class="page-body">
-  <div class="container-fluid">
-    <form method="post" class="card" enctype="multipart/form-data">
-      {% csrf_token %}
-
-      <div class="card-header">
-        <h4 class="card-title">Edit Enquiry</h4>
-      </div>
-
-      <div class="card-body">
-        <div class="row g-4">
-
-          <!-- LEFT COLUMN -->
-          <div class="col-lg-6">
-            <div class="mb-3">
-              <label class="form-label">Company Name</label>
-              {{ form.companyname }}
+    <!-- Form Card -->
+    <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <h3 class="fw-bold text-dark mb-0"><i class="bi bi-pencil-square me-2 text-primary"></i>Modify Enquiry Details</h3>
             </div>
-
-            <div class="mb-3">
-              <label class="form-label">Customer Name</label>
-              {{ form.customername }}
+            
+            {% if form.errors %}
+            <div class="alert alert-danger mx-4 mt-3 mb-0 shadow-sm" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Please correct the errors below:</strong>
+                <ul class="mb-0 mt-2">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
             </div>
+            {% endif %}
 
-            <div class="mb-3">
-              <label class="form-label">Reference</label>
-              {{ form.refrence }}
-            </div>
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- Left Column -->
+                    <div class="col-lg-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Company Name</label>
+                            {{ form.companyname }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Customer Name</label>
+                            {{ form.customername }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Reference</label>
+                            {{ form.refrence }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Email</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Contact</label>
+                            {{ form.contact }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Location</label>
+                            {{ form.location }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Status</label>
+                            {{ form.status }}
+                        </div>
+                    </div>
 
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              {{ form.email }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Contact</label>
-              {{ form.contact }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Location</label>
-              {{ form.location }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Status</label>
-              {{ form.status }}
-            </div>
-          </div>
-
-          <!-- RIGHT COLUMN -->
-          <div class="col-lg-6">
-            <div class="mb-3">
-              <label class="form-label">Product</label>
-              {{ form.products }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Sub Product</label>
-              {{ form.subproduct }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Enquiry Date</label>
-              {{ form.closuredate }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Executive</label>
-              {{ form.executive }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Remarks</label>
-              {{ form.remarks }}
-            </div>
-          </div>
-
-        </div>
-
-        <hr>
-
-        <!-- ATTACHMENTS -->
-        <h4 class="mb-3">Attachments</h4>
-
-        {% if enquiry.files.all %}
-        <div class="row g-3 mb-3">
-          {% for file in enquiry.files.all %}
-          {% with file.file.name|lower as fname %}
-          <div class="col-md-3">
-            <div class="card card-sm">
-
-              {% if ".jpg" in fname or ".jpeg" in fname or ".png" in fname or ".gif" in fname %}
-                <a href="{{ file.file.url }}" target="_blank">
-                  <img src="{{ file.file.url }}"
-                       class="card-img-top"
-                       style="height:120px;object-fit:cover;">
-                </a>
-              {% else %}
-                <div class="card-body text-center">
-                  <a href="{{ file.file.url }}" target="_blank">
-                    📎 {{ file.name|truncatechars:18 }}
-                  </a>
+                    <!-- Right Column -->
+                    <div class="col-lg-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Product</label>
+                            {{ form.products }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Sub Product</label>
+                            {{ form.subproduct }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Enquiry Date</label>
+                            {{ form.closuredate }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Executive</label>
+                            {{ form.executive }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Remarks</label>
+                            {{ form.remarks }}
+                        </div>
+                    </div>
                 </div>
-              {% endif %}
 
-              <div class="card-footer text-center">
-                <label class="form-check text-danger">
-                  <input type="checkbox"
-                         class="form-check-input"
-                         name="remove_files"
-                         value="{{ file.id }}">
-                  Remove
-                </label>
-              </div>
+                <hr class="my-4" style="border-color: rgba(0,0,0,0.08);">
 
+                <!-- Attachments Section -->
+                <h4 class="fw-bold text-dark mb-3"><i class="bi bi-paperclip me-1.5 text-primary"></i>Attachments</h4>
+
+                {% if enquiry.files.all %}
+                <div class="row g-3 mb-4">
+                    {% for file in enquiry.files.all %}
+                    {% with file.file.name|lower as fname %}
+                    <div class="col-md-3">
+                        <div class="card h-100 border border-secondary-subtle shadow-sm rounded-3 overflow-hidden">
+                            {% if ".jpg" in fname or ".jpeg" in fname or ".png" in fname or ".gif" in fname %}
+                                <a href="{{ file.file.url }}" target="_blank">
+                                    <img src="{{ file.file.url }}" class="card-img-top" style="height:120px; object-fit:cover;">
+                                </a>
+                            {% else %}
+                                <div class="card-body text-center d-flex flex-column justify-content-center align-items-center" style="height: 120px; background-color: rgba(0,0,0,0.02);">
+                                    <i class="bi bi-file-earmark-text text-secondary fs-1 mb-1"></i>
+                                    <a href="{{ file.file.url }}" target="_blank" class="text-truncate fw-semibold text-decoration-none small text-dark d-block w-100" title="{{ file.name }}">
+                                        {{ file.name }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                            <div class="card-footer bg-light py-2 text-center border-top">
+                                <label class="form-check text-danger d-inline-flex align-items-center justify-content-center cursor-pointer mb-0">
+                                    <input type="checkbox" class="form-check-input me-1.5" name="remove_files" value="{{ file.id }}">
+                                    <span class="small fw-semibold">Remove</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- File Upload -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-dark">Upload New Files</label>
+                    <input type="file" class="form-control" name="attachment[]" multiple>
+                    <small class="text-muted">
+                        Existing attachments will remain unless they are checked for removal above.
+                    </small>
+                </div>
             </div>
-          </div>
-          {% endwith %}
-          {% endfor %}
-        </div>
-        {% endif %}
 
-        <!-- NEW FILE UPLOAD -->
-        <div class="mb-3">
-          <label class="form-label">Upload New Files</label>
-          <input type="file" class="form-control" name="attachment[]" multiple>
-          <small class="text-muted">
-            Existing files will stay unless removed.
-          </small>
-        </div>
-
-      </div>
-
-      <div class="card-footer text-end">
-        <a href="{% url 'enquiry_details' enquiry.id %}" class="btn btn-link">Cancel</a>
-        <button type="submit" class="btn btn-primary ms-auto">
-          Save Changes
-        </button>
-      </div>
-
-    </form>
-  </div>
+            <!-- Footer / Action Buttons -->
+            <div class="card-footer bg-transparent border-top-0 p-4 d-flex justify-content-end gap-2">
+                <a href="{% url 'enquiry_details' enquiry.id %}" class="btn btn-outline-secondary px-4 rounded-pill transition-link">Cancel</a>
+                <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-lg me-1"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Page transition initiation
+    const container = document.getElementById("dashboard-container");
+    if (container) {
+        requestAnimationFrame(() => {
+            container.classList.add("visible");
+        });
+    }
+    
+    const transitionLinks = document.querySelectorAll(".transition-link");
+    transitionLinks.forEach(link => {
+        link.addEventListener("click", function(e) {
+            e.preventDefault();
+            const targetUrl = this.getAttribute("href");
+            if (container) {
+                container.classList.remove("visible");
+                container.classList.add("fade-out");
+            }
+            setTimeout(() => {
+                window.location.href = targetUrl;
+            }, 350);
+        });
+    });
+});
+</script>
 {% endblock %}

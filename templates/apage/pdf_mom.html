@@ -3,176 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minutes of Meeting</title>
+    <title>Minutes of Meeting - {{ mom.topic }}</title>
     <style>
+        @page {
+            size: letter;
+            margin: 15mm;
+        }
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            color: #333333;
+            font-size: 10pt;
+            line-height: 1.4;
         }
-        h1 {
-            text-align: center;
+        .header-container {
+            background-color: #1a365d;
+            color: #ffffff;
+            padding: 15px 20px;
             margin-bottom: 20px;
+            border-radius: 4px;
+            text-align: center;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
+        .header-title {
+            font-size: 18pt;
             font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
         }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
+        .info-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+        }
+        .info-table td {
+            padding: 8px 12px;
+            vertical-align: middle;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .label {
+            font-weight: bold;
+            color: #4a5568;
+            width: 120px;
+            background-color: #f7fafc;
+        }
+        .value {
+            color: #1a202c;
         }
         .section-title {
-            margin-top: 30px;
-            font-size: 18px;
+            font-size: 11pt;
             font-weight: bold;
-            color: #333;
+            color: #1a365d;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .grid-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+        }
+        .grid-table td {
+            width: 50%;
+            vertical-align: top;
+            padding: 0;
+        }
+        .list-container {
+            background-color: #f7fafc;
+            border: 1px solid #edf2f7;
+            border-radius: 4px;
+            padding: 12px;
+            min-height: 60px;
+        }
+        .list-container ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .list-container li {
+            margin-bottom: 4px;
+        }
+        .text-box {
+            background-color: #f7fafc;
+            border-left: 4px solid #3182ce;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        .text-box-content {
+            color: #2d3748;
+        }
+        .no-data {
+            color: #a0aec0;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
-    <h1>Minutes of Meeting</h1>
+    <div class="header-container">
+        <div class="header-title">Minutes of Meeting</div>
+    </div>
 
-    <table>
+    <table class="info-table">
         <tr>
-            <th>Topic</th>
-            <td>{{ mom.topic }}</td>
+
+            <td class="label">Topic:</td>
+            <td class="value">{{ mom.topic }}</td>
+            <td class="label">Organization:</td>
+            <td class="value">{{ mom.organize }}</td>
         </tr>
         <tr>
-            <th>Organized By</th>
-            <td>{{ mom.organize }}</td>
+            <td class="label">Meeting Chair:</td>
+            <td class="value">{{ mom.meeting_chair }}</td>
+            <td class="label">Location:</td>
+            <td class="value">{{ mom.location }}</td>
         </tr>
         <tr>
-            <th>Meeting Chair</th>
-            <td>{{ mom.meeting_chair }}</td>
+            <td class="label">Meeting Date:</td>
+            <td class="value">{{ mom.date }}</td>
+            <td class="label">Duration:</td>
+            <td class="value">{{ mom.duration }}</td>
         </tr>
         <tr>
-            <th>Date</th>
-            <td>{{ mom.date }}</td>
+            <td class="label">Start Time:</td>
+            <td class="value">{{ mom.start_time }}</td>
+            <td class="label">End Time:</td>
+            <td class="value">{{ mom.end_time }}</td>
         </tr>
         <tr>
-            <th>Location</th>
-            <td>{{ mom.location }}</td>
-        </tr>
-        <tr>
-            <th>Start Time</th>
-            <td>{{ mom.start_time }}</td>
-        </tr>
-        <tr>
-            <th>End Time</th>
-            <td>{{ mom.end_time }}</td>
-        </tr>
-        <tr>
-            <th>Duration</th>
-            <td>{{ mom.duration }}</td>
-        </tr>
-        <tr>
-            <th>Meeting Conclusion</th>
-            <td>{{ mom.meeting_conclusion }}</td>
-        </tr>
-        <tr>
-            <th>Summary of Discussion</th>
-            <td>{{ mom.summary_of_discussion }}</td>
+            <td class="label">Updated By:</td>
+            <td class="value">{{ mom.updated_by }}</td>
+            <td class="label">Created By:</td>
+            <td class="value">{{ mom.created_by.username }}</td>
         </tr>
     </table>
 
-    <h5 class="section-title">Attendees</h5>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Name</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for attendee in mom.attendees %}
-            <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ attendee }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="2">No attendees found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
+    <table class="grid-table">
+        <tr>
+            <td style="padding-right: 10px;">
+                <div class="section-title">Attendees</div>
+                <div class="list-container">
+                    {% if mom.attendees %}
+                        <ul>
+                            {% for attendee in mom.attendees %}
+                                <li>{{ attendee }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="no-data">No attendees found.</div>
+                    {% endif %}
+                </div>
+            </td>
+            <td style="padding-left: 10px;">
+                <div class="section-title">Apologies</div>
+                <div class="list-container">
+                    {% if mom.apologies %}
+                        <ul>
+                            {% for apology in mom.apologies %}
+                                <li>{{ apology }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="no-data">No apologies found.</div>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
     </table>
 
-    <h5 class="section-title">Apologies</h5>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Name</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for apology in mom.apologies %}
-            <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ apology }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="2">No apologies found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="section-title">Agenda</div>
+    <div class="list-container">
+        {% if mom.agenda %}
+            <ul>
+                {% for agenda_item in mom.agenda %}
+                    <li>{{ agenda_item }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="no-data">No agenda items found.</div>
+        {% endif %}
+    </div>
 
-    <h5 class="section-title">Agenda</h5>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Agenda Item</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for agenda_item in mom.agenda %}
-            <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ agenda_item }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="2">No agenda items found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="section-title">Meeting Discussion / Conclusion</div>
+    <div class="text-box">
+        <div class="text-box-content">
+            {% if mom.meeting_conclusion %}
+                {{ mom.meeting_conclusion|linebreaksbr }}
+            {% else %}
+                <span class="no-data">No conclusion recorded.</span>
+            {% endif %}
+        </div>
+    </div>
 
-    <h5 class="section-title">Attachments</h5>
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>File Name</th>
-                <th>Link</th>
-            </tr>
-        </thead>
-        <tbody>
+    <div class="section-title">Summary of Discussion</div>
+    <div class="text-box">
+        <div class="text-box-content">
+            {% if mom.summary_of_discussion %}
+                {{ mom.summary_of_discussion|linebreaksbr }}
+            {% else %}
+                <span class="no-data">No summary recorded.</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="section-title">Attachments</div>
+    <div style="margin-bottom: 20px;">
+        {% if mom.attachments.all %}
             {% for attachment in mom.attachments.all %}
-            <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ attachment.file.name }}</td>
-                <td><a href="{{ attachment.file.url }}" target="_blank">Download</a></td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="3">No attachments found.</td>
-            </tr>
+                {% with ext=attachment.file.name|lower %}
+                    {% if ext|slice:"-4:" == ".jpg" or ext|slice:"-5:" == ".jpeg" or ext|slice:"-4:" == ".png" or ext|slice:"-4:" == ".gif" %}
+                        <div style="margin-bottom: 15px; text-align: center;">
+                            <img src="{{ attachment.file.url }}" style="max-width: 100%; max-height: 450px; border: 1px solid #edf2f7; border-radius: 4px;" />
+                        </div>
+                    {% endif %}
+                {% endwith %}
             {% endfor %}
-        </tbody>
-    </table>
+        {% else %}
+            <div class="no-data">No attachments found.</div>
+        {% endif %}
+    </div>
 </body>
 </html>
-

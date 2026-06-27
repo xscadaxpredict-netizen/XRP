@@ -1,5 +1,5 @@
 from django.contrib import admin
-from Riva.models import Enquiry ,Products ,Hidrec_wash ,ConfirmedHidrecWash, Executive,quotation,ConfirmedOrder,FollowUp,ConfirmedOrderFollowUp, Xpredict,BankDetails,CommercialQuote, QuotationItem,companydetails,confirmed_enquiry,RevertRemark
+from Riva.models import UploadedQuote,Enquiry ,Products ,Hidrec_wash ,ConfirmedHidrecWash, Executive,quotation,ConfirmedOrder,FollowUp,ConfirmedOrderFollowUp, Xpredict,BankDetails,CommercialQuote, QuotationItem,companydetails,confirmed_enquiry,RevertRemark, Dealership, DealershipPricing
 # Register your models here.
 admin.site.register(Hidrec_wash)
 admin.site.register(ConfirmedHidrecWash)
@@ -45,6 +45,7 @@ from .models import (
 
 # Register models to make them accessible in the Django admin
 admin.site.register(QuotationProduct)
+admin.site.register(UploadedQuote)
 admin.site.register(QProduct)
 admin.site.register(Table1)
 admin.site.register(StandardTable)
@@ -66,3 +67,5 @@ admin.site.register(Inclusions)
 admin.site.register(ParticularsTable)
 admin.site.register(AMC_Pricing)
 admin.site.register(KeyValueStore)
+admin.site.register(Dealership)
+admin.site.register(DealershipPricing)

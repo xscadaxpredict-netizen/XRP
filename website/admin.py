@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import  FCMToken,MobileSession,DirectPay,Conveyance,AdvanceGroupUpdateLog,AdvanceGroup,AdvanceAssignment, Expense, CashVoucher, Notification, Payment, BorrowedAmount,AdvancePayment, PaymentRequest, PaymentRequestMessage,ProofPhoto
+from .models import  FCMToken,MobileSession,DirectPay,Conveyance,AdvanceGroupUpdateLog,AdvanceGroup,AdvanceAssignment, Expense, CashVoucher, Notification, Payment, BorrowedAmount,AdvancePayment, PaymentRequest, PaymentRequestMessage,ProofPhoto, GlobalSettings
 
 # Register the Expense model
 admin.site.register(FCMToken)
@@ -15,13 +15,21 @@ admin.site.register(AdvanceAssignment)
 admin.site.register(PaymentRequest)
 admin.site.register(PaymentRequestMessage)
 admin.site.register(DirectPay)
+admin.site.register(GlobalSettings)
+from .models import Holiday, AdvanceAdjustment
+admin.site.register(Holiday)
+admin.site.register(AdvanceAdjustment)
 
 from django.contrib import admin
-from .models import Conveyance
+from .models import Conveyance, ConveyanceSite
 
 @admin.register(Conveyance)
 class ConveyanceAdmin(admin.ModelAdmin):
     list_display = ('vehicle_type', 'price_per_km')
+
+@admin.register(ConveyanceSite)
+class ConveyanceSiteAdmin(admin.ModelAdmin):
+    list_display = ('site_name', 'kilometers')
 
 # Register the CashVoucher model
 admin.site.register(CashVoucher)

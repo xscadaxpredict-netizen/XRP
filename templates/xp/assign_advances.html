@@ -2,90 +2,144 @@
 {% load static %}
 
 {% block content %}
+
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <style>
+  .dashboard-transition-container {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .dashboard-transition-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .dashboard-transition-container.fade-out {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+
   /* Match Bootstrap select styling */
   .select2-container .select2-selection--single {
-      height: 38px !important;
-      border: 1px solid #ced4da !important;
-      border-radius: 4px !important;
-      padding: 5px 8px !important;
+    height: 42px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    background-color: #fff !important;
   }
-  
+
   /* Fix the text alignment */
   .select2-selection__rendered {
-      line-height: 28px !important;
+    line-height: 26px !important;
+    color: #495057 !important;
   }
-  
+
   /* Hide the blue Select2 border */
   .select2-container--default .select2-selection--single {
-      box-shadow: none !important;
+    box-shadow: none !important;
   }
-  
+
   /* Dropdown arrow size */
   .select2-selection__arrow {
-      height: 38px !important;
+    height: 42px !important;
   }
-  </style>
-<div class="container mt-4">
-  <h3 class="mb-4">Assign Advance to Group Members</h3>
+  
+  .user-checkbox-list {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    padding: 15px;
+    border-radius: 12px;
+    background-color: #f8f9fa;
+  }
 
-  <!-- GROUP SELECTION FORM WITH TWO ACTIONS -->
-  <form method="GET" class="mb-4" id="checkForm">
-    <div class="row align-items-end">
-      <div class="col-md-6">
-        <label for="group_name">Select Group:</label>
-        <select name="group_name" id="groupSelect" class="form-control" required>
-          <option value="">Search & Select Group</option>
-          {% for group in groups %}
-              <option value="{{ group.name }}" {% if request.GET.group_name == group.name %}selected{% endif %}>
-                  {{ group.name }}
-              </option>
-          {% endfor %}
-        </select>
-        
-        <script>
-        $(document).ready(function() {
-            $('#groupSelect').select2({
-                placeholder: "Search & Select Group",
-                allowClear: true,
-                width: "100%"
-            });
-        });
-        </script>
-      </div>
-      <div class="col-md-3 d-flex gap-2 mt-2">
-        <button type="submit" name="action" value="balance" class="btn btn-success">Update Balance</button>
-        <button type="submit" name="action" value="manage" class="btn btn-primary">Manage Users</button>
-        <button type="submit" name="action" value="history" class="btn btn-secondary">View History</button>
-      </div>
+  .user-checkbox {
+    transition: background-color 0.2s ease;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .user-checkbox:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+  }
+
+  .user-checkbox .form-check-input {
+    margin-top: 0;
+  }
+</style>
+
+<div class="container py-5 px-3 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh; border-radius: 16px;">
+  
+  <!-- Page Header -->
+  <div class="mb-4">
+    <h1 class="h3 fw-bold text-dark mb-0">Assign Advance to Group Members</h1>
+  </div>
+
+  <!-- GROUP SELECTION CARD -->
+  <div class="card border-0 shadow-lg mb-4" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 10; position: relative;">
+    <div class="card-body p-4">
+      <form method="GET" class="mb-0" id="checkForm">
+        <div class="row align-items-end g-3">
+          <div class="col-md-6 col-12">
+            <label for="groupSelect" class="form-label fw-semibold text-secondary small uppercase">Select Group:</label>
+            <select name="group_name" id="groupSelect" class="form-control" required>
+              <option value="">Search & Select Group</option>
+              {% for group in groups %}
+                {% if request.GET.group_name and request.GET.group_name == group.name %}
+                  <option value="{{ group.name }}" selected>{{ group.name }}</option>
+                {% else %}
+                  <option value="{{ group.name }}">{{ group.name }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6 col-12 d-flex gap-2 flex-wrap justify-content-md-end mt-2 mt-md-0">
+            <button type="submit" name="action" value="balance" class="btn btn-success rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-wallet2 me-1"></i> Update Balance</button>
+            <button type="submit" name="action" value="manage" class="btn btn-primary rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-people me-1"></i> Manage Users</button>
+            <button type="submit" name="action" value="history" class="btn btn-secondary rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-clock-history me-1"></i> View History</button>
+          </div>
+        </div>
+      </form>
     </div>
-  </form>
+  </div>
 
   <!-- BALANCE UPDATE SECTION -->
   {% if selected_group and show_balance %}
-  <div id="balanceSection" class="alert alert-secondary position-relative">
+  <div id="balanceSection" class="alert alert-secondary position-relative border-0 shadow-sm p-4 mb-4" style="border-radius: 16px; background-color: rgba(233, 236, 239, 0.95);">
     <form method="GET" class="position-absolute top-0 end-0 m-2">
       <button class="btn-close" aria-label="Close" type="submit"></button>
     </form>
-    <strong>Group:</strong> {{ selected_group.name }} <br>
-    <strong>Total:</strong> ₹{{ selected_group.total_advance }} |
-    <strong>Used:</strong> ₹{{ selected_group.used_advance }} |
-    <strong>Remaining:</strong> ₹{{ selected_group.remaining_balance }}
+    <div class="row g-3 mb-3">
+      <div class="col-12">
+        <h5 class="fw-bold text-dark mb-3"><i class="bi bi-bank text-success me-2"></i>Group Balance Status</h5>
+        <div class="d-flex flex-wrap gap-4 text-dark">
+          <div><strong>Group Name:</strong> {{ selected_group.name }}</div>
+          <div><strong>Total Advance:</strong> ₹{{ selected_group.total_advance }}</div>
+          <div><strong>Used:</strong> ₹{{ selected_group.used_advance }}</div>
+          <div><strong>Remaining Balance:</strong> ₹{{ selected_group.remaining_balance }}</div>
+        </div>
+      </div>
+    </div>
 
-    <form method="POST" action="{% url 'update_group_balance' selected_group.id %}" class="mt-3" enctype="multipart/form-data">
+    <form method="POST" action="{% url 'update_group_balance' selected_group.id %}" enctype="multipart/form-data" class="mt-4 pt-3 border-top">
       {% csrf_token %}
-      <div class="row align-items-end">
-        <div class="col-md-4">
-          <label for="new_amount">Update Total Advance (₹):</label>
-          <input type="number" step="0.01" name="new_amount" class="form-control" required>
+      <div class="row align-items-end g-3">
+        <div class="col-md-5 col-12">
+          <label for="new_amount" class="form-label fw-semibold">Update Total Advance (₹):</label>
+          <input type="number" step="0.01" name="new_amount" class="form-control rounded-3" required>
         </div>
-        <div class="col-md-4">
-          <label for="proof_file">Upload Proof:</label>
-          <input type="file" name="proof_file" class="form-control" required>
+        <div class="col-md-5 col-12">
+          <label for="proof_file" class="form-label fw-semibold">Upload Proof:</label>
+          <input type="file" name="proof_file" class="form-control rounded-3" required>
         </div>
-        <div class="col-md-2 mt-2">
-          <button type="submit" class="btn btn-success mt-4">Update Balance</button>
+        <div class="col-md-2 col-12">
+          <button type="submit" class="btn btn-success w-100 rounded-pill py-2 shadow-sm">Update</button>
         </div>
       </div>
     </form>
@@ -94,223 +148,391 @@
 
   <!-- MANAGE MEMBERS SECTION -->
   {% if selected_group and show_manage %}
-  <div id="manageSection" class="card mt-3">
-    <div class="card-header bg-info text-white">
-      <strong>Manage Members of "{{ selected_group.name }}"</strong>
+  <div id="manageSection" class="card mt-3 border-0 shadow-lg mb-4" style="border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, 0.95);">
+    <div class="card-header bg-info text-white p-3 fw-bold">
+      <i class="bi bi-people-fill me-2"></i>Manage Members of "{{ selected_group.name }}"
     </div>
-    <form method="POST" action="{% url 'update_group_members' selected_group.id %}" class="p-3">
-      {% csrf_token %}
-      <div class="mb-3">
-        <label for="manageUserSearch">Search Users:</label>
-        <input type="text" id="manageUserSearch" class="form-control mb-2" placeholder="Search members...">
-    
-        <div id="manageUserCheckboxList" style="max-height: 250px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
-          {% for user in users %}
-            <div class="form-check user-checkbox">
-              <input class="form-check-input user-checkbox-input" type="checkbox" name="users" value="{{ user.id }}"
-                id="manage-user-{{ user.id }}"
-                {% if user.id in assigned_user_ids %}checked{% endif %}>
-              
-              <label class="form-check-label" for="manage-user-{{ user.id }}">
+    <div class="card-body p-4">
+      <form method="POST" action="{% url 'update_group_members' selected_group.id %}">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label for="manageUserSearch" class="form-label fw-semibold">Search and Select Members:</label>
+          <div class="input-group mb-2">
+            <span class="input-group-text bg-white border-end-0 rounded-start-3"><i class="bi bi-search"></i></span>
+            <input type="text" id="manageUserSearch" class="form-control border-start-0 rounded-end-3" placeholder="Search members...">
+          </div>
+
+          <div id="manageUserCheckboxList" class="user-checkbox-list">
+            {% for user in users %}
+            <div class="user-checkbox">
+              <input class="form-check-input user-checkbox-input rounded-1 me-2"
+                     type="checkbox"
+                     name="users"
+                     value="{{ user.id }}"
+                     id="manage-user-{{ user.id }}"
+                     {% if user.id in assigned_user_ids %}checked{% endif %}>
+              <label class="form-check-label flex-grow-1" for="manage-user-{{ user.id }}">
                 {{ user.get_full_name|default:user.username }}
               </label>
-              
-              <input type="radio" name="leader" value="{{ user.id }}" class="ms-2 leader-radio"
-                {% if leader_id == user.id %}checked{% endif %}
-                {% if user.id not in assigned_user_ids %}disabled{% endif %}>
-              <small class="text-muted">Leader</small>
+              <input type="radio"
+                     name="leader"
+                     value="{{ user.id }}"
+                     class="leader-radio form-check-input ms-2"
+                     {% if leader_id == user.id %}checked{% endif %}
+                     {% if user.id not in assigned_user_ids %}disabled{% endif %}>
+              <span class="ms-1 small text-secondary">Leader</span>
             </div>
-          {% endfor %}
+            {% endfor %}
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm">Update Members</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- HISTORY SECTION -->
+  {% if selected_group and show_history %}
+  <div class="card border-0 shadow-lg p-4 mb-4" style="border-radius: 16px; background: rgba(255, 255, 255, 0.95);">
+    <h5 class="fw-bold text-dark mb-3"><i class="bi bi-clock-history text-secondary me-2"></i>Group Timeline</h5>
+    
+    {% with first_log=selected_group.update_logs.all|dictsort:"timestamp"|first %}
+    <div class="mb-3 text-secondary p-3 bg-light rounded-3">
+      {% if first_log %}
+        <strong>Group Created On:</strong> {{ selected_group.created_at|date:"Y-m-d H:i" }} <span class="mx-2">|</span>
+        <strong>Initial Balance:</strong> ₹{{ first_log.previous_amount }}
+      {% else %}
+        <strong>Group Created On:</strong> {{ selected_group.created_at|date:"Y-m-d H:i" }} <span class="mx-2">|</span>
+        <strong>Initial Balance:</strong> ₹{{ selected_group.total_advance }}
+      {% endif %}
+    </div>
+    {% endwith %}
+
+    {% if selected_group.update_logs.all %}
+    <h6 class="fw-bold mt-4 mb-2 text-dark">Balance Update History</h6>
+    <div class="list-group list-group-flush rounded-3">
+      {% for log in selected_group.update_logs.all|dictsortreversed:"timestamp" %}
+      <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2 px-0 py-3 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-arrow-right-circle text-primary"></i>
+          <div>
+            <strong>{{ log.timestamp|date:"Y-m-d H:i" }}</strong>:
+            <span class="text-danger">₹{{ log.previous_amount }}</span> <i class="bi bi-arrow-right text-muted mx-1"></i> <span class="text-success">₹{{ log.new_amount }}</span>
+            <span class="text-muted small ms-2">by {{ log.updated_by.get_full_name|default:log.updated_by.username }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          {% if log.proof_file %}
+          <a href="{{ log.proof_file.url }}" target="_blank" class="btn btn-outline-info btn-sm rounded-pill px-3 shadow-sm">
+            <i class="bi bi-file-earmark-image"></i> View Proof
+          </a>
+          {% endif %}
+          <a href="{% url 'delete_advance_log' log.id %}" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm delete-log-btn">
+            <i class="bi bi-trash"></i> Delete
+          </a>
         </div>
       </div>
-      <button type="submit" class="btn btn-outline-primary btn-sm">Update Members</button>
-    </form>
-  </div>
-{% endif %}
-{% if selected_group and show_history %}
-  {% with first_log=selected_group.update_logs.all|dictsort:"timestamp"|first %}
-    {% if first_log %}
-      <p>
-        <strong>Group Created On:</strong> {{ selected_group.created_at|date:"Y-m-d H:i" }} |
-        <strong>Initial Balance:</strong> ₹{{ first_log.previous_amount }}
-      </p>
-    {% else %}
-      <p>
-        <strong>Group Created On:</strong> {{ selected_group.created_at|date:"Y-m-d H:i" }} |
-        <strong>Initial Balance:</strong> ₹{{ selected_group.total_advance }}
-      </p>
+      {% endfor %}
+    </div>
     {% endif %}
-  {% endwith %}
-
-  {% if selected_group.update_logs.all %}
-  <h5 class="mt-4">Balance Update History</h5>
-  <ul class="list-group">
-    {% for log in selected_group.update_logs.all|dictsortreversed:"timestamp" %}
-    <li class="list-group-item d-flex justify-content-between align-items-center">
-      <div>
-          <strong>{{ log.timestamp|date:"Y-m-d H:i" }}</strong>:
-          ₹{{ log.previous_amount }} → ₹{{ log.new_amount }}
-          by {{ log.updated_by.get_full_name|default:log.updated_by.username }}
-      </div>
-  
-      <div class="d-flex gap-2">
-          {% if log.proof_file %}
-              <a href="{{ log.proof_file.url }}" target="_blank" class="btn btn-info btn-sm">View Proof</a>
-          {% endif %}
-  
-          <a href="{% url 'delete_advance_log' log.id %}" 
-             class="btn btn-danger btn-sm delete-log-btn">
-             Delete
-          </a>
-      </div>
-  </li>
-    {% endfor %}
-  </ul>
-{% endif %}
-{% endif %}
+  </div>
+  {% endif %}
 
   <!-- CREATE NEW GROUP + ASSIGN ADVANCE -->
-  <form method="POST" enctype="multipart/form-data" class="mt-5">
-    {% csrf_token %}
-    <div class="mb-3">
-      <label for="group_name">Group Name:</label>
-      <input type="text" name="group_name" class="form-control" placeholder="Enter or create group name" required>
-    </div>
+  <div class="card border-0 shadow-lg p-4 mt-5" style="border-radius: 16px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+    <h4 class="fw-bold text-dark mb-4 border-bottom pb-3"><i class="bi bi-folder-plus text-primary me-2"></i>Create New Group & Assign Advance</h4>
+    
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="row g-3 mb-3">
+        <div class="col-md-6 col-12">
+          <label for="group_name" class="form-label fw-semibold">Group Name:</label>
+          <input type="text" name="group_name" class="form-control rounded-3" placeholder="Enter or create group name" required>
+        </div>
+        <div class="col-md-6 col-12">
+          <label for="advance_amount" class="form-label fw-semibold">Advance Amount (₹):</label>
+          <input type="number" step="0.01" class="form-control rounded-3" name="advance_amount" required>
+        </div>
+      </div>
 
-    <div class="mb-3">
-        <label for="userSearch">Search & Select Users:</label>
-        <input type="text" id="userSearch" class="form-control mb-2" placeholder="Search users...">
-      
-        <div id="userCheckboxList" style="max-height: 250px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: 5px;">
+      <div class="mb-4">
+        <label for="userSearch" class="form-label fw-semibold">Search & Select Users:</label>
+        <div class="input-group mb-2">
+          <span class="input-group-text bg-white border-end-0 rounded-start-3"><i class="bi bi-search"></i></span>
+          <input type="text" id="userSearch" class="form-control border-start-0 rounded-end-3" placeholder="Search users...">
+        </div>
+
+        <div id="userCheckboxList" class="user-checkbox-list">
           {% for user in users %}
-            <div class="form-check user-checkbox">
-              <input class="form-check-input" type="checkbox" name="users" value="{{ user.id }}" id="user-{{ user.id }}">
-              <label class="form-check-label" for="user-{{ user.id }}">
-                {{ user.get_full_name|default:user.username }}
-              </label>
-              <input type="radio" name="leader" value="{{ user.id }}" class="ms-2"
-                {% if selected_group.leader_id == user.id %}checked{% endif %}>
-              <small class="text-muted">Leader</small>
-            </div>
+          <div class="user-checkbox">
+            <input class="form-check-input user-checkbox-input rounded-1 me-2" type="checkbox" name="users" value="{{ user.id }}" id="user-{{ user.id }}">
+            <label class="form-check-label flex-grow-1" for="user-{{ user.id }}">
+              {{ user.get_full_name|default:user.username }}
+            </label>
+            <input type="radio" name="leader" value="{{ user.id }}" class="leader-radio form-check-input ms-2" disabled>
+            <span class="ms-1 small text-secondary">Leader</span>
+          </div>
           {% endfor %}
         </div>
       </div>
 
-    <div class="mb-3">
-      <label for="advance_amount">Advance Amount (₹):</label>
-      <input type="number" step="0.01" class="form-control" name="advance_amount" required>
-    </div>
-    <div class="mb-3">
-      <label for="payment_mode">Payment Mode:</label>
-      <select name="payment_mode" class="form-control" required>
-          <option value="cash">Cash</option>
-          <option value="upi">UPI</option>
-          <option value="net_banking" selected>Net Banking</option>
-          <option value="cheque">Cheque</option>
-          <option value="other">Other</option>
-      </select>
-    </div>
-    <div class="mb-3">
-      <label for="proof_file">Upload Proof (PDF/IMG):</label>
-      <input type="file" name="proof_file" class="form-control" required>
-    </div>
+      <!-- Credit notes section -->
+      <div class="mb-4 p-3 bg-light rounded-3 border" id="creditNotesSection" style="display: none;">
+        <label class="form-label fw-semibold text-dark">Available Credit Notes for Selected Leader (Optional):</label>
+        <div id="creditNotesList" class="border p-3 rounded-3 bg-white mb-3" style="max-height: 150px; overflow-y: auto;">
+          <!-- Filled dynamically by JS -->
+        </div>
+        <div class="fw-bold text-success" id="netCashDisplay" style="display: none;">
+          <i class="bi bi-cash-coin me-1"></i> Net Cash to Pay (₹): <span id="netCashAmount">0.00</span>
+        </div>
+      </div>
 
-    <button type="submit" class="btn btn-primary">Assign Advances</button>
-  </form>
-  <!-- jQuery (required for Select2) -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+      <div class="row g-3 mb-4">
+        <div class="col-md-4 col-12">
+          <label for="assign_date" class="form-label fw-semibold">Date of Assignment:</label>
+          <input type="date" class="form-control rounded-3" name="assign_date" id="assign_date" required>
+        </div>
+        <div class="col-md-4 col-12">
+          <label for="payment_mode" class="form-label fw-semibold">Payment Mode:</label>
+          <select name="payment_mode" class="form-select rounded-3" required>
+            <option value="cash">Cash</option>
+            <option value="upi">UPI</option>
+            <option value="net_banking" selected>Net Banking</option>
+            <option value="cheque">Cheque</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="col-md-4 col-12">
+          <label for="proof_file" class="form-label fw-semibold">Upload Proof (PDF/IMG):</label>
+          <input type="file" name="proof_file" class="form-control rounded-3" required>
+        </div>
+      </div>
+
+      <div class="text-center text-md-start">
+        <button type="submit" class="btn btn-primary rounded-pill px-5 py-2.5 shadow-sm"><i class="bi bi-save me-1"></i> Assign Advances</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".delete-log-btn").forEach(btn => {
-        btn.addEventListener("click", function(e) {
-            e.preventDefault();
-            const url = this.href;
+  // Smooth Page Transition
+  document.addEventListener("DOMContentLoaded", function() {
+    const container = document.getElementById("dashboard-container");
+    if (container) {
+      requestAnimationFrame(() => {
+        container.classList.add("visible");
+      });
+    }
 
-            Swal.fire({
-                title: "Are you sure?",
-                text: "This history entry will be permanently deleted!",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonText: "Yes, delete it!",
-                cancelButtonText: "Cancel"
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = url;
-                }
-            });
-        });
+    const transitionLinks = document.querySelectorAll(".transition-link");
+    transitionLinks.forEach(link => {
+      link.addEventListener("click", function(e) {
+        e.preventDefault();
+        const targetUrl = this.getAttribute("href");
+        if (container) {
+          container.classList.remove("visible");
+          container.classList.add("fade-out");
+        }
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 350);
+      });
     });
-});
-</script>
-  <script>
-    // Enable/disable leader radio based on membership checkbox
-    document.querySelectorAll(".user-checkbox-input").forEach(cb => {
-      cb.addEventListener("change", function() {
-        const radio = this.closest(".user-checkbox").querySelector(".leader-radio");
-        if (this.checked) {
-          radio.disabled = false;
-        } else {
-          radio.disabled = true;
-          radio.checked = false; // remove leader if unchecked
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    // Delete log confirmation
+    document.querySelectorAll(".delete-log-btn").forEach(btn => {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        const url = this.href;
+
+        Swal.fire({
+          title: "Are you sure?",
+          text: "This history entry will be permanently deleted!",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: "Yes, delete it!",
+          cancelButtonText: "Cancel"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.location.href = url;
+          }
+        });
+      });
+    });
+  });
+
+  // Enable/disable leader radio based on membership checkbox
+  document.querySelectorAll(".user-checkbox-input").forEach(cb => {
+    cb.addEventListener("change", function () {
+      const radio = this.closest(".user-checkbox").querySelector(".leader-radio");
+      if (this.checked) {
+        radio.disabled = false;
+      } else {
+        radio.disabled = true;
+        radio.checked = false;
+      }
+    });
+  });
+
+  // Manage users search
+  document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById('manageUserSearch');
+    const checkboxes = document.querySelectorAll('#manageUserCheckboxList .user-checkbox');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        const query = this.value.toLowerCase();
+        checkboxes.forEach(function (checkboxDiv) {
+          const label = checkboxDiv.innerText.toLowerCase();
+          checkboxDiv.style.display = label.includes(query) ? 'flex' : 'none';
+        });
+      });
+    }
+  });
+
+  // Create new group search
+  document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById('userSearch');
+    const checkboxes = document.querySelectorAll('#userCheckboxList .user-checkbox');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        const query = this.value.toLowerCase();
+        checkboxes.forEach(function (checkboxDiv) {
+          const label = checkboxDiv.innerText.toLowerCase();
+          checkboxDiv.style.display = label.includes(query) ? 'flex' : 'none';
+        });
+      });
+    }
+  });
+
+  $(document).ready(function () {
+    $('#groupSelect').select2({
+      placeholder: "Search & Select Group",
+      allowClear: true,
+      width: "100%"
+    });
+
+    document.getElementById('assign_date').valueAsDate = new Date();
+  });
+
+  // Validate leader selection on submit
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("form").forEach(form => {
+      form.addEventListener("submit", function (e) {
+        // Only run for forms that have a leader field
+        const leaderRadios = this.querySelectorAll('input[name="leader"]');
+        if (leaderRadios.length > 0) {
+          const selectedLeader = this.querySelector('input[name="leader"]:checked');
+          if (!selectedLeader || selectedLeader.disabled) {
+            e.preventDefault();
+            Swal.fire({
+              icon: 'error',
+              title: 'Leader Required',
+              text: 'You must select a group leader from the selected members.'
+            });
+            return false;
+          }
         }
       });
     });
-  </script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const searchInput = document.getElementById('manageUserSearch');
-      const checkboxes = document.querySelectorAll('#manageUserCheckboxList .user-checkbox');
-  
-      searchInput.addEventListener('input', function () {
-        const query = this.value.toLowerCase();
-        checkboxes.forEach(function (checkboxDiv) {
-          const label = checkboxDiv.innerText.toLowerCase();
-          checkboxDiv.style.display = label.includes(query) ? 'block' : 'none';
-        });
-      });
-    });
-  </script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const searchInput = document.getElementById('userSearch');
-      const checkboxes = document.querySelectorAll('#userCheckboxList .user-checkbox');
-  
-      searchInput.addEventListener('input', function () {
-        const query = this.value.toLowerCase();
-        checkboxes.forEach(function (checkboxDiv) {
-          const label = checkboxDiv.innerText.toLowerCase();
-          checkboxDiv.style.display = label.includes(query) ? 'block' : 'none';
-        });
-      });
-    });
-  </script>
-  <script>
-    $(document).ready(function() {
-      $('#userSelect').select2({
-        placeholder: "Search and select users",
-        allowClear: true
-      });
-    });
-  </script>
+  });
+</script>
 
-  {% if messages %}
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        {% for message in messages %}
-          Swal.fire({
-            icon: "{{ message.tags }}",
-            title: "{{ message.tags|title }}",
-            text: "{{ message|escapejs }}",
-            confirmButtonText: "OK"
+<script>
+  $(document).ready(function() {
+      const creditNotesSection = $('#creditNotesSection');
+      const creditNotesList = $('#creditNotesList');
+      const netCashDisplay = $('#netCashDisplay');
+      const netCashAmount = $('#netCashAmount');
+      const advanceAmountInput = $('input[name="advance_amount"]');
+
+      function fetchCreditNotes(leaderId) {
+          if (!leaderId) {
+              creditNotesSection.hide();
+              return;
+          }
+          
+          fetch('/website/payable/get-user-credit-notes/?user_id=' + leaderId)
+              .then(response => response.json())
+              .then(data => {
+                  creditNotesList.empty();
+                  if (data.credit_notes && data.credit_notes.length > 0) {
+                      data.credit_notes.forEach(note => {
+                          const item = `
+                              <div class="form-check mb-2">
+                                  <input class="form-check-input credit-note-checkbox rounded-1" type="checkbox" name="selected_credit_notes" value="${note.id}" data-amount="${note.amount}">
+                                  <label class="form-check-label fw-bold text-dark ms-1">
+                                      ₹${note.amount} - ${note.remarks} (${note.created_at})
+                                  </label>
+                              </div>`;
+                          creditNotesList.append(item);
+                      });
+                      creditNotesSection.show();
+                      calculateNetCash();
+                  } else {
+                      creditNotesSection.hide();
+                  }
+              });
+      }
+
+      // Calculate net cash dynamically
+      function calculateNetCash() {
+          const advanceVal = parseFloat(advanceAmountInput.val()) || 0;
+          let notesTotal = 0;
+          $('.credit-note-checkbox:checked').each(function() {
+              notesTotal += parseFloat($(this).data('amount')) || 0;
           });
-        {% endfor %}
-      });
-    </script>
-    
-  {% endif %}
-</div>
 
-{% endblock %}  
+          if (notesTotal > 0 || advanceVal > 0) {
+              const net = Math.max(0, advanceVal - notesTotal);
+              netCashAmount.text(net.toFixed(2));
+              netCashDisplay.show();
+          } else {
+              netCashDisplay.hide();
+          }
+      }
+
+      // On leader change
+      $(document).on('change', 'form input[name="leader"]', function() {
+          const leaderId = $(this).val();
+          fetchCreditNotes(leaderId);
+      });
+
+      // On advance amount change
+      advanceAmountInput.on('input', function() {
+          calculateNetCash();
+      });
+
+      // On checking credit notes
+      $(document).on('change', '.credit-note-checkbox', function() {
+          calculateNetCash();
+      });
+  });
+</script>
+
+{% if messages %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    {% for message in messages %}
+      Swal.fire({
+        icon: "{% if message.tags == 'error' %}error{% else %}success{% endif %}",
+        title: "{{ message.tags|title }}",
+        text: "{{ message|escapejs }}",
+        confirmButtonText: "OK"
+      });
+    {% endfor %}
+  });
+</script>
+{% endif %}
+
+{% endblock %}

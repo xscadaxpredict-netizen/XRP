@@ -1,60 +1,610 @@
 {% extends 'base.html' %}
-
+{% load static %}
 
 {% block content %}
-<div class="container-fluid mt-5">
-    <div class="row mb-4">
-        <!-- Left-aligned Buttons Section (E-Vouchers, Export, Filter by Item Type) -->
-        <div class="col-12 col-md-8 d-flex justify-content-start align-items-center flex-wrap gap-3 mb-3 mb-md-0">
-            <!-- E-Vouchers Dropdown -->
-            <div class="dropdown">
-                <button class="btn btn-primary btn dropdown-toggle" type="button" id="voucherDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 8px 17px;">
-                    E-Vouchers
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="voucherDropdown">
-                    <li><a class="dropdown-item" href="{% url 'new_item_form' user.id %}">New E-Voucher</a></li>
-                    <li><a class="dropdown-item" href="{% url 'draft_vouchers' %}">Draft Vouchers</a></li>
-                </ul>
-            </div>
 
-            <!-- EXPORT BUTTON DROPDOWN -->
-            <div class="dropdown">
-                <button class="btn btn-primary dropdown-toggle " type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 7px 12px;">
-                Export Vouchers
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                <li class="dropdown-header">Quick Export (XLSX)</li>
-                {% for day in day_ranges %}
-                <li>
-                    <a class="dropdown-item" href="{% url 'export_vouchers' %}?format=xlsx&days={{ day }}">Last {{ day }} Days</a>
-                </li>
-                {% endfor %}
-                <li><hr class="dropdown-divider"></li>
-                <li class="dropdown-header">Other Formats</li>
-                <li><a class="dropdown-item" href="{% url 'export_vouchers' %}?format=pdf">PDF (All)</a></li>
-                <li><a class="dropdown-item" href="{% url 'export_vouchers' %}?format=csv">CSV (All)</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <button class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#customExportModal">📅 Custom Date Range</button>
-                </li>
-                </ul>
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<style>
+  .dashboard-transition-container {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .dashboard-transition-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .dashboard-transition-container.fade-out {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.03) !important;
+  }
+  
+  .sort-link-ajax {
+    color: inherit;
+    text-decoration: none;
+  }
+  
+  .sort-link-ajax:hover {
+    color: var(--bs-primary);
+  }
+  
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid currentColor;
+    border-radius: 20px;
+    text-transform: uppercase;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.5px;
+    width: auto;
+  }
+
+  .stamp.bg-success {
+    color: #28a745;
+    background-color: #d4edda;
+  }
+
+  .stamp.bg-warning {
+    color: #ffc107;
+    background-color: #fff3cd;
+  }
+
+  .stamp svg {
+    margin-right: 0.2rem;
+    width: 12px;
+    height: 12px;
+  }
+
+  @media print {
+    .dropdown,
+    .dropdown-menu,
+    .btn,
+    .navbar,
+    .header,
+    .footer,
+    .pagination,
+    .page-header {
+      display: none !important;
+    }
+
+    body {
+      font-size: 12pt;
+      margin: 1in;
+      background: none !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border: 1px solid black !important;
+      padding: 8px !important;
+      text-align: left;
+    }
+
+    h2, h1 {
+      text-align: center;
+    }
+  }
+
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+  }
+
+  .table td,
+  .table th {
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  @media (min-width: 768px) {
+    .table-responsive {
+      overflow-x: auto;
+    }
+  }
+</style>
+
+<div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+  
+  <!-- Page Header -->
+  <div class="mb-4">
+    <h1 class="h2 fw-bold text-dark mb-0">E-Vouchers</h1>
+  </div>
+
+  <!-- Controls Card (Search, Actions, Exports, Filters) -->
+  <div class="card border-0 shadow-lg mb-4" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 10; position: relative;">
+    <div class="card-body p-3 p-md-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        
+        <!-- Left-aligned Actions and Filters -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          
+          <!-- E-Vouchers Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle rounded-pill px-3 py-1.5 shadow-sm" type="button" id="voucherDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-ticket-perforated me-1"></i> E-Vouchers
+            </button>
+            <ul class="dropdown-menu shadow-sm border-0 rounded-3" aria-labelledby="voucherDropdown">
+              <li>
+                <a class="dropdown-item py-2" href="{% url 'new_item_form' user.id %}">
+                  <i class="bi bi-plus-circle me-2"></i> New E-Voucher
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item py-2" href="{% url 'draft_vouchers' %}">
+                  <i class="bi bi-file-earmark-text me-2"></i> Draft Vouchers
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item py-2 text-danger" href="?{% if request.GET.user_id %}user_id={{ request.GET.user_id }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}show_rejected=1">
+                  <i class="bi bi-x-circle me-2 text-danger"></i> Rejected Vouchers
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Export Vouchers Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle rounded-pill px-3 py-1.5 shadow-sm" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-download me-1"></i> Export Vouchers
+            </button>
+            <ul class="dropdown-menu shadow-sm border-0 rounded-3" aria-labelledby="exportDropdown">
+              <li class="dropdown-header">Quick Export (XLSX)</li>
+              {% for day in day_ranges %}
+              <li>
+                <a class="dropdown-item py-2" href="{% url 'export_vouchers' %}?format=xlsx&days={{ day }}">Last {{ day }} Days</a>
+              </li>
+              {% endfor %}
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li class="dropdown-header">Other Formats</li>
+              <li><a class="dropdown-item py-2" href="{% url 'export_vouchers' %}?format=pdf"><i class="bi bi-file-pdf me-2 text-danger"></i>PDF (All)</a></li>
+              <li><a class="dropdown-item py-2" href="{% url 'export_vouchers' %}?format=csv"><i class="bi bi-filetype-csv me-2 text-primary"></i>CSV (All)</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li>
+                <button class="dropdown-item py-2 text-primary" data-bs-toggle="modal" data-bs-target="#customExportModal">📅 Custom Date Range</button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Filter by Item Type -->
+          {% if user.is_staff or user.is_superuser %}
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary rounded-pill px-3 py-1.5 dropdown-toggle shadow-sm" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-funnel me-1"></i>
+              {% if request.GET.item_type %}
+              {{ request.GET.item_type }}
+              {% else %}
+              Filter by Item Type
+              {% endif %}
+            </button>
+            <ul class="dropdown-menu shadow-sm border-0 rounded-3" aria-labelledby="filterDropdown" style="max-height: 250px; overflow-y: auto;">
+              <li>
+                <a class="dropdown-item py-2" href="?{% if request.GET.user_id %}user_id={{ request.GET.user_id }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}item_type=">
+                  All Item Types
+                </a>
+              </li>
+              {% for item_type in item_types %}
+              <li>
+                <a class="dropdown-item py-2" href="?{% if request.GET.user_id %}user_id={{ request.GET.user_id }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}item_type={{ item_type }}">
+                  {{ item_type }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <!-- Filter by User -->
+          {% if request.user.is_staff or request.user.is_superuser %}
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary rounded-pill px-3 py-1.5 dropdown-toggle shadow-sm" type="button" id="userFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person me-1"></i>
+              {% if selected_user %}
+              {{ selected_user.first_name }}
+              {% else %}
+              Filter by User
+              {% endif %}
+            </button>
+            <ul class="dropdown-menu shadow-sm border-0 rounded-3" aria-labelledby="userFilterDropdown" style="max-height: 250px; overflow-y: auto;">
+              <li>
+                <a class="dropdown-item py-2" href="?{% if request.GET.item_type %}item_type={{ request.GET.item_type }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}">
+                  All Users
+                </a>
+              </li>
+              {% for u in all_users %}
+              <li>
+                <a class="dropdown-item py-2" href="?{% if request.GET.item_type %}item_type={{ request.GET.item_type }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}user_id={{ u.id }}">
+                  {{ u.first_name }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <!-- Filter by Date -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary rounded-pill px-3 py-1.5 dropdown-toggle shadow-sm" type="button" id="filterDateButton" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-calendar3 me-1"></i> Filter by Date
+            </button>
+            <div class="dropdown-menu p-3 shadow-lg border-0 rounded-3" style="min-width: 280px; z-index: 1050;">
+              <div class="mb-2">
+                <label for="fromDateField" class="form-label mb-1 fw-semibold small">From Date:</label>
+                <input type="date" name="transaction_date_from" class="form-control form-control-sm rounded-2" id="fromDateField" value="{{ request.GET.transaction_date_from }}">
+              </div>
+              <div class="mb-2">
+                <label for="toDateField" class="form-label mb-1 fw-semibold small">To Date:</label>
+                <input type="date" name="transaction_date_to" class="form-control form-control-sm rounded-2" id="toDateField" value="{{ request.GET.transaction_date_to }}">
+              </div>
+              <div class="d-grid gap-2 mt-3">
+                <button type="button" class="btn btn-primary btn-sm rounded-pill" id="applyFilterButton">Apply Filter</button>
+                <a href="?" class="btn btn-outline-secondary btn-sm rounded-pill" id="clearFiltersBtn">Clear</a>
+              </div>
             </div>
-              <!-- Custom Export Modal -->
-<!-- CUSTOM EXPORT MODAL -->
-<!-- CUSTOM EXPORT MODAL -->
-<div class="modal fade" id="customExportModal" tabindex="-1" aria-labelledby="customExportModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="get" action="{% url 'export_vouchers' %}" class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="customExportModalLabel">Export by User & Date Range</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+        </div>
+
+        <!-- Right-aligned Search Form & Clear Actions -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <form method="get" action="{% url 'item_form' %}" autocomplete="off" class="d-flex align-items-center gap-2 mb-0">
+            {% for key, value in request.GET.items %}
+              {% if key != 'q' and key != 'page' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endif %}
+            {% endfor %}
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3 shadow-sm">
+                <i class="bi bi-search text-muted"></i>
+              </span>
+              <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="form-control border-start-0 rounded-end-pill px-3 shadow-sm" placeholder="Search…" aria-label="Search" style="width: 200px;">
+            </div>
+            {% if request.GET.q or request.GET.user_id or request.GET.item_type or request.GET.transaction_date_from or request.GET.transaction_date_to or request.GET.show_rejected %}
+              <a href="?" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" title="Clear Filters">
+                <i class="bi bi-x-lg"></i>
+              </a>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Table Card -->
+  <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 1; position: relative;">
+    <div class="card-body p-4">
+      <div id="expenseTableContainer" class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light text-secondary small uppercase" style="background: rgba(13, 110, 253, 0.03);">
+            <tr>
+              <th class="fw-bold text-nowrap">Applied Date</th>
+              <th class="fw-bold text-nowrap">User</th>
+              <th class="fw-bold text-nowrap">EV num</th>
+              <th class="fw-bold text-nowrap">Item Type</th>
+              <th class="fw-bold">Item Name / Remarks</th>
+              <th class="fw-bold">Payment Category</th>
+              <th class="fw-bold">T Category</th>
+              <th class="fw-bold">T Details</th>
+              <th class="fw-bold text-nowrap">Amount</th>
+              <th class="fw-bold">Transaction Date</th>
+              <th class="fw-bold">Uploaded File</th>
+              <th class="fw-bold">Payment Mode</th>
+              <th class="fw-bold">Actions</th>
+              
+              <!-- Approval Status Header -->
+              <th class="fw-bold">
+                {% if sort_approval_status == '1' %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_approval_status' and key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_approval_status=0" class="sort-link-ajax text-decoration-none text-dark d-inline-flex align-items-center gap-1 fw-bold">
+                  Approval Status <i class="bi bi-sort-up text-primary"></i>
+                </a>
+                {% else %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_approval_status' and key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_approval_status=1" class="sort-link-ajax text-decoration-none text-dark d-inline-flex align-items-center gap-1">
+                  Approval Status <i class="bi bi-arrow-down-up text-muted small"></i>
+                </a>
+                {% endif %}
+              </th>
+
+              <!-- Delete Request Header -->
+              <th class="fw-bold">
+                {% if sort_delete_requested == '1' %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_delete_requested' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_delete_requested=0" class="sort-link-ajax text-decoration-none text-dark d-inline-flex align-items-center gap-1 fw-bold">
+                  Delete Request <i class="bi bi-sort-up text-primary"></i>
+                </a>
+                {% else %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_delete_requested' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_delete_requested=1" class="sort-link-ajax text-decoration-none text-dark d-inline-flex align-items-center gap-1">
+                  Delete Request <i class="bi bi-arrow-down-up text-muted small"></i>
+                </a>
+                {% endif %}
+              </th>
+
+              <!-- Payment Status Header -->
+              <th class="fw-bold">
+                {% if sort_payment_status == '1' %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_payment_status' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_payment_status=0" class="sort-link-ajax text-decoration-none text-dark d-inline-flex align-items-center gap-1 fw-bold">
+                  Payment Status <i class="bi bi-sort-up text-primary"></i>
+                </a>
+                {% else %}
+                <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_payment_status' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_payment_status=1" class="sort-link-ajax text-decoration-none text-dark d-inline-flex align-items-center gap-1">
+                  Payment Status <i class="bi bi-arrow-down-up text-muted small"></i>
+                </a>
+                {% endif %}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for exp in expenses %}
+            <tr class="selectable-row">
+              <td class="text-nowrap">{{ exp.date }}</td>
+              <td class="text-nowrap">{{ exp.created_by }}</td>
+              <td class="fw-bold text-nowrap">{{ exp.evoucher_number }}</td>
+              <td class="text-nowrap">
+                {{ exp.item_type }}
+                {% if exp.item_type == 'advances' %}
+                <span class="text-muted small">({{ exp.advance_group.name }})</span>
+                {% endif %}
+              </td>
+              <td>{{ exp.item_name }}</td>
+              <td>
+                <div>
+                  {% if exp.transaction_option == 'gst' and exp.gst_photo %}
+                  <span class="badge bg-light text-dark border rounded-pill px-2 py-1">GST</span>
+                  <a href="#" class="btn btn-link btn-sm text-decoration-none p-0 ms-1" data-bs-toggle="modal" data-bs-target="#gstModal{{ exp.id }}"><i class="bi bi-eye"></i> View</a>
+
+                  {% elif exp.transaction_option == 'bill' and exp.bill_photo %}
+                  <span class="badge bg-light text-dark border rounded-pill px-2 py-1">Bill</span>
+                  <a href="#" class="btn btn-link btn-sm text-decoration-none p-0 ms-1" data-bs-toggle="modal" data-bs-target="#billModal{{ exp.id }}"><i class="bi bi-eye"></i> View</a>
+
+                  {% elif exp.transaction_option == 'voucher' %}
+                  <span class="badge bg-light text-dark border rounded-pill px-2 py-1">Voucher</span>
+
+                  {% elif exp.transaction_option == '2_wheeler' or exp.transaction_option == '4_wheeler' %}
+                  <span class="badge bg-light text-dark border rounded-pill px-2 py-1">Conveyance ({{ exp.transaction_option|title }})</span>
+                  {% if exp.derived_km %}
+                  <span class="text-muted small">({{ exp.derived_km|floatformat:2 }} km)</span>
+                  {% endif %}
+
+                  {% elif exp.transaction_option %}
+                  <span class="badge bg-light text-dark border rounded-pill px-2 py-1">{{ exp.transaction_option|title }}</span>
+                  {% else %}
+                  <span class="text-muted small">No File/Voucher</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>{{ exp.transaction_category }}</td>
+              <td>
+                {% if exp.transaction_category == 'internal' %}
+                {{ exp.internal_option }}
+                {% if exp.advance_group.leader and exp.internal_option != exp.advance_group.leader.get_full_name %}
+                <span class="text-muted small">({{ exp.advance_group.leader.get_full_name|default:exp.advance_group.leader.username }})</span>
+                {% endif %}
+                {% elif exp.transaction_category == 'external' %}
+                {{ exp.external_type }}
+                {% endif %}
+              </td>
+              <td class="fw-bold text-nowrap">₹{{ exp.amount }}</td>
+              <td class="text-nowrap">{{ exp.transaction_date }}</td>
+              <td>
+                {% if exp.proof_photo %}
+                <a href="#" class="btn btn-outline-info btn-sm rounded-pill px-2 py-0 mb-1" style="font-size: 11px;" data-bs-toggle="modal" data-bs-target="#proofModalSingle{{ exp.id }}">
+                  <i class="bi bi-file-earmark-image"></i> View
+                </a>
+                {% endif %}
+
+                {% if exp.proof_photos.exists %}
+                {% for proof in exp.proof_photos.all %}
+                <a href="#" class="btn btn-outline-info btn-sm rounded-pill px-2 py-0 mb-1" style="font-size: 11px;" data-bs-toggle="modal" data-bs-target="#proofModal{{ proof.id }}">
+                  <i class="bi bi-file-earmark-image"></i> View {{ forloop.counter }}
+                </a>
+                {% endfor %}
+                {% endif %}
+
+                {% if not exp.proof_photo and not exp.proof_photos.all %}
+                <span class="text-muted small">No Proof</span>
+                {% endif %}
+              </td>
+              <td>{{ exp.payment_mode }}</td>
+              <td>
+                {% if exp.status == 'paid' or exp.is_approved %}
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1" style="font-size: 12px;" disabled>Edit</button>
+                {% else %}
+                <a href="{% url 'edit_item' exp.id %}" class="btn btn-primary btn-sm rounded-pill px-3 py-1 transition-link" style="font-size: 12px;">Edit</a>
+                {% endif %}
+              </td>
+              <td id="action-cell-{{ exp.id }}">
+                <!-- Tips -->
+                {% if exp.cash_vouchers.all %}
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  {% for tip in exp.cash_vouchers.all %}
+                  {% if tip.voucher_number|slice:":4" == "XPCV" %}
+                  <button class="btn btn-outline-info btn-sm rounded-pill px-2 py-0" style="font-size: 11px;" data-bs-toggle="modal" data-bs-target="#tipModal{{ tip.id }}">
+                    View Tip
+                  </button>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Expense approval controls -->
+                <div>
+                  {% if exp.is_rejected %}
+                  <button class="btn btn-danger btn-sm rounded-pill px-2 py-1" style="font-size: 12px;" data-bs-toggle="modal" data-bs-target="#rejectionModal{{ exp.id }}">
+                    Rejected - Reason
+                  </button>
+                  {% elif exp.is_approved %}
+                  <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1">Approved</span>
+                  {% elif exp.has_pending_tip %}
+                  {% if request.user.is_staff or request.user.is_superuser %}
+                  <small class="text-danger fw-bold d-block">Approve Tip first</small>
+                  {% endif %}
+                  {% elif not exp.is_approved and not exp.is_rejected %}
+                    {% if not exp.proof_photo and exp.proof_count|default:0 == 0 %}
+                      {% if request.user.is_staff or request.user.is_superuser %}
+                      <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-success btn-sm rounded-pill px-2 py-1" style="font-size: 11px;" onclick="approveExpense({{ exp.id }})">Approve</button>
+                        <button type="button" class="btn btn-danger btn-sm rounded-pill px-2 py-1" style="font-size: 11px;" onclick="showRejectModal({{ exp.id }})">Reject</button>
+                      </div>
+                      {% endif %}
+                    {% elif not exp.bill_photo and not exp.gst_photo %}
+                      {% if request.user.is_staff or request.user.is_superuser %}
+                      <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-success btn-sm rounded-pill px-2 py-1" style="font-size: 11px;" onclick="approveExpense({{ exp.id }})">Approve</button>
+                        <button type="button" class="btn btn-danger btn-sm rounded-pill px-2 py-1" style="font-size: 11px;" onclick="showRejectModal({{ exp.id }})">Reject</button>
+                      </div>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted small">No Approval Req</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted small">No Approval Req</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if exp.delete_requested %}
+                  <button class="btn btn-danger btn-sm rounded-pill px-3 py-1 delete-expense-btn" style="font-size: 12px;" data-expense-id="{{ exp.id }}">
+                    Delete
+                  </button>
+                  {% else %}
+                  <button class="btn btn-warning btn-sm rounded-pill px-3 py-1 request-delete-btn" style="font-size: 12px;" data-expense-id="{{ exp.id }}">
+                    Request Delete
+                  </button>
+                  {% endif %}
+                {% else %}
+                  {% if not exp.delete_requested %}
+                  <button class="btn btn-warning btn-sm rounded-pill px-3 py-1 request-delete-btn" style="font-size: 12px;" data-expense-id="{{ exp.id }}">
+                    Request Delete
+                  </button>
+                  {% else %}
+                  <span class="text-muted small">Delete Requested</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td>
+                {% if exp.status == 'paid' %}
+                <span class="badge rounded-pill px-3 py-1 bg-success-subtle text-success border border-success-subtle">
+                  <i class="bi bi-patch-check-fill me-1"></i> Paid
+                </span>
+                {% else %}
+                <span class="badge rounded-pill px-3 py-1 bg-danger-subtle text-danger border border-danger-subtle">
+                  <i class="bi bi-flag-fill me-1"></i> Pending
+                </span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="16" class="text-center py-5 text-muted">
+                <i class="bi bi-inbox display-4 d-block mb-3 text-secondary"></i>
+                No records found.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
 
-      <div class="modal-body">
+      <!-- Pagination -->
+      {% if expenses.paginator.num_pages > 1 %}
+      <div class="d-flex justify-content-between align-items-center mt-4 pb-2">
+        <div class="text-muted small">
+          Showing Page <strong>{{ expenses.number }}</strong> of <strong>{{ expenses.paginator.num_pages }}</strong>
+        </div>
+        <nav aria-label="Page navigation">
+          <ul class="pagination mb-0 flex-wrap">
+            {# Previous Button #}
+            {% if expenses.has_previous %}
+            <li class="page-item">
+              <a class="page-link page-link-ajax rounded-start-pill px-3 shadow-sm" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page=1" aria-label="First">
+                <i class="bi bi-chevron-double-left"></i> First
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link page-link-ajax px-3 shadow-sm" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ expenses.previous_page_number }}" aria-label="Previous">
+                <i class="bi bi-chevron-left"></i> Previous
+              </a>
+            </li>
+            {% endif %}
+
+            {# Page Numbers #}
+            {% for num in expenses.paginator.page_range %}
+              {% if num == expenses.number %}
+              <li class="page-item active">
+                <span class="page-link px-3 shadow-sm">{{ num }}</span>
+              </li>
+              {% elif num > expenses.number|add:-2 and num < expenses.number|add:2 %}
+              <li class="page-item">
+                <a class="page-link page-link-ajax px-3 shadow-sm" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">
+                  {{ num }}
+                </a>
+              </li>
+              {% elif num == 1 or num == expenses.paginator.num_pages %}
+              <li class="page-item d-none d-sm-block">
+                <a class="page-link page-link-ajax px-3 shadow-sm" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">
+                  {{ num }}
+                </a>
+              </li>
+              {% elif num == expenses.number|add:-2 or num == expenses.number|add:2 %}
+              <li class="page-item d-none d-sm-block">
+                <span class="page-link">...</span>
+              </li>
+              {% endif %}
+            {% endfor %}
+
+            {# Next Button #}
+            {% if expenses.has_next %}
+            <li class="page-item">
+              <a class="page-link page-link-ajax px-3 shadow-sm" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ expenses.next_page_number }}" aria-label="Next">
+                Next <i class="bi bi-chevron-right"></i>
+              </a>
+            </li>
+            <li class="page-item">
+              <a class="page-link page-link-ajax rounded-end-pill px-3 shadow-sm" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ expenses.paginator.num_pages }}" aria-label="Last">
+                Last <i class="bi bi-chevron-double-right"></i>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODALS INJECTION (ROOT LEVEL) ==================== -->
+
+<!-- Custom Export Modal -->
+<div class="modal fade" id="customExportModal" tabindex="-1" aria-labelledby="customExportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="get" action="{% url 'export_vouchers' %}" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="customExportModalLabel">Export by User & Date Range</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
         <!-- Format -->
         <div class="mb-3">
-          <label for="exportFormat" class="form-label">Select Format</label>
-          <select name="format" class="form-select" id="exportFormat" required>
+          <label for="exportFormat" class="form-label fw-semibold">Select Format</label>
+          <select name="format" class="form-select rounded-3" id="exportFormat" required>
             <option value="xlsx">Excel (XLSX)</option>
             <option value="csv">CSV</option>
             <option value="pdf">PDF</option>
@@ -63,727 +613,297 @@
 
         <!-- User -->
         <div class="mb-3">
-          <label for="createdBy" class="form-label">Select User</label>
-          <select name="created_by" class="form-select" id="createdBy">
-  
+          <label for="createdBy" class="form-label fw-semibold">Select User</label>
+          <select name="created_by" class="form-select rounded-3" id="createdBy">
             {% if request.user.is_staff or request.user.is_superuser %}
-              <!-- Admin: All users -->
-              <option value="">All Users</option>
-              {% for user in all_users %}
-                <option value="{{ user.id }}">
-                  {{ user.get_full_name|default:user.username }}
-                </option>
-              {% endfor %}
-            
+            <!-- Admin: All users -->
+            <option value="">All Users</option>
+            {% for user in all_users %}
+            <option value="{{ user.id }}">
+              {{ user.get_full_name|default:user.username }}
+            </option>
+            {% endfor %}
             {% else %}
-              <!-- Normal user: only self -->
-              <option value="{{ request.user.id }}">
-                {{ request.user.get_full_name|default:request.user.username }}
-              </option>
+            <!-- Normal user: only self -->
+            <option value="{{ request.user.id }}">
+              {{ request.user.get_full_name|default:request.user.username }}
+            </option>
             {% endif %}
-          
           </select>
         </div>
 
         <!-- Dates -->
         <div class="mb-3">
-          <label class="form-label">From Date</label>
-          <input type="date" name="transaction_date_from" class="form-control" required>
+          <label class="form-label fw-semibold">From Date</label>
+          <input type="date" name="transaction_date_from" class="form-control rounded-3" required>
         </div>
 
         <div class="mb-3">
-          <label class="form-label">To Date</label>
-          <input type="date" name="transaction_date_to" class="form-control" required>
+          <label class="form-label fw-semibold">To Date</label>
+          <input type="date" name="transaction_date_to" class="form-control rounded-3" required>
         </div>
 
         <!-- Item Type -->
         <div class="mb-3">
-          <label for="itemType" class="form-label">Item Type</label>
-          <select name="item_type" class="form-select" id="itemType">
+          <label for="itemType" class="form-label fw-semibold">Item Type</label>
+          <select name="item_type" class="form-select rounded-3" id="itemType">
             <option value="">All Item Types</option>
             {% for type in item_types %}
-              <option value="{{ type }}">{{ type }}</option>
+            <option value="{{ type }}">{{ type }}</option>
             {% endfor %}
           </select>
         </div>
       </div>
-
       <div class="modal-footer">
-        <button type="submit" class="btn btn-success">Export</button>
+        <button type="submit" class="btn btn-success px-4 rounded-pill">Export</button>
       </div>
     </form>
   </div>
 </div>
-            <!-- Filter by Item Type -->
-            {% if user.is_staff or user.is_superuser %}
-            <div class="dropdown">
-              <button class="btn btn-primary btn-md dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false" >
-                  {% if request.GET.item_type %}
-                      {{ request.GET.item_type }}
-                  {% else %}
-                      Filter by Item Type
-                  {% endif %}
-              </button>
-              <ul class="dropdown-menu" aria-labelledby="filterDropdown">
-                  <li>
-                      <a class="dropdown-item" href="?{% if request.GET.user_id %}user_id={{ request.GET.user_id }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}item_type=">
-                          All Item Types
-                      </a>
-                  </li>
-                  {% for item_type in item_types %}
-                      <li>
-                          <a class="dropdown-item" href="?{% if request.GET.user_id %}user_id={{ request.GET.user_id }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}item_type={{ item_type }}">
-                              {{ item_type }}
-                          </a>
-                      </li>
-                  {% endfor %}
-              </ul>
-          </div>
-            {% endif %}
-            <!-- Filter by User -->
-            {% if request.user.is_staff or request.user.is_superuser %}
-            <div class="dropdown">
-              <button class="btn btn-primary btn-md dropdown-toggle" type="button" id="userFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                  {% if selected_user %}
-                      {{ selected_user.first_name }}
-                  {% else %}
-                      Filter by User
-                  {% endif %}
-              </button>
-              <ul class="dropdown-menu" aria-labelledby="userFilterDropdown">
-                  <li>
-                      <a class="dropdown-item" href="?{% if request.GET.item_type %}item_type={{ request.GET.item_type }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}">
-                          All Users
-                      </a>
-                  </li>
-                  {% for u in all_users %}
-                      <li>
-                          <a class="dropdown-item" href="?{% if request.GET.item_type %}item_type={{ request.GET.item_type }}&{% endif %}{% if request.GET.transaction_date_from %}transaction_date_from={{ request.GET.transaction_date_from }}&{% endif %}{% if request.GET.transaction_date_to %}transaction_date_to={{ request.GET.transaction_date_to }}&{% endif %}user_id={{ u.id }}">
-                              {{ u.first_name }}
-                          </a>  
-                      </li>
-                  {% endfor %}
-              </ul>
-          </div>
-            {% endif %}
-        </div>
-        
 
-        <!-- Add a gap for smaller screens -->
-        <div class="w-100 d-block d-md-none"></div> <!-- Creates a gap for small screens -->
-
-        <!-- Right-aligned Buttons Section (Filter by Date, Search, and Clear) -->
-        <div class="col-12 col-md-4 d-flex justify-content-end align-items-center gap-3">
-            <!-- Filter by Date -->
-                    <div class="dropdown">
-            <button class="btn btn-primary dropdown-toggle" type="button" id="filterDateButton" data-bs-toggle="dropdown" aria-expanded="false">
-            Filter by Date
-            </button>
-            <div class="dropdown-menu p-3 shadow-lg" style="min-width: 280px;">
-            <div class="mb-2">
-                <label for="fromDateField" class="form-label mb-1">From Date:</label>
-                <input type="date" name="transaction_date_from" class="form-control form-control-md" id="fromDateField">
-            </div>
-            <div class="mb-2">
-                <label for="toDateField" class="form-label mb-1">To Date:</label>
-                <input type="date" name="transaction_date_to" class="form-control form-control-md" id="toDateField">
-            </div>
-            <div class="d-grid gap-2">
-                <button type="button" class="btn btn-outline-primary btn-md" id="applyFilterButton">Apply Filter</button>
-                <a href="?" class="btn btn-outline-secondary btn-md" id="clearButton">Clear</a>
-            </div>
-            </div>
-        </div>
-
-            <!-- Search Bar Section -->
-            <form method="get" action="{% url 'item_form' %}" autocomplete="off" class="d-flex align-items-center gap-2">
-                <div class="input-group">
-                    <span class="input-group-text bg-light">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                            <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/>
-                            <path d="M21 21l-6 -6"/>
-                        </svg>
-                    </span>
-                    <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm" placeholder="Search…" aria-label="Search">
-                </div>
-            </form>
-
-            <!-- Clear Button -->
-            <a href="?" class="btn btn-outline-secondary btn-md" id="clearButton">Clear</a>
-        </div>
-    </div>
-</div>
-    <!-- Expenses Table -->
-    <div id="expenseTableContainer" class="table-responsive shadow-sm rounded">
-        <table class="table table-striped table-hover align-middle" style="border-collapse: collapse;">
-            <thead class="table-dark">
-                <tr>
-                    <th style="width: 12%; border: 1px solid #ddd; padding: 8px;">Applied Date</th>
-                    <th style="width: 30%; border: 1px solid #ddd; padding: 8px;">User</th>
-                    <th style="width: 22%; border: 1px solid #ddd; padding: 8px;">EV num</th>
-                    <th style="width: 22%; border: 1px solid #ddd; padding: 25px;">Item Type</th>
-                    <th style="width: 15%; border: 1px solid #ddd; padding: 8px;">Item Name / Remarks</th>
-                    <th style="width: 15%; border: 1px solid #ddd; padding: 8px;">Payment Category</th>
-                    <th style="width: 10%; border: 1px solid #ddd; padding: 8px;">T Category</th>
-                    <th style="width: 10%; border: 1px solid #ddd; padding: 8px;">T Details</th>
-                    <th style="width: 10%; border: 1px solid #ddd; padding: 8px;">Amount</th>
-                    <th style="width: 10%; border: 1px solid #ddd; padding: 8px;">Transaction Date</th>
-                    <th style="width: 15%; border: 1px solid #ddd; padding: 8px;">Uploaded File</th>
-                    <th style="width: 10%; border: 1px solid #ddd; padding: 8px;">Payment Mode</th>
-                    <th style="width: 10%; border: 1px solid #ddd; padding: 8px;">Actions</th>
-
-                                      <!-- Approval Status -->
-                    <!-- Approval Status -->
-                    {% comment %} <th>
-                      {% if sort_approval_status == '1' %}
-                        <a href="?{{ request.GET.urlencode|urlencode }}&sort_approval_status=0">Approval Status 🔽</a>
-                      {% else %}
-                        <a href="?{{ request.GET.urlencode|urlencode }}&sort_approval_status=1">Approval Status</a>
-                      {% endif %}
-                    </th>
-
-                    <!-- Delete Request -->
-                    <th>
-                      {% if sort_delete_requested == '1' %}
-                        <a href="?{{ request.GET.urlencode|urlencode }}&sort_delete_requested=0">Delete Request 🔽</a>
-                      {% else %}
-                        <a href="?{{ request.GET.urlencode|urlencode }}&sort_delete_requested=1">Delete Request</a>
-                      {% endif %}
-                    </th>
-
-                    <!-- Payment Status -->
-                    <th>
-                      {% if sort_payment_status == '1' %}
-                        <a href="?{{ request.GET.urlencode|urlencode }}&sort_payment_status=0">Payment Status 🔽</a>
-                      {% else %}
-                        <a href="?{{ request.GET.urlencode|urlencode }}&sort_payment_status=1">Payment Status</a>
-                      {% endif %}
-                    </th> {% endcomment %}
-
-                    <th>
-                      {% if sort_approval_status == '1' %}
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_approval_status' and key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_approval_status=0"
-                           class="sort-link-ajax text-warning fw-bold">
-                          Approval Status 
-                        </a>
-                      {% else %}
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_approval_status' and key != 'page' %}{{ key|urlencode }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_approval_status=1"
-                           class="sort-link-ajax">
-                          Approval Status 
-                        </a>
-                      {% endif %}
-                    </th>
-
-                    <!-- Delete Request -->
-                    <th>
-                      {% if sort_delete_requested == '1' %}
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_delete_requested' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_delete_requested=0"
-                          class="sort-link-ajax text-warning fw-bold">
-                          Delete Request 🔽
-                        </a>
-                      {% else %}
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_delete_requested' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_delete_requested=1"
-                          class="sort-link-ajax">
-                          Delete Request
-                        </a>
-                      {% endif %}
-                    </th>
-
-                    <!-- Payment Status -->
-                    <th>
-                      {% if sort_payment_status == '1' %}
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_payment_status' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_payment_status=0"
-                          class="sort-link-ajax text-warning fw-bold">
-                          Payment Status 🔽
-                        </a>
-                      {% else %}
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'sort_payment_status' and key != 'page' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}sort_payment_status=1"
-                          class="sort-link-ajax">
-                          Payment Status
-                        </a>
-                      {% endif %}
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for exp in expenses %}
-                <tr>
-                    <td class="text-center" style="border: 1px solid #ddd; padding: 8px;">{{ exp.date }}</td>
-                    <td class="text-center" style="border: 1px solid #ddd; padding: 8px;">{{ exp.created_by }}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">{{ exp.evoucher_number }}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                      {{ exp.item_type }}
-                      {% if exp.item_type == 'advances' %}
-                        ({{ exp.advance_group.name }})
-                      {% endif %}
-                    </td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">{{ exp.item_name }}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                        <div>
-                          {% if exp.transaction_option == 'gst' and exp.gst_photo %}
-                            <p><strong>GST</strong></p>
-                            <a href="#" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#gstModal{{ exp.id }}">View GST</a>
-                      
-                            <!-- GST Modal -->
-                            <div class="modal fade" id="gstModal{{ exp.id }}" tabindex="-1" aria-labelledby="gstModalLabel{{ exp.id }}" aria-hidden="true">
-                              <div class="modal-dialog modal-dialog-centered modal-lg">
-                                <div class="modal-content">
-                                  <div class="modal-header">
-                                    <h5 class="modal-title" id="gstModalLabel{{ exp.id }}">GST Photo</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                  </div>
-                                  <div class="modal-body text-center">
-                                    <img src="{{ exp.gst_photo.url }}" alt="GST Photo" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
-                                    <div>
-                                      <a href="{{ exp.gst_photo.url }}" download class="btn btn-success">Download GST</a>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                      
-                          {% elif exp.transaction_option == 'bill' and exp.bill_photo %}
-                            <p><strong>Bill</strong></p>
-                            <a href="#" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#billModal{{ exp.id }}">View Bill</a>
-                      
-                            <!-- Bill Modal -->
-                            <div class="modal fade" id="billModal{{ exp.id }}" tabindex="-1" aria-labelledby="billModalLabel{{ exp.id }}" aria-hidden="true">
-                              <div class="modal-dialog modal-dialog-centered modal-lg">
-                                <div class="modal-content">
-                                  <div class="modal-header">
-                                    <h5 class="modal-title" id="billModalLabel{{ exp.id }}">Bill Photo</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                  </div>
-                                  <div class="modal-body text-center">
-                                    <img src="{{ exp.bill_photo.url }}" alt="Bill Photo" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
-                                    <div>
-                                      <a href="{{ exp.bill_photo.url }}" download class="btn btn-success">Download Bill</a>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                      
-                            {% elif exp.transaction_option == 'voucher' %}
-                            <p><strong>Voucher</strong></p>
-                          
-                            {% elif exp.transaction_option == '2_wheeler' or exp.transaction_option == '4_wheeler' %}
-                              <p>
-                                <strong>
-                                  Conveyance ({{ exp.transaction_option|title}}
-                                  {% if exp.derived_km %}
-                                    – {{ exp.derived_km|floatformat:2 }} km
-                                  {% endif %})
-                                </strong>
-                              </p>
-
-                             
-                          {% elif exp.transaction_option %}
-                            <p>{{ exp.transaction_option|title }} selected</p>
-                          
-                          {% else %}
-                            <span class="text-muted">No File, Voucher, or Conveyance</span>
-                          {% endif %}
-                        </div>
-                      </td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">{{ exp.transaction_category }}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                      {% if exp.transaction_category == 'internal' %}
-                      {{ exp.internal_option }}
-                      {% if exp.advance_group.leader and exp.internal_option != exp.advance_group.leader.get_full_name %}
-                          ({{ exp.advance_group.leader.get_full_name|default:exp.advance_group.leader.username }})
-                      {% endif %}
-                  {% elif exp.transaction_category == 'external' %}
-                      {{ exp.external_type }}
-                  {% endif %}
-                  
-                  </td>
-                    <td class="text-center" style="border: 1px solid #ddd; padding: 8px;">{{ exp.amount }}</td>
-                    
-                    <td style="border: 1px solid #ddd; padding: 8px;">{{ exp.transaction_date }}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                        {% if exp.proof_photo %}
-                          <!-- Old single proof -->
-                          <a href="#" class="btn btn-info btn-sm mb-1" data-bs-toggle="modal" data-bs-target="#proofModalSingle{{ exp.id }}">
-                            View Proof
-                          </a>
-                      
-                          <!-- Modal for old proof_photo -->
-                          <div class="modal fade" id="proofModalSingle{{ exp.id }}" tabindex="-1" aria-labelledby="proofModalLabelSingle{{ exp.id }}" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered modal-lg">
-                              <div class="modal-content">
-                                <div class="modal-header">
-                                  <h5 class="modal-title" id="proofModalLabelSingle{{ exp.id }}">Proof Photo</h5>
-                                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body text-center">
-                                  <img src="{{ exp.proof_photo.url }}" alt="Proof Photo" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
-                                  <div>
-                                    <a href="{{ exp.proof_photo.url }}" download class="btn btn-success">Download</a>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        {% endif %}
-                      
-                        {% if exp.proof_photos.exists %}
-                        {% for proof in exp.proof_photos.all %}
-                            <a href="#" class="btn btn-info btn-sm mb-1"
-                              data-bs-toggle="modal"
-                              data-bs-target="#proofModal{{ proof.id }}">
-                                View Proof {{ forloop.counter }}
-                            </a>
-
-                            <div class="modal fade" id="proofModal{{ proof.id }}" tabindex="-1"
-                                aria-labelledby="proofModalLabel{{ proof.id }}" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered modal-lg">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Proof Photo {{ forloop.counter }}</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body text-center">
-                                            <img src="{{ proof.file.url }}"
-                                                class="img-fluid rounded shadow mb-3"
-                                                style="max-height: 500px;">
-                                            <div>
-                                                <a href="{{ proof.file.url }}" download class="btn btn-success">Download</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                      
-                        {% if not exp.proof_photo and not exp.proof_photos.all %}
-                          <button class="btn btn-danger btn-sm" disabled>No Proof</button>
-                        {% endif %}
-                      </td>
-                    <td class="text-center" style="border: 1px solid #ddd; padding: 8px;">{{ exp.payment_mode }}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 8px;">
-                        {% if exp.status == 'paid' or exp.is_approved %}
-                            <button class="btn btn-primary btn-sm" style="padding: 5px 20px;" disabled>Edit</button>
-                        {% else %}
-                            <a href="{% url 'edit_item' exp.id %}" class="btn btn-primary btn-sm" style="padding: 5px 20px;">Edit</a>
-                        {% endif %}
-                    </td>
-                    <td id="action-cell-{{ exp.id }}">
-                        <!-- TIP BUTTONS IF ANY -->
-                        <div class="mb-2">
-                          {% for tip in exp.cash_vouchers.all %}
-                            {% if tip.voucher_number|slice:":4" == "XPCV" %}
-                              <!-- ✅ Always show View Tip -->
-                              <button class="btn btn-info btn-sm mb-1" data-bs-toggle="modal" data-bs-target="#tipModal{{ tip.id }}">
-                                View Tip
-                              </button>
-                      
-                              <!-- Tip Modal -->
-                              <div class="modal fade" id="tipModal{{ tip.id }}" tabindex="-1" aria-labelledby="tipModalLabel{{ tip.id }}" aria-hidden="true">
-                                <div class="modal-dialog modal-lg">
-                                  <div class="modal-content">
-                                    <div class="modal-header bg-light">
-                                      <h5 class="modal-title" id="tipModalLabel{{ tip.id }}">Tip Voucher - {{ tip.voucher_number }}</h5>
-                                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                      <p><strong>Paid To:</strong> {{ tip.paid_to }}</p>
-                                      <p><strong>Item:</strong> {{ tip.item_name }}</p>
-                                      <p><strong>Amount:</strong> ₹{{ tip.amount }}</p>
-                                      <p><strong>Status:</strong> {{ tip.status|title }}</p>
-                      
-                                      {% if tip.status == "rejected" %}
-                                        <div class="alert alert-danger mt-2">
-                                          <strong>Rejection Reason:</strong> {{ tip.rejection_reason|default:"No reason provided." }}
-                                        </div>
-                                      {% endif %}
-                      
-                                      {% if tip.proof_photo %}
-                                        <p><strong>Proof:</strong> <a href="{{ tip.proof_photo.url }}" target="_blank">View File</a></p>
-                                      {% endif %}
-                                    </div>
-                                    <div class="modal-footer">
-                                      {% if tip.status == "approved" %}
-                                        <a href="#" class="btn btn-primary btn-sm disabled" aria-disabled="true" title="Edit disabled for approved">Edit</a>
-                                        <button class="btn btn-secondary btn-sm" disabled>Approved</button>
-                                      {% elif tip.status == "rejected" %}
-                                        <a href="{% url 'edit_cash_voucher_form' tip.id %}" class="btn btn-primary btn-sm">Edit</a>
-                                        <button class="btn btn-secondary btn-sm" disabled>Rejected</button>
-                                      {% elif tip.status == "pending" %}
-                                        {% if request.user.is_staff or request.user.is_superuser %}
-                                          <a href="{% url 'edit_cash_voucher_form' tip.id %}" class="btn btn-primary btn-sm">Edit</a>
-                                          <button class="btn btn-success btn-sm approve-tip-btn"
-                                                  data-voucher-id="{{ tip.id }}"
-                                                  data-expense-id="{{ exp.id }}"
-                                                  data-amount="{{ tip.amount }}">Approve Tip</button>
-                                          <button class="btn btn-danger btn-sm reject-tip-btn"
-                                                  data-voucher-id="{{ tip.id }}"
-                                                  data-bs-toggle="modal"
-                                                  data-bs-target="#tipRejectionModal">Reject Tip</button>
-                                        {% else %}
-                                          <a href="{% url 'edit_cash_voucher_form' tip.id %}" class="btn btn-primary btn-sm">Edit</a>
-                                          <button class="btn btn-secondary btn-sm" disabled>Pending Approval</button>
-                                        {% endif %}
-                                      {% endif %}
-                                      <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            {% endif %}
-                          {% endfor %}
-                        </div>
-                      
-                        <!-- EXPENSE APPROVAL CONTROLS -->
-                        <div class="mt-2">
-                            {% if exp.is_rejected %}
-                              <button class="btn btn-danger btn-sm mt-1" data-bs-toggle="modal" data-bs-target="#rejectionModal{{ exp.id }}">
-                                Rejected - View Reason
-                              </button>
-                          
-                            {% elif exp.is_approved %}
-                              <span class="badge bg-success">Approved</span>
-                          
-                            {% elif exp.has_pending_tip %}
-                              {% if request.user.is_staff or request.user.is_superuser %}
-                                <div class="text-danger fw-bold">Please approve/reject Tip first</div>
-                              {% endif %}
-                          
-                            {% elif not exp.is_approved and not exp.is_rejected %}
-                              {% if not exp.proof_photo and exp.proof_count|default:0 == 0 %}
-                                {% if request.user.is_staff or request.user.is_superuser %}
-                                  <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-success btn-sm" onclick="approveExpense({{ exp.id }})">Approve</button>
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="showRejectModal({{ exp.id }})">Reject</button>
-                                  </div>
-                                {% endif %}
-                              {% elif not exp.bill_photo and not exp.gst_photo %}
-                                {% if request.user.is_staff or request.user.is_superuser %}
-                                  <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-success btn-sm" onclick="approveExpense({{ exp.id }})">Approve</button>
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="showRejectModal({{ exp.id }})">Reject</button>
-                                  </div>
-                                {% endif %}
-                              {% else %}
-                                <span class="text-muted">No need of Approval</span>
-                              {% endif %}
-                          
-                            {% else %}
-                              <span class="text-muted">No need of Approval</span>
-                            {% endif %}
-                          </div>
-                      </td>
-                      {% comment %} <td>
-                        {% if user.is_staff or user.is_superuser %}
-                          {% if exp.delete_requested %}
-                            <form method="post" action="{% url 'delete_expense' exp.id %}">
-                              {% csrf_token %}
-                              <button class="btn btn-danger btn-sm" type="submit" onclick="return confirm('Are you sure you want to delete this expense?')">Delete</button>
-                            </form>
-                          {% else %}
-                            <span class="text-muted">No delete request</span>
-                          {% endif %}
-                        {% else %}
-                          {% if not exp.delete_requested %}
-                            <form method="post" action="{% url 'request_expense_deletion' exp.id %}">
-                              {% csrf_token %}
-                              <button class="btn btn-warning btn-sm" type="submit" onclick="return confirm('Are you sure you want to request to delete this expense?')">Request Delete</button>
-                            </form>
-                          {% else %}
-                            <span class="text-muted">Delete Requested</span>
-                          {% endif %}
-                        {% endif %}
-                      </td> {% endcomment %}
-                      <td>
-                        {% if request.user.is_staff or request.user.is_superuser %}
-                          {% if exp.delete_requested %}
-                            <!-- Admin Delete (with AJAX) -->
-                            <button class="btn btn-danger btn-sm delete-expense-btn"
-                                    data-expense-id="{{ exp.id }}">
-                              Delete
-                            </button>
-                          {% else %}
-                            <!-- Admin request delete -->
-                            <button class="btn btn-warning btn-sm request-delete-btn"
-                                    data-expense-id="{{ exp.id }}">
-                              Request Delete
-                            </button>
-                          {% endif %}
-                        {% else %}
-                          {% if not exp.delete_requested %}
-                            <button class="btn btn-warning btn-sm request-delete-btn"
-                                    data-expense-id="{{ exp.id }}">
-                              Request Delete
-                            </button>
-                          {% else %}
-                            <span class="text-muted">Delete Requested</span>
-                          {% endif %}
-                        {% endif %}
-                      </td>
-                    <td class="text-center" style="border: 1px solid #ddd; padding: 8px;">
-                        {% if exp.status == 'paid' %}
-                            <span class="stamp bg-success text-white">
-                                <!-- Success Tabler SVG Icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="icon icon-tabler icon-tabler-rosette-discount-check">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                    <path d="M12.01 2.011a3.2 3.2 0 0 1 2.113 .797l.154 .145l.698 .698a1.2 1.2 0 0 0 .71 .341l.135 .008h1a3.2 3.2 0 0 1 3.195 3.018l.005 .182v1c0 .27 .092 .533 .258 .743l.09 .1l.697 .698a3.2 3.2 0 0 1 .147 4.382l-.145 .154l-.698 .698a1.2 1.2 0 0 0 -.341 .71l-.008 .135v1a3.2 3.2 0 0 1 -3.018 3.195l-.182 .005h-1a1.2 1.2 0 0 0 -.743 .258l-.1 .09l-.698 .697a3.2 3.2 0 0 1 -4.382 .147l-.154 -.145l-.698 -.698a1.2 1.2 0 0 0 -.71 -.341l-.135 -.008h-1a3.2 3.2 0 0 1 -3.195 -3.018l-.005 -.182v-1a1.2 1.2 0 0 0 -.258 -.743l-.09 -.1l-.697 -.698a3.2 3.2 0 0 1 -.147 -4.382l.145 -.154l.698 -.698a1.2 1.2 0 0 0 .341 -.71l.008 -.135v-1l.005 -.182a3.2 3.2 0 0 1 3.013 -3.013l.182 -.005h1a1.2 1.2 0 0 0 .743 -.258l.1 -.09l.698 -.697a3.2 3.2 0 0 1 2.269 -.944zm3.697 7.282a1 1 0 0 0 -1.414 0l-3.293 3.292l-1.293 -1.292l-.094 -.083a1 1 0 0 0 -1.32 1.497l2 2l.094 .083a1 1 0 0 0 1.32 -.083l4 -4l.083 -.094a1 1 0 0 0 -.083 -1.32z"/>
-                                </svg>
-                                Paid
-                            </span>
-                        {% else %}
-                            <span class="stamp bg-danger text-white">
-                                <!-- Pending Tabler SVG Icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="icon icon-tabler icon-tabler-pennant">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                    <path d="M10 2a1 1 0 0 1 .993 .883l.007 .117v.35l8.406 3.736c.752 .335 .79 1.365 .113 1.77l-.113 .058l-8.406 3.735v7.351h1a1 1 0 0 1 .117 1.993l-.117 .007h-4a1 1 0 0 1 -.117 -1.993l.117 -.007h1v-17a1 1 0 0 1 1 -1z"/>
-                                </svg>
-                                Pending
-                            </span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="12" class="text-center text-muted">No records found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% if expenses.paginator.num_pages > 1 %}
-        <nav aria-label="Page navigation">
-          <ul class="pagination justify-content-center flex-wrap">
-            
-            {# Previous Button #}
-            {% if expenses.has_previous %}
-              <li class="page-item">
-                <a class="page-link page-link-ajax" 
-                  href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ expenses.previous_page_number }}">
-                  &laquo; Previous
-                </a>
-              </li>
-            {% endif %}
-
-            {# Page Numbers #}
-            {% for num in expenses.paginator.page_range %}
-              {% if num == expenses.number %}
-                <li class="page-item active">
-                  <a class="page-link" href="#">{{ num }}</a>
-                </li>
-              {% elif num > expenses.number|add:-2 and num < expenses.number|add:2 %}
-                <li class="page-item">
-                  <a class="page-link page-link-ajax"
-                    href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">
-                    {{ num }}
-                  </a>
-                </li>
-              {% elif num == 1 or num == expenses.paginator.num_pages %}
-                <li class="page-item d-none d-sm-block">
-                  <a class="page-link page-link-ajax"
-                    href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">
-                    {{ num }}
-                  </a>
-                </li>
-              {% elif num == expenses.number|add:-2 or num == expenses.number|add:2 %}
-                <li class="page-item d-none d-sm-block">
-                  <span class="page-link">...</span>
-                </li>
-              {% endif %}
-            {% endfor %}
-
-            {# Next Button #}
-            {% if expenses.has_next %}
-              <li class="page-item">
-                <a class="page-link page-link-ajax" 
-                  href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ expenses.next_page_number }}">
-                  Next &raquo;
-                </a>
-              </li>
-            {% endif %}
-            
-          </ul>
-        </nav>
-        {% endif %}
-    </div>
-</div>
-<!-- Shared Reject Modal (outside the loop) -->
+<!-- Shared Reject Modal -->
 <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form id="rejectForm">
-          {% csrf_token %}
-          <input type="hidden" name="expense_id" id="rejectExpenseId">
-          <div class="modal-header">
-            <h5 class="modal-title" id="rejectModalLabel">Reject Expense</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <label>Reason for Rejection:</label>
-            <textarea name="reason" id="rejectReason" class="form-control" required></textarea>
-          </div>
-          <div class="modal-footer">
-            <button type="submit" class="btn btn-danger">Reject</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- ✅ Rejection Modals -->
-{% for exp in expenses %}
-{% if exp.is_rejected %}
-  <div class="modal fade" id="rejectionModal{{ exp.id }}" tabindex="-1" aria-labelledby="rejectionLabel{{ exp.id }}" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title" id="rejectionLabel{{ exp.id }}">Rejection Reason Tips</h5>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <form id="rejectForm">
+        {% csrf_token %}
+        <input type="hidden" name="expense_id" id="rejectExpenseId">
+        <div class="modal-header bg-danger text-white" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+          <h5 class="modal-title fw-bold" id="rejectModalLabel">Reject Expense</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          {{ exp.rejection_reason|default:"No reason provided." }}
-        </div>
-      </div>
-    </div>
-  </div>
-{% endif %}
-{% endfor %}
-<!-- Tip Rejection Modal -->
-<div class="modal fade" id="tipRejectionModal" tabindex="-1" aria-labelledby="tipRejectionLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <form id="tipRejectionForm" class="modal-content">
-        {% csrf_token %}
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title" id="tipRejectionLabel">Reject Tip</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" name="voucher_id" id="tipVoucherId">
-          <label for="tipRejectReason" class="form-label">Reason for Rejection:</label>
-          <textarea class="form-control" id="tipRejectReason" name="reason" rows="6" maxlength="800" required></textarea>
+        <div class="modal-body p-4">
+          <label class="form-label fw-semibold">Reason for Rejection:</label>
+          <textarea name="reason" id="rejectReason" class="form-control rounded-3" rows="4" required></textarea>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-danger">Submit Rejection</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger px-4 rounded-pill">Reject</button>
+          <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
         </div>
       </form>
     </div>
   </div>
+</div>
 
+<!-- Tip Rejection Modal -->
+<div class="modal fade" id="tipRejectionModal" tabindex="-1" aria-labelledby="tipRejectionLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form id="tipRejectionForm" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      {% csrf_token %}
+      <div class="modal-header bg-danger text-white" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+        <h5 class="modal-title fw-bold" id="tipRejectionLabel">Reject Tip</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="hidden" name="voucher_id" id="tipVoucherId">
+        <label for="tipRejectReason" class="form-label fw-semibold">Reason for Rejection:</label>
+        <textarea class="form-control rounded-3" id="tipRejectReason" name="reason" rows="6" maxlength="800" required></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-danger px-4 rounded-pill">Submit Rejection</button>
+        <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
 
+<!-- Dynamic Per-Expense Modals -->
+{% for exp in expenses %}
+  
+  <!-- Rejection Modal -->
+  {% if exp.is_rejected %}
+  <div class="modal fade" id="rejectionModal{{ exp.id }}" tabindex="-1" aria-labelledby="rejectionLabel{{ exp.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header bg-danger text-white" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+          <h5 class="modal-title fw-bold" id="rejectionLabel{{ exp.id }}">Rejection Reason</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="mb-0">{{ exp.rejection_reason|default:"No reason provided." }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- GST Modal -->
+  {% if exp.transaction_option == 'gst' and exp.gst_photo %}
+  <div class="modal fade" id="gstModal{{ exp.id }}" tabindex="-1" aria-labelledby="gstModalLabel{{ exp.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="gstModalLabel{{ exp.id }}">GST Photo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center p-4">
+          <img src="{{ exp.gst_photo.url }}" alt="GST Photo" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
+          <div>
+            <a href="{{ exp.gst_photo.url }}" download class="btn btn-success px-4 rounded-pill">Download GST</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Bill Modal -->
+  {% if exp.transaction_option == 'bill' and exp.bill_photo %}
+  <div class="modal fade" id="billModal{{ exp.id }}" tabindex="-1" aria-labelledby="billModalLabel{{ exp.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="billModalLabel{{ exp.id }}">Bill Photo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center p-4">
+          <img src="{{ exp.bill_photo.url }}" alt="Bill Photo" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
+          <div>
+            <a href="{{ exp.bill_photo.url }}" download class="btn btn-success px-4 rounded-pill">Download Bill</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Single Proof Modal -->
+  {% if exp.proof_photo %}
+  <div class="modal fade" id="proofModalSingle{{ exp.id }}" tabindex="-1" aria-labelledby="proofModalLabelSingle{{ exp.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="proofModalLabelSingle{{ exp.id }}">Proof Photo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center p-4">
+          <img src="{{ exp.proof_photo.url }}" alt="Proof Photo" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
+          <div>
+            <a href="{{ exp.proof_photo.url }}" download class="btn btn-success px-4 rounded-pill">Download</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Multiple Proof Modals -->
+  {% if exp.proof_photos.exists %}
+  {% for proof in exp.proof_photos.all %}
+  <div class="modal fade" id="proofModal{{ proof.id }}" tabindex="-1" aria-labelledby="proofModalLabel{{ proof.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Proof Photo {{ forloop.counter }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center p-4">
+          <img src="{{ proof.file.url }}" class="img-fluid rounded shadow mb-3" style="max-height: 500px;">
+          <div>
+            <a href="{{ proof.file.url }}" download class="btn btn-success px-4 rounded-pill">Download</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Tip Modals -->
+  {% for tip in exp.cash_vouchers.all %}
+  {% if tip.voucher_number|slice:":4" == "XPCV" %}
+  <div class="modal fade" id="tipModal{{ tip.id }}" tabindex="-1" aria-labelledby="tipModalLabel{{ tip.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header bg-light" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+          <h5 class="modal-title fw-bold" id="tipModalLabel{{ tip.id }}">Tip Voucher - {{ tip.voucher_number }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p><strong>Paid To:</strong> {{ tip.paid_to }}</p>
+          <p><strong>Item:</strong> {{ tip.item_name }}</p>
+          <p><strong>Amount:</strong> ₹{{ tip.amount }}</p>
+          <p><strong>Status:</strong> 
+            <span class="badge rounded-pill px-2 py-1
+              {% if tip.status == 'approved' %}bg-success-subtle text-success border border-success-subtle
+              {% elif tip.status == 'rejected' %}bg-danger-subtle text-danger border border-danger-subtle
+              {% else %}bg-warning-subtle text-warning border border-warning-subtle{% endif %}">
+              {{ tip.status|title }}
+            </span>
+          </p>
+
+          {% if tip.status == "rejected" %}
+          <div class="alert alert-danger mt-2 rounded-3">
+            <strong>Rejection Reason:</strong> {{ tip.rejection_reason|default:"No reason provided." }}
+          </div>
+          {% endif %}
+
+          {% if tip.proof_photo %}
+          <p><strong>Proof:</strong> <a href="{{ tip.proof_photo.url }}" target="_blank" class="text-decoration-none"><i class="bi bi-file-earmark-arrow-up"></i> View File</a></p>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          {% if tip.status == "approved" %}
+          <a href="#" class="btn btn-outline-secondary btn-sm rounded-pill px-3 disabled" aria-disabled="true" title="Edit disabled for approved">Edit</a>
+          <button class="btn btn-success btn-sm rounded-pill px-3" disabled>Approved</button>
+          {% elif tip.status == "rejected" %}
+          <a href="{% url 'edit_cash_voucher_form' tip.id %}" class="btn btn-primary btn-sm rounded-pill px-3">Edit</a>
+          <button class="btn btn-danger btn-sm rounded-pill px-3" disabled>Rejected</button>
+          {% elif tip.status == "pending" %}
+            {% if request.user.is_staff or request.user.is_superuser %}
+            <a href="{% url 'edit_cash_voucher_form' tip.id %}" class="btn btn-primary btn-sm rounded-pill px-3">Edit</a>
+            <button class="btn btn-success btn-sm approve-tip-btn rounded-pill px-3" data-voucher-id="{{ tip.id }}" data-expense-id="{{ exp.id }}" data-amount="{{ tip.amount }}">Approve Tip</button>
+            <button class="btn btn-danger btn-sm reject-tip-btn rounded-pill px-3" data-voucher-id="{{ tip.id }}" data-bs-toggle="modal" data-bs-target="#tipRejectionModal">Reject Tip</button>
+            {% else %}
+            <a href="{% url 'edit_cash_voucher_form' tip.id %}" class="btn btn-primary btn-sm rounded-pill px-3">Edit</a>
+            <button class="btn btn-secondary btn-sm rounded-pill px-3" disabled>Pending Approval</button>
+            {% endif %}
+          {% endif %}
+          <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+{% endfor %}
 
 {% block extra_scripts %}
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% endblock extra_scripts %}
+
 <script>
+  // Smooth Page Transition
+  document.addEventListener("DOMContentLoaded", function() {
+    const container = document.getElementById("dashboard-container");
+    if (container) {
+      requestAnimationFrame(() => {
+        container.classList.add("visible");
+      });
+    }
+
+    const transitionLinks = document.querySelectorAll(".transition-link");
+    transitionLinks.forEach(link => {
+      link.addEventListener("click", function(e) {
+        e.preventDefault();
+        const targetUrl = this.getAttribute("href");
+        if (container) {
+          container.classList.remove("visible");
+          container.classList.add("fade-out");
+        }
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 350);
+      });
+    });
+  });
+
+  // Pagination AJAX
   document.addEventListener("click", function (e) {
     const link = e.target.closest(".page-link-ajax");
     if (!link) return;
     e.preventDefault();
-  
+
     fetch(link.href, { headers: { "X-Requested-With": "XMLHttpRequest" } })
       .then((res) => res.json())
       .then((data) => {
@@ -800,45 +920,63 @@
       })
       .catch((err) => console.error("Pagination error:", err));
   });
-  </script>
-<script>
-    function exportCustomDateRange(format) {
-        const fromDate = document.getElementById('exportFromDate').value;
-        const toDate = document.getElementById('exportToDate').value;
-    
-        if (!fromDate || !toDate) {
-          alert("Please select both From and To dates.");
-          return;
-        }
-    
-        const baseUrl = `{% url 'export_vouchers' %}`;
-        const url = `${baseUrl}?format=${format}&from=${fromDate}&to=${toDate}`;
-        window.location.href = url;
-      }
 
-    function exportCustomDateRange() {
-        const fromDate = document.getElementById('exportFromDate').value;
-        const toDate = document.getElementById('exportToDate').value;
-    
-        if (!fromDate || !toDate) {
-          alert("Please select both From and To dates.");
-          return;
-        }
-    
-        const url = `{% url 'export_vouchers' %}?format=xlsx&from=${fromDate}&to=${toDate}`;
-        window.location.href = url;
-      }
-    
-  // Wait for the DOM to load
+  // Sorting AJAX
+  document.addEventListener("click", function (e) {
+    const sortLink = e.target.closest(".sort-link-ajax");
+    if (!sortLink) return;
 
-document.addEventListener('DOMContentLoaded', function () {
+    e.preventDefault();
+    fetch(sortLink.href, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      .then(res => res.json())
+      .then(data => {
+        const container = document.querySelector("#expenseTableContainer");
+        if (container && data.html) {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(data.html, "text/html");
+          const newDiv = doc.querySelector("#expenseTableContainer");
+          if (newDiv) container.innerHTML = newDiv.innerHTML;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      })
+      .catch(err => console.error("Sorting error:", err));
+  });
+
+  function exportCustomDateRange(format) {
+    const fromDate = document.getElementById('exportFromDate').value;
+    const toDate = document.getElementById('exportToDate').value;
+
+    if (!fromDate || !toDate) {
+      alert("Please select both From and To dates.");
+      return;
+    }
+
+    const baseUrl = `{% url 'export_vouchers' %}`;
+    const url = `${baseUrl}?format=${format}&from=${fromDate}&to=${toDate}`;
+    window.location.href = url;
+  }
+
+  function exportCustomDateRange() {
+    const fromDate = document.getElementById('exportFromDate').value;
+    const toDate = document.getElementById('exportToDate').value;
+
+    if (!fromDate || !toDate) {
+      alert("Please select both From and To dates.");
+      return;
+    }
+
+    const url = `{% url 'export_vouchers' %}?format=xlsx&from=${fromDate}&to=${toDate}`;
+    window.location.href = url;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
     // Approve Tip
     document.querySelectorAll('.approve-tip-btn').forEach(btn => {
       btn.addEventListener('click', function () {
         const voucherId = this.dataset.voucherId;
         const expenseId = this.dataset.expenseId;
         const amount = this.dataset.amount;
-  
+
         fetch("{% url 'approve_voucher_ajax' %}", {
           method: "POST",
           headers: {
@@ -846,7 +984,7 @@ document.addEventListener('DOMContentLoaded', function () {
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          body: new URLSearchParams({ voucher_id: voucherId,expense_id: expenseId })
+          body: new URLSearchParams({ voucher_id: voucherId, expense_id: expenseId })
         }).then(res => res.json())
           .then(data => {
             alert('Tip Voucher Approved!');
@@ -855,15 +993,15 @@ document.addEventListener('DOMContentLoaded', function () {
           .catch(err => alert('Approval failed!'));
       });
     });
-  
+
     // Reject Tip
     console.log("✅ Reject Tip JS loaded");
-  
+
     const rejectButtons = document.querySelectorAll('.reject-tip-btn');
     const rejectForm = document.getElementById('tipRejectionForm');
     const voucherIdInput = document.getElementById('tipVoucherId');
     const reasonInput = document.getElementById('tipRejectReason');
-  
+
     if (!rejectForm || !voucherIdInput || !reasonInput) {
       console.error("❌ Form elements not found. Check your modal and input IDs.");
     } else {
@@ -875,20 +1013,20 @@ document.addEventListener('DOMContentLoaded', function () {
           reasonInput.value = '';
         });
       });
-  
+
       rejectForm.addEventListener('submit', function (e) {
         e.preventDefault();
         console.log("clicked on submit");
         const voucherId = voucherIdInput.value;
         const reason = reasonInput.value.trim();
-  
+
         if (!voucherId || !reason) {
           alert("❗ Please provide a valid reason.");
           return;
         }
-  
+
         console.log(`🚀 Sending rejection for voucher ${voucherId}: ${reason}`);
-  
+
         fetch("{% url 'reject_cash_voucher_ajax' %}", {
           method: "POST",
           headers: {
@@ -914,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function () {
           });
       });
     }
-  
+
     function getCookie(name) {
       let cookieValue = null;
       if (document.cookie && document.cookie !== '') {
@@ -929,11 +1067,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       return cookieValue;
     }
-  
+
     // Approve Expense
     window.approveExpense = function (expenseId) {
       if (!confirm("Are you sure you want to approve this expense?")) return;
-  
+
       fetch(`/website/expenses/approve/${expenseId}/`, {
         method: 'POST',
         headers: {
@@ -945,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (response.ok) {
             const cell = document.getElementById(`action-cell-${expenseId}`);
             if (cell) {
-              cell.innerHTML = '<span class="badge bg-success">Approved</span>';
+              cell.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">Approved</span>';
             }
           } else {
             alert('Failed to approve expense.');
@@ -956,26 +1094,26 @@ document.addEventListener('DOMContentLoaded', function () {
           alert('Something went wrong.');
         });
     }
-  
+
     // Show Reject Modal
     window.showRejectModal = function (expenseId) {
       console.log("Opening reject modal for Expense ID:", expenseId);
       document.getElementById("rejectExpenseId").value = expenseId;
       new bootstrap.Modal(document.getElementById("rejectModal")).show();
     }
-  
+
     // Reject Expense
     const rejectFormMain = document.getElementById('rejectForm');
     if (rejectFormMain) {
       rejectFormMain.addEventListener('submit', function (e) {
         e.preventDefault();
-  
+
         if (!confirm("Are you sure you want to reject this expense?")) return;
-  
+
         const expenseId = document.getElementById('rejectExpenseId').value;
         const reason = document.getElementById('rejectReason').value;
         const csrfToken = '{{ csrf_token }}';
-  
+
         fetch('{% url "reject_expense" %}', {
           method: 'POST',
           headers: {
@@ -989,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.success) {
               const cell = document.getElementById(`action-cell-${expenseId}`);
               if (cell) {
-                cell.innerHTML = `<span class="badge bg-danger">Rejected</span><br><small>${reason}</small>`;
+                cell.innerHTML = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Rejected</span><br><small class="text-muted">${reason}</small>`;
               }
               const rejectModal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
               if (rejectModal) rejectModal.hide();
@@ -1003,94 +1141,90 @@ document.addEventListener('DOMContentLoaded', function () {
           });
       });
     }
-    
-  
+
     // Date Filter Controls
-    const filterDateButton = document.getElementById('filterDateButton');
-    const dateFields = document.getElementById('dateFields');
-    const clearButton = document.getElementById('clearButton');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     const applyFilterButton = document.getElementById('applyFilterButton');
-  
-    if (filterDateButton && dateFields) {
-      filterDateButton.addEventListener('click', function () {
-        const isHidden = dateFields.classList.contains('d-none');
-        dateFields.classList.toggle('d-none', !isHidden);
-        dateFields.style.display = isHidden ? 'flex' : 'none';
+
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        window.location.href = "?";
       });
     }
-  
-    document.addEventListener("DOMContentLoaded", function () {
-      const clearFiltersBtn = document.getElementById("clearFiltersBtn");
-      if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener("click", function (e) {
-          e.preventDefault();  // prevent accidental form submit
-          window.location.href = "?";  // behaves same as <a href="?">
-        });
-      }
-    });
-  
+
     if (applyFilterButton) {
       applyFilterButton.addEventListener('click', function () {
         const fromDate = document.getElementById('fromDateField').value;
         const toDate = document.getElementById('toDateField').value;
-    
+
         const urlParams = new URLSearchParams(window.location.search);
-    
+
         if (fromDate) urlParams.set('transaction_date_from', fromDate);
         else urlParams.delete('transaction_date_from');
-    
+
         if (toDate) urlParams.set('transaction_date_to', toDate);
         else urlParams.delete('transaction_date_to');
-    
+
         const newQuery = urlParams.toString();
         const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
-    
+
         window.location.href = newUrl;
       });
     }
-  
+
     // Export Buttons
     window.onload = function () {
-      document.getElementById('downloadXlsx').addEventListener('click', function () {
-        const table = document.querySelector('table');
-        if (table) {
-          const wb = XLSX.utils.table_to_book(table);
-          XLSX.writeFile(wb, 'vouchers.xlsx');
-        }
-      });
-  
-      document.getElementById('downloadPdf').addEventListener('click', function () {
-        const doc = new jsPDF();
-        doc.autoTable({ html: 'table' });
-        doc.save('vouchers.pdf');
-      });
-  
-      document.getElementById('downloadCsv').addEventListener('click', function () {
-        const table = document.querySelector('table');
-        if (table) {
-          let csvContent = "data:text/csv;charset=utf-8,";
-          const headers = [];
-          table.querySelectorAll('th').forEach(cell => headers.push(cell.innerText));
-          csvContent += headers.join(",") + "\r\n";
-  
-          table.querySelectorAll('tr').forEach(row => {
-            const rowData = [];
-            row.querySelectorAll('td').forEach(cell => rowData.push(cell.innerText));
-            if (rowData.length > 0) {
-              csvContent += rowData.join(",") + "\r\n";
-            }
-          });
-  
-          const link = document.createElement('a');
-          link.setAttribute('href', encodeURI(csvContent));
-          link.setAttribute('download', 'vouchers.csv');
-          link.click();
-        }
-      });
+      const downloadXlsx = document.getElementById('downloadXlsx');
+      if (downloadXlsx) {
+        downloadXlsx.addEventListener('click', function () {
+          const table = document.querySelector('table');
+          if (table) {
+            const wb = XLSX.utils.table_to_book(table);
+            XLSX.writeFile(wb, 'vouchers.xlsx');
+          }
+        });
+      }
+
+      const downloadPdf = document.getElementById('downloadPdf');
+      if (downloadPdf) {
+        downloadPdf.addEventListener('click', function () {
+          const doc = new jsPDF();
+          doc.autoTable({ html: 'table' });
+          doc.save('vouchers.pdf');
+        });
+      }
+
+      const downloadCsv = document.getElementById('downloadCsv');
+      if (downloadCsv) {
+        downloadCsv.addEventListener('click', function () {
+          const table = document.querySelector('table');
+          if (table) {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            const headers = [];
+            table.querySelectorAll('th').forEach(cell => headers.push(cell.innerText));
+            csvContent += headers.join(",") + "\r\n";
+
+            table.querySelectorAll('tr').forEach(row => {
+              const rowData = [];
+              row.querySelectorAll('td').forEach(cell => rowData.push(cell.innerText));
+              if (rowData.length > 0) {
+                csvContent += rowData.join(",") + "\r\n";
+              }
+            });
+
+            const link = document.createElement('a');
+            link.setAttribute('href', encodeURI(csvContent));
+            link.setAttribute('download', 'vouchers.csv');
+            link.click();
+          }
+        });
+      }
     }
   });
+
   document.addEventListener("DOMContentLoaded", function () {
-    function getCookie(name) {
+    const getCookie = function(name) {
       let cookieValue = null;
       if (document.cookie && document.cookie !== "") {
         const cookies = document.cookie.split(";");
@@ -1105,19 +1239,19 @@ document.addEventListener('DOMContentLoaded', function () {
       return cookieValue;
     }
     const csrftoken = getCookie("csrftoken");
-  
+
     // Delete Expense (Admin only)
     document.addEventListener("click", function (e) {
       const deleteBtn = e.target.closest(".delete-expense-btn");
       if (!deleteBtn) return;
-    
+
       e.preventDefault();
-    
+
       const expenseId = deleteBtn.dataset.expenseId;
       if (!expenseId) return;
-    
+
       if (!confirm("Are you sure you want to delete this expense?")) return;
-    
+
       fetch(`/website/expenses/delete/${expenseId}/`, {
         method: "POST",
         headers: {
@@ -1125,53 +1259,34 @@ document.addEventListener('DOMContentLoaded', function () {
           "X-Requested-With": "XMLHttpRequest"
         }
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          // Remove row without reloading
-          deleteBtn.closest("tr").remove();
-    
-          // Optional: show SweetAlert
-          Swal.fire({
-            icon: "success",
-            title: "Deleted!",
-            text: "Expense has been deleted successfully.",
-            timer: 1500,
-            showConfirmButton: false
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Failed!",
-            text: data.error || "Delete failed.",
-          });
-        }
-      })
-      .catch(err => console.error("Delete error:", err));
-    });
-    
-    // ✅ Utility for CSRF
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (const cookie of cookies) {
-          const trimmed = cookie.trim();
-          if (trimmed.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
-            break;
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            deleteBtn.closest("tr").remove();
+            Swal.fire({
+              icon: "success",
+              title: "Deleted!",
+              text: "Expense has been deleted successfully.",
+              timer: 1500,
+              showConfirmButton: false
+            });
+          } else {
+            Swal.fire({
+              icon: "error",
+              title: "Failed!",
+              text: data.error || "Delete failed.",
+            });
           }
-        }
-      }
-      return cookieValue;
-    }
-  
+        })
+        .catch(err => console.error("Delete error:", err));
+    });
+
     // Request Deletion (User/Admin)
     document.querySelectorAll(".request-delete-btn").forEach(btn => {
       btn.addEventListener("click", function () {
         const expenseId = this.dataset.expenseId;
         if (!confirm("Request deletion for this expense?")) return;
-  
+
         fetch(`/website/expenses/request-delete/${expenseId}/`, {
           method: "POST",
           headers: {
@@ -1179,278 +1294,34 @@ document.addEventListener('DOMContentLoaded', function () {
             "X-Requested-With": "XMLHttpRequest"
           }
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            this.outerHTML = `<span class="text-muted">Delete Requested</span>`;
-          } else {
-            alert(data.error || "Request failed.");
-          }
-        })
-        .catch(err => console.error("Request delete error:", err));
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              this.outerHTML = `<span class="text-muted small">Delete Requested</span>`;
+            } else {
+              alert(data.error || "Request failed.");
+            }
+          })
+          .catch(err => console.error("Request delete error:", err));
       });
     });
   });
-
-
-  document.addEventListener("click", function (e) {
-    const sortLink = e.target.closest(".sort-link-ajax");
-    if (!sortLink) return;
-  
-    e.preventDefault();
-    fetch(sortLink.href, { headers: { "X-Requested-With": "XMLHttpRequest" } })
-      .then(res => res.json())
-      .then(data => {
-        const container = document.querySelector("#expenseTableContainer");
-        if (container && data.html) {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(data.html, "text/html");
-          const newDiv = doc.querySelector("#expenseTableContainer");
-          if (newDiv) container.innerHTML = newDiv.innerHTML;
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-      })
-      .catch(err => console.error("Sorting error:", err));
-  });
-
-  
 </script>
+
 {% if messages %}
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      {% for message in messages %}
-        Swal.fire({
-          icon: "{% if message.tags == 'error' %}error{% else %}success{% endif %}",
-          title: "{{ message|escapejs }}",
-          timer: 2500,
-          showConfirmButton: false,
-        });
-      {% endfor %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    {% for message in messages %}
+    Swal.fire({
+      icon: "{% if message.tags == 'error' %}error{% else %}success{% endif %}",
+      title: "{{ message|escapejs }}",
+      timer: 2500,
+      showConfirmButton: false,
     });
-
-
-    document.getElementById("groupSelect").addEventListener("change", function () {
-      document.getElementById("groupFilterForm").submit();
-    });
-  </script>
-  <script>
-
-      document.addEventListener("click", function (e) {
-        const link = e.target.closest(".page-link-ajax");
-        if (!link) return;
-        e.preventDefault();
-      
-        fetch(link.href, {
-          headers: { "X-Requested-With": "XMLHttpRequest" }
-        })
-        .then(res => res.json())
-        .then(data => {
-          const container = document.querySelector("#expenseTableContainer");
-          if (container && data.html) {
-            container.innerHTML = new DOMParser()
-              .parseFromString(data.html, "text/html")
-              .querySelector("#expenseTableContainer").innerHTML;
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }
-        })
-        .catch(err => console.error("Pagination error:", err));
-      });
-
-      
-
-    </script>
+    {% endfor %}
+  });
+</script>
 {% endif %}
-<style>
-    .stamp {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem; /* Reduced font size for consistency */
-        font-weight: bold;
-        padding: 0.2rem 0.4rem; /* Smaller padding */
-        border: 1px solid currentColor; /* Keep border consistent */
-        border-radius: 20px; /* Adjusted for a smaller appearance */
-        text-transform: uppercase;
-        box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); /* Lighter shadow */
-        letter-spacing: 0.5px;
-        width: auto; /* Ensure consistent size */
-    }
-    
-    .stamp.bg-success {
-        color: #28a745; /* Green color for success */
-        background-color: #d4edda;
-    }
-    
-    .stamp.bg-warning {
-        color: #ffc107; /* Yellow color for pending */
-        background-color: #fff3cd;
-    }
-    
-    .stamp svg {
-        margin-right: 0.2rem; /* Adjusted spacing between icon and text */
-        width: 12px; /* Smaller icon size */
-        height: 12px;
-    }
-    
-    @media print {
-    /* Hide elements you don't want to print */
-    .dropdown, .dropdown-menu, .btn, .navbar, .header, .footer {
-        display: none !important;
-    }
-
-    /* Ensure content such as tables and vouchers are displayed */
-    body {
-        font-size: 12pt;
-        margin: 1in;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th, td {
-        border: 1px solid black;
-        padding: 8px;
-        text-align: left;
-    }
-
-    h2 {
-        text-align: center;
-    }
-}
-    /* Ensure the table doesn't stretch too wide */
-.table-responsive {
-    -webkit-overflow-scrolling: touch;
-    overflow-x: auto;
-}
-
-/* Optional: Make the table columns wrap and prevent long content from breaking the layout */
-.table td, .table th {
-    word-wrap: break-word;
-    word-break: break-word;
-    white-space: normal;
-}
-
-/* On larger screens, the table should not exceed the container-fluid's width */
-@media (min-width: 768px) {
-    .table-responsive {
-        overflow-x: auto;
-    }
-}
-    /* General Styles */
-    #filterSection {
-        margin-top: 10px;
-    }
-
-    #filterContainer {
-        max-height: 160px;
-        overflow: hidden;
-    }
-
-    #filterContainer.open {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-
-    /* Mobile Responsive Styles */
-    @media (max-width: 767px) {
-        .container-fluid {
-            padding-left: 15px;
-            padding-right: 15px;
-        }
-
-        .d-flex.justify-content-between {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .d-flex.align-items-center.mb-4 {
-            margin-bottom: 20px;
-        }
-
-        .d-flex.align-items-center.mb-3 {
-            margin-bottom: 20px;
-        }
-
-        .d-flex.align-items-center.mb-4.ms-2 {
-            margin-top: 10px;
-        }
-
-        #filterSection {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        #filterDateButton {
-            margin-bottom: 10px;
-            width: 100%;
-        }
-
-        #filterContainer {
-            width: 100%;
-            display: block;
-        }
-
-        #dateFields {
-            display: block;
-            gap: 5px;
-            width: 100%;
-        }
-
-        #dateFields .form-control {
-            width: 100%;
-            margin-right: 0;
-        }
-
-        #applyFilterButton {
-            width: 100%;
-        }
-
-        .input-group-text {
-            width: 35px;
-        }
-
-        .table-responsive {
-            margin-top: 20px;
-        }
-
-        table {
-            font-size: 12px;
-        }
-
-        th, td {
-            padding: 5px;
-        }
-    }
-
-    /* Desktop and Tablet Responsive Styles */
-    @media (min-width: 768px) {
-        #dateFields {
-            display: flex;
-        }
-
-        #dateFields .form-control {
-            margin-right: 10px;
-            margin-bottom: 0;
-        }
-
-        #applyFilterButton {
-            display: inline-block;
-        }
-    }
-
-    /* Styling for Filter Container when expanded */
-    .filter-container-open {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-</style>
-
-
 
 {% endblock %}

@@ -33,7 +33,7 @@ class Enquiry(models.Model):
         ('3', 'COLD'),
     ]
   
-    companyname = models.CharField(max_length=30, default='', blank=True, null=True)
+    companyname = models.CharField(max_length=255, default='', blank=True, null=True)
     customername = models.CharField(max_length=20, default='', blank=True, null=True)
     
     refrence = models.CharField(max_length=20, default='',blank=True)
@@ -212,6 +212,7 @@ class CommercialQuote(models.Model):
     sgst_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     igst_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     grand_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    dealer_margin = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
 
     terms_and_conditions = models.TextField()
 
@@ -234,6 +235,8 @@ class QuotationItem(models.Model):
     sgst = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     igst = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     final_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    transfer_price = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    dealer_margin = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
 
     def __str__(self):
         return f"{self.product.name} - {self.quantity} x {self.rate}"
@@ -460,6 +463,36 @@ class ConfirmedHidrecWash(models.Model):
     general_maintenance = models.TextField()
     total_price = models.CharField(max_length=100, blank=True, null=True)
 
+class Dealership(models.Model):
+    name = models.CharField(max_length=255)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    target_orders = models.IntegerField(default=0)
+    target_revenue = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)
+    members = models.ManyToManyField(User, blank=True, related_name='dealerships')
+
+    def __str__(self):
+        return self.name
+
+class DealershipPricing(models.Model):
+    dealership = models.ForeignKey(Dealership, on_delete=models.CASCADE, related_name='product_pricing')
+    product = models.ForeignKey(Products, on_delete=models.CASCADE)
+    transfer_price = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)
+    max_price = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)
+
+    class Meta:
+        unique_together = ('dealership', 'product')
+
+    def __str__(self):
+        return f"{self.dealership.name} - {self.product.name} Pricing"
 
 
-
+class UploadedQuote(models.Model):
+    enquiry = models.ForeignKey(Enquiry, on_delete=models.CASCADE, related_name='uploaded_quotes')
+    quote_type = models.CharField(max_length=100) # 'Commercial', 'Techno AMC', 'Hidrewash'
+    file = models.FileField(upload_to='uploaded_quotes/')
+    quotation_no = models.CharField(max_length=100, unique=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.quote_type} - {self.quotation_no}"

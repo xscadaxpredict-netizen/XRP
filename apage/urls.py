@@ -13,6 +13,7 @@ urlpatterns = [
     path('home/', views.home, name='home'),  # Match to this URL
     path('sucess/',views.success,name='success'),
     # service report 
+    path('riva/api/service-reports/', views.service_reports_api, name='api_service_reports'),
     path('servicereport/', views.servicereport, name='servicereport'),  # Match to this URL
     path('service-reports/new/', views.service_report_new, name='service_report_new'),
     path('service-report/<int:pk>/', views.view_service_report, name='view_service_report'),
@@ -57,6 +58,7 @@ urlpatterns = [
     path('generatorreport-viewing/', views.generator_report, name='generator_report'),
     path('generatorreport/add/', views.add_generator_report, name='add_generator_report'),
     path('generatorreport/edit/<int:report_id>/', views.edit_generator_report, name='edit_generator_report'),
+    path('site-amc/', views.site_amc_management, name='site_amc_management'),
     # path('demo/', views.demo, name='demo'),
 
 
@@ -80,6 +82,13 @@ urlpatterns = [
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
 
+    # Bike Maintenance
+    path('bike-maintenance/', views.bike_maintenance_viewing, name='bike_maintenance_viewing'),
+    path('bike-maintenance/add/', views.bike_maintenance_create, name='bike_maintenance_create'),
+
+    # Service Expiry
+    path('service-expiry/', views.service_expiry_management, name='service_expiry_management'),
+    path('service-expiry/delete/<int:expiry_id>/', views.delete_service_expiry, name='delete_service_expiry'),
 
 ]
 

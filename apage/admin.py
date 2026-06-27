@@ -1,11 +1,10 @@
 from django.contrib import admin
-from .models import GeneralReport , GeneratorReport,SiteVisitSchedule
+from .models import GeneralReport , GeneratorReport,SiteVisitSchedule,BikeMaintenance,Bike
 
 admin.site.register(GeneralReport)
 admin.site.register(SiteVisitSchedule)
-
-
-
+admin.site.register(BikeMaintenance)
+admin.site.register(Bike)
 
 # -------------------MaintenanceChecklist------------------
 
@@ -208,5 +207,19 @@ class GeneratorReportAdmin(admin.ModelAdmin):
         return "N/A"
 
     get_total_time.short_description = "Total Time"
+
+
+from .models import Service, ServiceExpiry
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'created_at')
+    search_fields = ('name',)
+
+@admin.register(ServiceExpiry)
+class ServiceExpiryAdmin(admin.ModelAdmin):
+    list_display = ('service', 'expiry_date', 'email', 'notified', 'created_at')
+    list_filter = ('expiry_date', 'notified')
+    search_fields = ('service__name', 'email')
 
 

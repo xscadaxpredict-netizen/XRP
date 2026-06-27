@@ -1,5 +1,6 @@
 from django import template
 from app.models import SubModuleVisibility
+from website.models import GlobalSettings
 
 register = template.Library()
 
@@ -11,21 +12,10 @@ def is_submodule_visible(user, submodule):
     except SubModuleVisibility.DoesNotExist:
         return False
 
-
-# app/templatetags/custom_filters.py
-from django import template
-
-register = template.Library()
-
 @register.filter(name='split')
 def split(value, arg):
     """Splits a string by a given separator (arg)."""
     return value.split(arg)
-
-
-from django import template
-
-register = template.Library()
 
 @register.filter
 def add_class(value, arg):
@@ -34,3 +24,10 @@ def add_class(value, arg):
     Usage: {{ form.field_name|add_class:"my-class" }}
     """
     return value.as_widget(attrs={'class': arg})
+
+@register.simple_tag
+def get_global_settings():
+    try:
+        return GlobalSettings.objects.first()
+    except:
+        return None

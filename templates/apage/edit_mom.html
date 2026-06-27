@@ -7,6 +7,16 @@
       <div class="col-12">
         <form action="{% url 'mom_edit' mom.id %}" method="post" class="card" enctype="multipart/form-data">
           {% csrf_token %}
+          {% if error %}
+          <div class="alert alert-danger m-3">
+            <strong>Please correct the following errors:</strong>
+            <ul>
+              {% for field, errors in error.items %}
+                <li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
           <div class="card-body">
             <h3>Edit Minutes of Meeting</h3>
 
@@ -34,7 +44,8 @@
             <div class="row mb-3">
               <div class="col-md-6">
                 <label class="form-label" for="date">meeting Date</label>
-                <input type="date" class="form-control" id="date" name="mdate" value="{{ mom.date|date:'Y-m-d' }}" required />
+                <input type="date" class="form-control" id="dated" name="mdate" value="{{ mom.date|date:'Y-m-d' }}" required />
+                <div id="date-error" class="text-danger" style="display: none;">Future dates are not allowed. "Data Will not be stored"</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label" for="location">Location</label>

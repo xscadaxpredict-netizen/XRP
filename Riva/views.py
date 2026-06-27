@@ -1,3 +1,4 @@
+from .models import DealershipPricing
 import json
 import shutil
 from django.shortcuts import render,redirect
@@ -47,6 +48,7 @@ from django.db.models import Q, ForeignKey, Count
 from django.contrib.auth.models import User
 from django.shortcuts import render
 from .models import Enquiry
+from app.models import UserProfile, Zone, Division
 
 @login_required
 def enq_home(request):
@@ -57,20 +59,20 @@ def enq_home(request):
     # ---------------------------
     selected_user_id = request.GET.get("user", "")
     search_query = request.GET.get("search", "")
-    sort = request.GET.get("sort", "-id")
+    sort = request.GET.get("sort", "-created_at")
 
     # ---------------------------
     # BASE QUERY
     # ---------------------------
     base_filter = Q(is_confirmed=False, is_lost=False) | Q(is_reverted=True)
 
-    if current_user.is_staff or current_user.is_superuser:
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+
+    if current_user.is_superuser:
         enquiries = Enquiry.objects.filter(base_filter)
     else:
-        enquiries = Enquiry.objects.filter(base_filter).filter(
-            Q(created_by=current_user) |
-            Q(executive__name=current_user.username)
-        )
+        enquiries = Enquiry.objects.filter(base_filter).filter(created_by=current_user)
 
     # ---------------------------
     # USER FILTER
@@ -85,7 +87,11 @@ def enq_home(request):
         search_q = Q()
         for field in Enquiry._meta.fields:
             if isinstance(field, ForeignKey):
-                search_q |= Q(**{f"{field.name}__name__icontains": search_query})
+                if field.name == 'created_by':
+                     search_q |= Q(**{f"{field.name}__username__icontains": search_query})
+                     search_q |= Q(**{f"{field.name}__first_name__icontains": search_query})
+                else:
+                    search_q |= Q(**{f"{field.name}__name__icontains": search_query})
             else:
                 search_q |= Q(**{f"{field.name}__icontains": search_query})
         enquiries = enquiries.filter(search_q)
@@ -100,7 +106,7 @@ def enq_home(request):
         "id", "-id",
     ]
     if sort not in allowed_sorts:
-        sort = "-id"
+        sort = "-created_at"
 
     enquiries = enquiries.order_by(sort)
 
@@ -124,13 +130,16 @@ def enq_home(request):
     # ---------------------------
     # USERS FOR DROPDOWN (FIXED)
     # ---------------------------
-    users_list = (
-        User.objects
-        .filter(enquiry__isnull=False)
-        .annotate(enquiry_count=Count("enquiry"))
-        .distinct()
-        .order_by("first_name", "username")
-    )
+    if current_user.is_superuser:
+        users_list = (
+            User.objects
+            .filter(enquiry__isnull=False)
+            .annotate(enquiry_count=Count("enquiry"))
+            .distinct()
+            .order_by("first_name", "username")
+        )
+    else:
+        users_list = User.objects.filter(id=current_user.id)
 
     # ---------------------------
     # CONTEXT
@@ -155,6 +164,9 @@ def enquiry_view(request):
 
 def add_data(request):
     if request.method == "POST":
+        from django.contrib import messages
+        from django.contrib.auth.models import User
+
         # Retrieve form data
         company_name = request.POST.get("companyname")
         customer_name = request.POST.get("customername")
@@ -170,46 +182,65 @@ def add_data(request):
         remarks = request.POST.get("remarks")
         files = request.FILES.getlist("attachment[]")
 
-        # Validate and fetch related objects
         try:
-            executive = Executive.objects.get(id=executive_id)
-        except Executive.DoesNotExist:
-            return HttpResponse("Invalid Executive selected", status=400)
+            # Validate and fetch related objects
+            try:
+                executive = Executive.objects.get(id=executive_id) if executive_id else None
+            except Executive.DoesNotExist:
+                messages.error(request, "Invalid Executive selected.")
+                raise ValueError("Invalid Executive")
 
-        try:
-            product = Products.objects.get(id=product_id)
-        except Products.DoesNotExist:
-            return HttpResponse("Invalid Product selected", status=400)
+            try:
+                product = Products.objects.get(id=product_id) if product_id else None
+            except Products.DoesNotExist:
+                messages.error(request, "Invalid Product selected.")
+                raise ValueError("Invalid Product")
 
-        # Create and save the enquiry record
-        enquiry = Enquiry.objects.create(
-            companyname=company_name or None,
-            customername=customer_name or None,
-            refrence=reference_name or None,
-            email=email or None,
-            contact=contact or None,
-            location=location or None,
-            status=status or None,
-            products=product if product_id else None,
-            subproduct=subproduct or None,
-            closuredate=closure_date or None,
-            executive=executive if executive_id else None,
-            remarks=remarks or None,
-            created_by=request.user,
-        )
+            # Create and save the enquiry record
+            enquiry = Enquiry.objects.create(
+                companyname=company_name or "",
+                customername=customer_name or "",
+                refrence=reference_name or "",
+                email=email or None,
+                contact=contact or None,
+                location=location or "",
+                status=status or "",
+                products=product,
+                subproduct=subproduct or "",
+                closuredate=closure_date or None,
+                executive=executive,
+                remarks=remarks or "",
+                created_by=request.user,
+            )
 
-        for file in files:
-            file_upload = FileUploadModel.objects.create(file=file, name=file.name)
-            enquiry.files.add(file_upload)
+            for file in files:
+                file_upload = FileUploadModel.objects.create(file=file, name=file.name)
+                enquiry.files.add(file_upload)
 
-        enquiry.save()
+            enquiry.save()
 
-        # Add visibility for both the logged-in user and selected executive
-        enquiry.created_by = request.user  # Ensure the logged-in user is saved as creator
-        enquiry.executive = executive  # Ensure the selected executive is assigned
-        enquiry.save()
+            # Add visibility for both the logged-in user and selected executive
+            enquiry.created_by = request.user  # Ensure the logged-in user is saved as creator
+            enquiry.executive = executive  # Ensure the selected executive is assigned
+            enquiry.save()
 
-        return redirect("enquries")  # Redirect to enqhome page
+            messages.success(request, "Enquiry added successfully!")
+            return redirect("enquries")  # Redirect to enqhome page
+
+        except Exception as e:
+            if not messages.get_messages(request):
+                messages.error(request, f"An error occurred while saving the enquiry: {str(e)}")
+            
+            # Reload the newenquiry page with the lists and the POST data
+            users_list = User.objects.all()
+            products_list = Products.objects.all()
+            executive_list = Executive.objects.all()
+            return render(request, 'xp2/newenquiry.html', {
+                'products': products_list,
+                'users': users_list,
+                'executive': executive_list,
+                'form_data': request.POST,
+            })
 
     return HttpResponse("Invalid request method", status=405)
 
@@ -580,6 +611,9 @@ def manage_quotation(request, enquiry_id):
             proposal_draft_data[os.path.basename(file_path)].append({'error': 'File not found'})
    
     # Pass the data to the template
+    has_profile = hasattr(request.user, 'userprofile')
+    is_xpredict = has_profile and request.user.userprofile.is_xpredict
+
     return render(request, 'xp2/manage_quotation.html', {
         'enquiry': enquiry,
         'hidrec':hidrec,
@@ -588,6 +622,8 @@ def manage_quotation(request, enquiry_id):
         'proposal_data': dict(proposal_data),
         'draft_data':dict(draft_data),
         'proposal_draft_data':dict(proposal_draft_data),
+        'uploaded_quotations': UploadedQuote.objects.filter(enquiry_id=enquiry_id),
+        'is_xpredict': is_xpredict,
     })
 
 
@@ -683,7 +719,7 @@ from collections import defaultdict
 from django.shortcuts import render, get_object_or_404, redirect
 from django.conf import settings
 from .models import (
-    Enquiry, CommercialQuote, confirmed_enquiry, ConfirmedHidrecWash
+    Enquiry, CommercialQuote, confirmed_enquiry, ConfirmedHidrecWash, UploadedQuote
 )
 
 def confirm_order(request, enquiry_id):
@@ -739,6 +775,9 @@ def confirm_order(request, enquiry_id):
     # Fetch Hydric Wash quotations for this enquiry 
     hidrec_quotations = ConfirmedHidrecWash.objects.filter(enquiry_id=enquiry_id)
     
+    # Fetch Uploaded quotes for this enquiry
+    uploaded_quotations = UploadedQuote.objects.filter(enquiry_id=enquiry_id)
+    
     if request.method == 'POST':
         selected_quotation_no = request.POST.get('quotation_selection')
         if not selected_quotation_no:
@@ -749,6 +788,7 @@ def confirm_order(request, enquiry_id):
                 'proposal_data': dict(proposal_data),
                 'confirmed_quotations': confirmed_quotations,
                 'hidrec_quotations': hidrec_quotations,
+                'uploaded_quotations': uploaded_quotations,
                 'error': 'Please select at least one quotation.',
             })
 
@@ -774,6 +814,7 @@ def confirm_order(request, enquiry_id):
         'proposal_data': dict(proposal_data),
         'confirmed_quotations': confirmed_quotations,
         'hidrec_quotations': hidrec_quotations,
+        'uploaded_quotations': uploaded_quotations,
     }
     return render(request, 'xp2/confirm_order.html', context)
 
@@ -1115,6 +1156,329 @@ def dashboard(request):
     return render(request, 'xp2/dashboard.html', context)
 
 
+from django.utils import timezone
+
+from datetime import date
+
+def dealership_dashboard(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+
+    # Check if they are Xpredict admin or staff
+    is_manager = current_user.is_staff or current_user.is_superuser or is_xpredict
+    view_mode = request.GET.get('view', 'yearly')
+    if view_mode not in ['yearly', 'quarterly', 'monthly']:
+        view_mode = 'yearly'
+
+    dealerships_data = []
+    
+    # Resolve target dealerships
+    if is_manager:
+        all_dealerships = Dealership.objects.all()
+    else:
+        all_dealerships = current_user.dealerships.all()
+
+    today = timezone.now().date()
+    
+    # Calculate period date range
+    if view_mode == 'monthly':
+        period_start = today.replace(day=1)
+        if period_start.month == 12:
+            period_end = period_start.replace(year=period_start.year + 1, month=1, day=1) - timezone.timedelta(days=1)
+        else:
+            period_end = period_start.replace(month=period_start.month + 1, day=1) - timezone.timedelta(days=1)
+    elif view_mode == 'quarterly':
+        current_quarter = (today.month - 1) // 3 + 1
+        period_start = today.replace(month=(current_quarter - 1) * 3 + 1, day=1)
+        if current_quarter == 4:
+            period_end = today.replace(year=today.year + 1, month=1, day=1) - timezone.timedelta(days=1)
+        else:
+            period_end = today.replace(month=current_quarter * 3 + 1, day=1) - timezone.timedelta(days=1)
+    else:
+        period_start = today.replace(month=1, day=1)
+        period_end = today.replace(month=12, day=31)
+
+    for ds in all_dealerships:
+        members = ds.members.all()
+        
+        # Contract ranges
+        start_date = ds.start_date or today.replace(month=1, day=1)
+        end_date = ds.end_date or today.replace(month=12, day=31)
+        
+        total_days = max(1, (end_date - start_date).days)
+        days_elapsed = max(0, min((today - start_date).days, total_days))
+        days_remaining = max(1, total_days - days_elapsed)
+        
+        expected_ratio = days_elapsed / total_days if total_days > 0 else 1.0
+        expected_orders_ytd = ds.target_orders * expected_ratio
+        expected_revenue_ytd = float(ds.target_revenue) * expected_ratio
+        
+        # YTD actuals
+        actual_orders_ytd = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(start_date, today)).count()
+        actual_revenue_ytd_val = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(start_date, today)).aggregate(total_rev=Sum('quotation__finalamount'))['total_rev'] or 0
+        actual_revenue_ytd = float(actual_revenue_ytd_val)
+        
+        # Remaining targets
+        remaining_orders_needed = max(0, ds.target_orders - actual_orders_ytd)
+        remaining_revenue_needed = max(0.0, float(ds.target_revenue) - actual_revenue_ytd)
+        
+        # Period-specific calculations
+        if view_mode == 'monthly':
+            std_target_orders = ds.target_orders / 12.0
+            std_target_revenue = float(ds.target_revenue) / 12.0
+            
+            # Adjusted target: orders needed divided by remaining time, scaled to 1 month
+            adjusted_target_orders = (remaining_orders_needed / days_remaining) * 30.4 if days_remaining > 0 else std_target_orders
+            adjusted_target_revenue = (remaining_revenue_needed / days_remaining) * 30.4 if days_remaining > 0 else std_target_revenue
+            
+            # Actuals in current calendar month
+            actual_orders_period = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(period_start, period_end)).count()
+            actual_revenue_period_val = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(period_start, period_end)).aggregate(total_rev=Sum('quotation__finalamount'))['total_rev'] or 0
+            actual_revenue_period = float(actual_revenue_period_val)
+            
+        elif view_mode == 'quarterly':
+            std_target_orders = ds.target_orders / 4.0
+            std_target_revenue = float(ds.target_revenue) / 4.0
+            
+            adjusted_target_orders = (remaining_orders_needed / days_remaining) * 91.25 if days_remaining > 0 else std_target_orders
+            adjusted_target_revenue = (remaining_revenue_needed / days_remaining) * 91.25 if days_remaining > 0 else std_target_revenue
+            
+            # Actuals in current calendar quarter
+            actual_orders_period = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(period_start, period_end)).count()
+            actual_revenue_period_val = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(period_start, period_end)).aggregate(total_rev=Sum('quotation__finalamount'))['total_rev'] or 0
+            actual_revenue_period = float(actual_revenue_period_val)
+            
+        else: # yearly
+            std_target_orders = ds.target_orders
+            std_target_revenue = float(ds.target_revenue)
+            
+            adjusted_target_orders = ds.target_orders
+            adjusted_target_revenue = float(ds.target_revenue)
+            
+            actual_orders_period = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(start_date, end_date)).count()
+            actual_revenue_period_val = ConfirmedOrder.objects.filter(created_by__in=members, project_closing_date__range=(start_date, end_date)).aggregate(total_rev=Sum('quotation__finalamount'))['total_rev'] or 0
+            actual_revenue_period = float(actual_revenue_period_val)
+
+        # Status: On track if overall YTD performance is ahead of YTD target
+        status = "On Track"
+        if actual_orders_ytd < expected_orders_ytd or actual_revenue_ytd < expected_revenue_ytd:
+            status = "Off Track"
+
+        # Determine target shortfall (how much behind they are overall)
+        orders_shortfall = max(0, round(expected_orders_ytd - actual_orders_ytd, 1))
+        revenue_shortfall = max(0.0, round(expected_revenue_ytd - actual_revenue_ytd, 2))
+
+        dealerships_data.append({
+            'dealership': ds,
+            'actual_orders': actual_orders_period,
+            'actual_revenue': actual_revenue_period,
+            'target_orders': round(adjusted_target_orders, 1),
+            'target_revenue': round(adjusted_target_revenue, 2),
+            'std_target_orders': round(std_target_orders, 1),
+            'std_target_revenue': round(std_target_revenue, 2),
+            'status': status,
+            'orders_shortfall': orders_shortfall,
+            'revenue_shortfall': revenue_shortfall,
+            'progress_orders': min(100.0, round((actual_orders_period / adjusted_target_orders * 100) if adjusted_target_orders > 0 else 0, 1)) if adjusted_target_orders > 0 else 0.0,
+            'progress_revenue': min(100.0, round((actual_revenue_period / adjusted_target_revenue * 100) if adjusted_target_revenue > 0 else 0, 1)) if adjusted_target_revenue > 0 else 0.0,
+        })
+
+    context = {
+        'is_manager': is_manager,
+        'dealerships_data': dealerships_data,
+        'view_mode': view_mode,
+    }
+    return render(request, 'xp2/dealership_dashboard.html', context)
+
+
+from django.contrib import messages
+from django.http import HttpResponseForbidden
+
+def manage_dealerships(request):
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    
+    if not (current_user.is_superuser or current_user.is_staff or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to access this page.")
+        
+    dealerships = Dealership.objects.all()
+    all_users = User.objects.all().order_by('username')
+    zones = Zone.objects.all().order_by('name')
+    divisions = Division.objects.all().order_by('name')
+    
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        start_date = request.POST.get('start_date') or None
+        end_date = request.POST.get('end_date') or None
+        target_orders = int(request.POST.get('target_orders', 0) or 0)
+        target_revenue = float(request.POST.get('target_revenue', 0.0) or 0.0)
+        member_ids = request.POST.getlist('members')
+        
+        dealership = Dealership.objects.create(
+            name=name,
+            start_date=start_date,
+            end_date=end_date,
+            target_orders=target_orders,
+            target_revenue=target_revenue
+        )
+        dealership.members.set(member_ids)
+        messages.success(request, f"Dealership '{name}' created successfully!")
+        return redirect('manage_dealerships')
+        
+    return render(request, 'xp2/manage_dealerships.html', {
+        'dealerships': dealerships,
+        'all_users': all_users,
+        'zones': zones,
+        'divisions': divisions,
+    })
+
+def create_dealership_user(request, dealership_id):
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    
+    if not (current_user.is_superuser or current_user.is_staff or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to perform this action.")
+        
+    dealership = get_object_or_404(Dealership, id=dealership_id)
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
+        contact_number = request.POST.get('contact_number', '0000000000') or '0000000000'
+        date_of_birth = request.POST.get('date_of_birth') or '2000-01-01'
+        zone_id = request.POST.get('zone')
+        division_id = request.POST.get('division')
+        is_xpredict_val = request.POST.get('is_xpredict') == 'on'
+        
+        # Validation
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f"Username '{username}' already exists.")
+            return redirect('manage_dealerships')
+            
+        if User.objects.filter(email=email).exists() or UserProfile.objects.filter(email=email).exists():
+            messages.error(request, f"A user with email '{email}' already exists.")
+            return redirect('manage_dealerships')
+            
+        # Create User
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name
+        )
+        
+        # Resolve Zone and Division
+        zone = Zone.objects.filter(id=zone_id).first() if zone_id else None
+        division = Division.objects.filter(id=division_id).first() if division_id else None
+        
+        # Create UserProfile
+        UserProfile.objects.create(
+            user=user,
+            email=email,
+            contact_number=contact_number,
+            date_of_birth=date_of_birth,
+            zone=zone,
+            division=division,
+            is_xpredict=is_xpredict_val
+        )
+        
+        # Add the user to the Dealership
+        dealership.members.add(user)
+        
+        messages.success(request, f"User '{username}' created and assigned to '{dealership.name}' successfully!")
+        
+    return redirect('manage_dealerships')
+
+def edit_dealership(request, dealership_id):
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    
+    if not (current_user.is_superuser or current_user.is_staff or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to access this page.")
+        
+    dealership = get_object_or_404(Dealership, id=dealership_id)
+    all_users = User.objects.all().order_by('username')
+    
+    if request.method == 'POST':
+        dealership.name = request.POST.get('name')
+        dealership.start_date = request.POST.get('start_date') or None
+        dealership.end_date = request.POST.get('end_date') or None
+        dealership.target_orders = int(request.POST.get('target_orders', 0) or 0)
+        dealership.target_revenue = float(request.POST.get('target_revenue', 0.0) or 0.0)
+        
+        member_ids = request.POST.getlist('members')
+        dealership.members.set(member_ids)
+        dealership.save()
+        
+        messages.success(request, f"Dealership '{dealership.name}' updated successfully!")
+        return redirect('manage_dealerships')
+        
+    return render(request, 'xp2/edit_dealership.html', {
+        'dealership': dealership,
+        'all_users': all_users,
+        'current_members': dealership.members.all(),
+    })
+
+def manage_dealership_pricing(request, dealership_id):
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    
+    if not (current_user.is_superuser or current_user.is_staff or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to access this page.")
+        
+    dealership = get_object_or_404(Dealership, id=dealership_id)
+    products = Products.objects.all()
+    
+    # Fetch existing pricing
+    existing_pricing = {dp.product_id: dp for dp in DealershipPricing.objects.filter(dealership=dealership)}
+    
+    if request.method == 'POST':
+        # Loop through products and save prices
+        for product in products:
+            transfer_price_val = request.POST.get(f'transfer_price_{product.id}', '0.00')
+            max_price_val = request.POST.get(f'max_price_{product.id}', '0.00')
+            
+            transfer_price = float(transfer_price_val) if transfer_price_val else 0.00
+            max_price = float(max_price_val) if max_price_val else 0.00
+            
+            # Save or Update DealershipPricing
+            DealershipPricing.objects.update_or_create(
+                dealership=dealership,
+                product=product,
+                defaults={
+                    'transfer_price': transfer_price,
+                    'max_price': max_price
+                }
+            )
+            
+        messages.success(request, f"Product pricing for '{dealership.name}' updated successfully!")
+        return redirect('manage_dealerships')
+        
+    pricing_list = []
+    for product in products:
+        pricing = existing_pricing.get(product.id)
+        pricing_list.append({
+            'product': product,
+            'transfer_price': pricing.transfer_price if pricing else 0.00,
+            'max_price': pricing.max_price if pricing else 0.00,
+        })
+        
+    return render(request, 'xp2/manage_dealership_pricing.html', {
+        'dealership': dealership,
+        'pricing_list': pricing_list,
+    })
 
 
 from datetime import datetime
@@ -1127,12 +1491,52 @@ from django.core.serializers import serialize
 
 from django.db.models import Max
 
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import Dealership
+
+def send_price_limit_alert(user, product, unit_price, limits):
+    subject = f"Price Limit Exceeded Alert: {user.username} on {product.name}"
+    message = (
+        f"Dealer: {user.username}\n"
+        f"Product: {product.name}\n"
+        f"Attempted Unit Price: {unit_price}\n"
+        f"Allowed Limits: Transfer Price = {limits['transfer_price']}, Max Price = {limits['max_price']}\n\n"
+        f"Please review this quotation."
+    )
+    # Send to all Xpredict team members
+    from app.models import UserProfile
+    xpredict_users = UserProfile.objects.filter(is_xpredict=True).select_related('user')
+    recipient_list = [up.user.email for up in xpredict_users if up.user.email]
+    
+    if not recipient_list:
+        # Fallback to admins if no xpredict users have email
+        recipient_list = [admin[1] for admin in settings.ADMINS] if settings.ADMINS else []
+        
+    if recipient_list:
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, recipient_list, fail_silently=True)
+
 def create_commercial_quote(request, enquiry_id):
     # Fetch the bank details and other necessary data
     banks = BankDetails.objects.all()
     xpredict_data = Xpredict.objects.first()
     products = Products.objects.all()
     enquiry = Enquiry.objects.get(id=enquiry_id)
+
+    user_dealerships = request.user.dealerships.all()
+    pricing_map = {}
+    is_dealer = False
+
+    if user_dealerships.exists():
+        is_dealer = True
+        dealership = user_dealerships.first()
+        from .models import DealershipPricing
+        dealership_pricings = DealershipPricing.objects.filter(dealership=dealership)
+        for dp in dealership_pricings:
+            pricing_map[dp.product.id] = {
+                'transfer_price': float(dp.transfer_price),
+                'max_price': float(dp.max_price)
+            }
 
     # Generate the quotation number
     current_year_month = datetime.now().strftime('%y%m')
@@ -1257,10 +1661,46 @@ def create_commercial_quote(request, enquiry_id):
         if not igsts:
             igsts = ['0'] * len(products_selected)
 
+        # Pre-process product IDs (resolving/creating products for custom names)
+        product_ids = []
+        for i, product_name in enumerate(products_selected):
+            product_name = product_name.strip()
+            hsncode = hsn_codes[i].strip() if i < len(hsn_codes) else ""
+            base_amount = base_amounts[i] if i < len(base_amounts) else 0
+            gst = (
+                float(cgsts[i]) + float(sgsts[i]) + float(igsts[i])
+                if i < len(cgsts) and i < len(sgsts) and i < len(igsts)
+                else 0
+            )
+
+            if product_name.isdigit():
+                product_ids.append(product_name)
+                continue
+
+            # Create or get the product
+            product, created = Products.objects.get_or_create(
+                name=product_name,
+                defaults={
+                    "hsncode": hsncode,
+                    "base_amount": base_amount,
+                    "gst": gst,
+                },
+            )
+
+            if not created:
+                product.hsncode = hsncode
+                product.base_amount = base_amount
+                product.gst = gst
+                product.save()
+
+            product_ids.append(str(product.id))
+
+        total_dealer_margin = 0.0
         # Loop through the selected items and create QuotationItem for each one
-        for i in range(len(products_selected)):
+        for i in range(len(product_ids)):
             try:
-                product = Products.objects.get(id=products_selected[i])
+                product_id = product_ids[i]
+                product = Products.objects.get(id=product_id)
                 hsn_code = hsn_codes[i]
                 base_amount = float(base_amounts[i])
                 quantity = int(quantities[i])
@@ -1269,26 +1709,23 @@ def create_commercial_quote(request, enquiry_id):
 
                 # Ensure rate is calculated correctly
                 rate = (base_amount * quantity) * (1 + margin / 100)
+                unit_price = base_amount * (1 + margin / 100)
+
+                transfer_price = 0.00
+                if is_dealer and product.id in pricing_map:
+                    limits = pricing_map[product.id]
+                    transfer_price = float(limits['transfer_price'])
+                    if unit_price < limits['transfer_price'] or unit_price > limits['max_price']:
+                        send_price_limit_alert(request.user, product, unit_price, limits)
+
+                # Calculate dealer margin for this item
+                item_margin = (unit_price - transfer_price) * quantity
+                total_dealer_margin += item_margin
 
                 # Get the GST values for the current product
                 cgst = float(cgsts[i]) if cgsts[i] else 0.0
                 sgst = float(sgsts[i]) if sgsts[i] else 0.0
                 igst = float(igsts[i]) if igsts[i] else 0.0
-
-                # Ensure only one set of GST (CGST + SGST or IGST) is non-zero
-                if cgst > 0 and sgst > 0 and igst > 0:
-                    raise ValueError(f"Invalid GST values for product at index {i}: Only one of CGST/SGST or IGST should be non-zero.")
-                
-                if cgst > 0 and sgst > 0:
-                    # CGST and SGST for intra-state (valid combination)
-                    if igst > 0:
-                        raise ValueError(f"Invalid GST values for product at index {i}: IGST should be 0 for intra-state.")
-                elif igst > 0:
-                    # IGST for inter-state (valid combination)
-                    if cgst > 0 or sgst > 0:
-                        raise ValueError(f"Invalid GST values for product at index {i}: CGST and SGST should be 0 for inter-state.")
-                else:
-                    raise ValueError(f"Invalid GST values for product at index {i}: Either CGST and SGST or IGST must be non-zero.")
 
                 # Create and save QuotationItem
                 quotation_item = QuotationItem(
@@ -1303,16 +1740,21 @@ def create_commercial_quote(request, enquiry_id):
                     sgst=sgst,
                     igst=igst,
                     final_amount=final_amount,
+                    transfer_price=transfer_price,
+                    dealer_margin=item_margin,
                 )
                 quotation_item.save()
 
             except IndexError as e:
                 print(f"Index error at {i}: {e}")
-                continue  # Continue with the next iteration if an index error occurs
+                raise e
             except Exception as e:
                 print(f"Error saving quotation item at index {i}: {e}")
-                continue
+                raise e
 
+        # Save total dealer margin on the quote
+        commercial_quote.dealer_margin = total_dealer_margin
+        commercial_quote.save()
 
         return redirect('managequotationpage', enquiry_id=enquiry_id)  # Redirect after saving the quote
 
@@ -1321,6 +1763,9 @@ def create_commercial_quote(request, enquiry_id):
 
     # Pass the data to the template
     bank_data = serialize('json', banks)
+
+    import json
+    pricing_map_json = json.dumps(pricing_map)
 
     return render(request, 'xp2/commercial_quote.html', {
         'enquiry_id': enquiry_id,
@@ -1331,6 +1776,8 @@ def create_commercial_quote(request, enquiry_id):
         'xpredict': xpredict_data,
         'banks': banks,  # Pass the bank objects to the template
         'bank_data': bank_data,  # Pass serialized bank data to JS
+        'is_dealer': is_dealer,
+        'pricing_map_json': pricing_map_json,
     })
 
 
@@ -1345,6 +1792,21 @@ def Edit_commercial_quote(request, quotation_no):
     xpredict_data = Xpredict.objects.all()
     products = Products.objects.all()
     quotation_items = QuotationItem.objects.filter(quotation_no=commercial_quote.quotation_no)
+    
+    user_dealerships = request.user.dealerships.all()
+    pricing_map = {}
+    is_dealer = False
+
+    if user_dealerships.exists():
+        is_dealer = True
+        dealership = user_dealerships.first()
+        from .models import DealershipPricing
+        dealership_pricings = DealershipPricing.objects.filter(dealership=dealership)
+        for dp in dealership_pricings:
+            pricing_map[dp.product.id] = {
+                'transfer_price': float(dp.transfer_price),
+                'max_price': float(dp.max_price)
+            }
     
     # Extract base quotation number before any -R revision suffix
     base_quotation_no = commercial_quote.quotation_no.split('-R')[0]
@@ -1468,6 +1930,7 @@ def Edit_commercial_quote(request, quotation_no):
                 if product_ids:
                     total_items = len(product_ids)
                     print(f"🧾 Saving {total_items} Quotation Items...")
+                    total_dealer_margin = 0.0
 
                     for i in range(total_items):
                         try:
@@ -1490,6 +1953,18 @@ def Edit_commercial_quote(request, quotation_no):
                             print(f" - HSN: {hsn}, Qty: {qty}, Margin: {margin}, Rate: {rate}")
                             print(f" - CGST: {cgst}, SGST: {sgst}, IGST: {igst}, Final: {final_amt}")
 
+                            # Perform backend price limit validation for Dealers
+                            unit_price = base_amt * (1 + margin / 100)
+                            transfer_price = 0.00
+                            if is_dealer and product.id in pricing_map:
+                                limits = pricing_map[product.id]
+                                transfer_price = float(limits['transfer_price'])
+                                if unit_price < limits['transfer_price'] or unit_price > limits['max_price']:
+                                    send_price_limit_alert(request.user, product, unit_price, limits)
+
+                            item_margin = (unit_price - transfer_price) * qty
+                            total_dealer_margin += item_margin
+
                             QuotationItem.objects.create(
                                 quotation_no=new_commercial_quote.quotation_no,
                                 product=product,
@@ -1502,16 +1977,26 @@ def Edit_commercial_quote(request, quotation_no):
                                 sgst=sgst,
                                 igst=igst,
                                 final_amount=final_amt,
+                                transfer_price=transfer_price,
+                                dealer_margin=item_margin,
                             )
 
                             print(f"✅ Quotation Item Saved: {product.name} (ID: {product_id})")
 
                         except Exception as e:
                             print(f"❌ Error saving product at index {i}: {e}")
+                            raise e
+
+                    # Save total dealer margin on the quote
+                    new_commercial_quote.dealer_margin = total_dealer_margin
+                    new_commercial_quote.save()
+
                 return redirect('managequotationpage', enquiry_id=commercial_quote.enquiry_id)
 
         except Exception as e:
             print(f"❌ Error: {e}")
+            import json
+            pricing_map_json = json.dumps(pricing_map)
             context = {
                 'commercial_quote': commercial_quote,
                 'quotation_items': quotation_items,
@@ -1519,11 +2004,15 @@ def Edit_commercial_quote(request, quotation_no):
                 'xpredict': xpredict_data,
                 'banks': banks,
                 'new_quotation_no': new_quotation_no,
-                'error': str(e)
+                'error': str(e),
+                'is_dealer': is_dealer,
+                'pricing_map_json': pricing_map_json,
             }
             return render(request, 'xp2/edit_commercial.html', context)
     
     # GET request rendering
+    import json
+    pricing_map_json = json.dumps(pricing_map)
     context = {
         'commercial_quote': commercial_quote,
         'quotation_items': quotation_items,
@@ -1531,6 +2020,8 @@ def Edit_commercial_quote(request, quotation_no):
         'xpredict': xpredict_data,
         'banks': banks,
         'new_quotation_no': new_quotation_no,
+        'is_dealer': is_dealer,
+        'pricing_map_json': pricing_map_json,
     }
     return render(request, 'xp2/edit_commercial.html', context)
 
@@ -5182,3 +5673,36 @@ def edit_hidrecwash(request, quotation_no, enquiry_id):
 
 
 
+
+from .models import UploadedQuote
+import uuid
+
+def upload_quote(request, enquiry_id):
+    if request.method == 'POST':
+        enquiry = get_object_or_404(Enquiry, id=enquiry_id)
+        
+        quote_types = request.POST.getlist('quote_type[]')
+        quote_files = request.FILES.getlist('quote_file[]')
+        
+        if not quote_types:
+            quote_types = request.POST.getlist('quote_type')
+            quote_files = request.FILES.getlist('quote_file')
+
+        uploaded_count = 0
+        for q_type, q_file in zip(quote_types, quote_files):
+            if q_type and q_file:
+                quotation_no = f"UP-{q_type[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+                UploadedQuote.objects.create(
+                    enquiry=enquiry,
+                    quote_type=q_type,
+                    file=q_file,
+                    quotation_no=quotation_no
+                )
+                uploaded_count += 1
+                
+        if uploaded_count > 0:
+            messages.success(request, f"{uploaded_count} document(s) successfully uploaded.")
+        else:
+            messages.error(request, "Please provide valid files and quote types.")
+            
+    return redirect('managequotationpage', enquiry_id=enquiry_id)

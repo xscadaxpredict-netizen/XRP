@@ -110,35 +110,40 @@
                                     <td>{{ report.state.name }}</td>
                                     <td>{{ report.status_of_call }}</td>
                                     <td>
-                                        <!-- You can add action links like view/edit if needed -->
-                                        <a href="{% url 'view_service_report' report.id %}"
-                                        class="btn btn-info">View</a>
+                                      <div class="d-flex gap-2">
+                                        <a href="{% url 'view_service_report' report.id %}" class="btn btn-info btn-sm">View</a>
+                                        <a href="{% url 'service_report_edit' report.id %}" class="btn btn-primary btn-sm">Edit</a>
+                                      </div>
                                     </td>
                                     <td>
-                                        {% if report.status == 'rejected' %}
-                                          <span class="text-danger" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#reason-{{ report.id }}">
-                                             Rejected (click for reason)
-                                          </span>
-                                          <div id="reason-{{ report.id }}" class="collapse mt-1">
-                                            <small class="text-muted">{{ report.rejection_reason|default:"No reason provided." }}</small>
-                                          </div>
-                                        {% else %}
-                                          {{ report.get_status_display }}
-                                        {% endif %}
-                                      </td>
+                                      {% if report.status == 'rejected' %}
+                                      <span class="text-danger" style="cursor: pointer;" data-bs-toggle="collapse"
+                                        data-bs-target="#reason-{{ report.id }}">
+                                        Rejected (click for reason)
+                                      </span>
+                                      <div id="reason-{{ report.id }}" class="collapse mt-1">
+                                        <small class="text-muted">{{ report.rejection_reason|default:"No reason provided." }}</small>
+                                      </div>
+                                      {% else %}
+                                      {{ report.get_status_display }}
+                                      {% endif %}
+                                    </td>
                                     {% if user_role == 'Admin' %}
-                                        <td>
-                                            {% if report.status == 'pending' %}
-                                            <a href="{% url 'update_service_report_status' report.pk 'approve' %}"
-                                            class="btn btn-success"
-                                            onclick="return confirm('Are you sure you want to approve this service report?');">
-                                            Approve
-                                         </a>
-                                                <button type="button" class="btn btn-danger" onclick="openRejectModal({{ report.pk }})">Reject</button>
-                                            {% else %}
-                                            <button class="btn btn-secondary" disabled>{{ report.get_status_display }}</button>
-                                            {% endif %}
-                                        </td>
+                                    <td>
+                                      {% if report.status == 'pending' %}
+                                      <div class="d-flex gap-2">
+                                        <a href="{% url 'update_service_report_status' report.pk 'approve' %}"
+                                          class="btn btn-success btn-sm"
+                                          onclick="return confirm('Are you sure you want to approve this service report?');">
+                                          Approve
+                                        </a>
+                                        <button type="button" class="btn btn-danger btn-sm"
+                                          onclick="openRejectModal({{ report.pk }})">Reject</button>
+                                      </div>
+                                      {% else %}
+                                      <button class="btn btn-secondary btn-sm" disabled>{{ report.get_status_display }}</button>
+                                      {% endif %}
+                                    </td>
                                     {% endif %}
                                 </tr>
                                 {% empty %}

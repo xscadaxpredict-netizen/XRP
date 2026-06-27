@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header d-print-none">
+  <div class="container-fluid">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <h2 class="page-title text-uppercase">Site AMC Management</h2>
+        <p class="text-muted">Manage Annual Maintenance Contracts and track expiration dates.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid mt-4">
+  <div class="page-body">
+    <div class="row row-cards">
+      <!-- Entry Form -->
+      <div class="col-md-12 mb-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-primary text-white">
+            <h3 class="card-title">Update Site AMC Status</h3>
+          </div>
+          <form action="" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label font-weight-bold">Select Site</label>
+                  <select name="site_id" class="form-select border-primary" required id="siteSelect">
+                    <option value="" disabled selected>Choose a site...</option>
+                    {% for site in sites %}
+                    <option value="{{ site.id }}">{{ site.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="hasAmcToggle" name="has_amc">
+                        <label class="form-check-label h4" for="hasAmcToggle">Is AMC Active?</label>
+                    </div>
+                </div>
+
+                <div id="amcFields" style="display: none;" class="col-12">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">AMC Start Date</label>
+                            <input type="date" name="start_date" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">AMC End Date</label>
+                            <input type="date" name="end_date" class="form-control" id="endDateInput">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">AMC Proof (Optional)</label>
+                            <input type="file" name="proof_file" class="form-control">
+                        </div>
+                    </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer text-end">
+              <button type="submit" class="btn btn-primary px-4">Save Site AMC</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Status Table -->
+      <div class="col-md-12">
+        <div class="card shadow-sm">
+          <div class="card-header">
+            <h3 class="card-title">All Sites AMC Status</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table table-hover">
+              <thead class="bg-light">
+                <tr>
+                  <th>Site Name</th>
+                  <th>AMC Status</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                  <th>Proof</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for amc in amcs %}
+                <tr>
+                  <td class="font-weight-bold text-azure">{{ amc.site.name }}</td>
+                  <td>
+                    {% if amc.has_amc %}
+                      <span class="badge bg-success-lt p-2">Active</span>
+                    {% else %}
+                      <span class="badge bg-warning-lt p-2">None</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ amc.amc_start_date|default:"-" }}</td>
+                  <td>
+                    {% if amc.has_amc and amc.amc_end_date %}
+                        {{ amc.amc_end_date }}
+                    {% else %}
+                        -
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if amc.proof_file %}
+                      <a href="{{ amc.proof_file.url }}" class="btn btn-sm btn-outline-info" target="_blank">View File</a>
+                    {% else %}
+                      <span class="text-muted italic">No Proof</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">{{ amc.updated_at|date:"M d, Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">No AMC records found.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amcToggle = document.getElementById('hasAmcToggle');
+    const amcFields = document.getElementById('amcFields');
+    
+    amcToggle.addEventListener('change', function() {
+        if (this.checked) {
+            amcFields.style.display = 'block';
+        } else {
+            amcFields.style.display = 'none';
+        }
+    });
+
+    // Auto-fill dates if editing (Optional improvement)
+    const siteSelect = document.getElementById('siteSelect');
+    siteSelect.addEventListener('change', function() {
+        // You could fetch data via AJAX here if you wanted a super slick UI
+    });
+});
+</script>
+{% endblock %}

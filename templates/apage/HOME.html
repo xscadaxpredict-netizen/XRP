@@ -4,565 +4,501 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xpredict Labs | CRM & Reports</title>
+    <title>Xpredict Labs | Workspace Portal</title>
     <link rel="icon" href="{% static 'xtitle.jpeg' %}" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Tabler UI and Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-
-    <!-- Tabler Core CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0/dist/css/tabler.min.css">
-
-<!-- Tabler JS (Optional for Animations) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
-        
-        .card{
-            margin-top: 50px;
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-glow: rgba(37, 99, 235, 0.12);
+            --success: #0d9488;
+            --success-light: #f0fdfa;
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-100: #f8fafc;
+            --slate-200: #e2e8f0;
+            --font-display: 'Outfit', sans-serif;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
         }
-        #scrollToTopBtn:hover {
-            background-color: #f7b500;
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--slate-100);
+            color: var(--slate-800);
+            overflow-x: hidden;
         }
-        
-        #scrollToTopBtn svg {
-            stroke: #02245B;
-            width: 30px;
-            height: 30px;
+
+        h1, h2, h3, h4, h5, h6, .display-font {
+            font-family: var(--font-display);
+            font-weight: 700;
         }
-        
-        #scrollToTopBtn:active {
-            transform: scale(0.9);
+
+        /* Glassmorphic Navbar */
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
         }
-        
-        #scrollToTopBtn:hover {
-            background-color: #f7b500;
+
+        .nav-link {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--slate-700) !important;
+            transition: color 0.3s ease;
         }
-        
-        #scrollToTopBtn:active {
-            transform: scale(0.9);
+
+        .nav-link:hover {
+            color: var(--primary) !important;
         }
-        /* General Card Styling */
-.service-card {
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-}
 
-/* Image Styling */
-.service-card img {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-}
-
-/* Hover Effect */
-.service-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-/* Slide-Up Animation */
-.scroll-reveal {
-    opacity: 0;
-    transform: translateY(50px);
-    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-
-/* When Element is in View */
-.scroll-reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-        /* General Styles */
-.animated-section {
-    opacity: 0;
-    transform: translateY(50px);
-    transition: opacity 1s ease-out, transform 1s ease-out;
-}
-
-/* Heading Animation */
-.animated-heading {
-    font-size: 2rem;
-    font-weight: bold;
-    color: navy;
-    margin-bottom: 20px;
-}
-
-/* Text Animation */
-.animated-text {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: #333;
-}
-
-/* Scroll Reveal Animation */
-.scroll-reveal {
-    opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 1s ease-out, transform 1s ease-out;
-}
-
-/* When Element is in View */
-.scroll-reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-        /* Background Fade-in */
-.animated-section {
-    opacity: 0;
-    transform: translateY(50px);
-    animation: fadeInUp 1s ease-in-out forwards;
-}
-
-/* Heading Style */
-.animated-heading {
-    font-size: 2rem;
-    font-weight: bold;
-    color: navy; /* Navy Blue */
-    margin-bottom: 20px;
-    opacity: 0;
-    transform: translateY(-30px);
-    animation: slideIn 1s ease-in-out 0.5s forwards;
-}
-
-/* Paragraph Animation */
-.animated-text {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: #333;
-    opacity: 0;
-    transform: translateY(30px);
-    animation: fadeIn 1s ease-in-out 0.8s forwards;
-}
-
-/* Keyframe Animations */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(50px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-
-        body { font-family: Arial, sans-serif; overflow-x: hidden; }
-        .hero-section { height: 100vh; background: url('https://source.unsplash.com/1600x900/?technology') no-repeat center/cover; background-size: cover; }
-        .overlay { background: rgba(0, 0, 0, 0.6); height: 100vh; display: flex; align-items: center; justify-content: center; color: white; }
-        .carousel-item img { height: 500px; object-fit: cover; }
-        .section { padding: 100px 0; }
-        .fade-in { opacity: 0; transition: opacity 1s ease-in-out; }
-        .fade-in.visible { opacity: 1; }
-
-        /* Footer Styling */
-.footer {
-    background-color: #02245B;
-    color: #fff;
-    padding: 60px 0;
-}
-
-.footer h5 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 20px;
-}
-
-.footer p, .footer a {
-    font-size: 0.875rem;
-    color: #bbb;
-    margin-bottom: 15px;
-}
-
-.footer a {
-    text-decoration: none;
-    transition: color 0.3s ease;
-}
-
-.footer a:hover {
-    color: #f8f9fa;
-}
-
-.footer .btn-link {
-    color: #bbb;
-    font-size: 1rem;
-}
-
-.footer .btn-link:hover {
-    color: #fff;
-}
-
-.footer .btn-square {
-    background-color: #007bff;
-    color: white;
-    transition: background-color 0.3s ease;
-}
-
-.footer .btn-square:hover {
-    background-color: #0056b3;
-}
-
-.footer .btn-primary {
-    background-color: #007bff;
-    border: none;
-    border-radius: 30px;
-    transition: background-color 0.3s ease;
-}
-
-.footer .btn-primary:hover {
-    background-color: #0056b3;
-}
-
-/* Input Field Styling for Newsletter */
-.footer form .form-control {
-    background-color: transparent;
-    border: 2px solid #fff;
-    color: #fff;
-    border-radius: 30px;
-    padding: 12px 20px;
-    font-size: 1rem;
-}
-
-.footer form .btn-primary {
-    background-color: #007bff;
-    border-radius: 50px;
-    padding: 12px 25px;
-    position: absolute;
-    top: 50%;
-    right: 10px;
-    transform: translateY(-50%);
-}
-
-.footer .d-flex {
-    gap: 10px;
-}
-
-.footer .d-flex a {
-    background-color: #212121;
-    padding: 10px;
-    border-radius: 50%;
-    color: white;
-    transition: background-color 0.3s ease;
-}
-
-.footer .d-flex a:hover {
-    background-color: #007bff;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .footer .col-lg-3 {
-        margin-bottom: 30px;
-    }
-
-    /* Carousel image styling */
-    .carousel-item img {
-        height: 300px;
-    }
-
-    .hero-section {
-        height: 60vh;
-    }
-
-    /* Section Padding */
-    .section {
-        padding: 60px 0;
-    }
-    
-    /* Footer Adjustments for Small Screens */
-    .footer .col-lg-3 {
-        text-align: center;
-    }
-    
-    .footer .d-flex {
-        justify-content: center;
-    }
-
-    .footer form .btn-primary {
-        position: relative;
-        top: auto;
-        right: auto;
-        transform: none;
-        margin-top: 10px;
-    }
-
-    /* Adjusting the text size for small screens */
-    .footer h5 {
-        font-size: 1rem;
-    }
-
-    .footer p, .footer a {
-        font-size: 0.75rem;
-    }
-}
-        
-    </style>
-    <style>
-        .count {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #02245B;
-
-                font-size: 5rem;  /* Adjust size as needed */
-                font-weight: bold;
-                color: #02245B;
-
+        /* Hero Banner Section */
+        .hero-banner {
+            position: relative;
+            padding: 10rem 0 6rem;
+            background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 0) 100%), var(--slate-100);
+            overflow: hidden;
         }
-    </style>
-    <style>
-        .service-card {
+
+        .hero-shape-1 {
+            position: absolute;
+            top: -20%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, rgba(255,255,255,0) 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            color: var(--slate-900);
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-title span {
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Portal Cards (ERP Subsystems) */
+        .portal-card {
+            background: white;
+            border: 1px solid var(--slate-200);
+            border-radius: 20px;
+            padding: 2.25rem;
+            height: 100%;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary), var(--success));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .portal-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px -15px rgba(37, 99, 235, 0.12);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .portal-card:hover::before {
+            opacity: 1;
+        }
+
+        .icon-box-premium {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .portal-card:hover .icon-box-premium {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* Stat Badges */
+        .stat-card {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--slate-200);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 2rem;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 3.5rem;
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: var(--slate-900);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Workspace Quick access bar */
+        .workspace-quick-bar {
+            background: white;
+            border: 1px solid var(--slate-200);
+            border-radius: 24px;
+            padding: 1.5rem;
+            box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .user-welcome-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-avatar-initial {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--success));
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-premium-action {
+            background: var(--slate-900);
+            color: white;
             border: none;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-            background: #fff;
+            border-radius: 14px;
+            padding: 0.8rem 1.6rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
         }
-    
-        .service-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+
+        .btn-premium-action:hover {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+            transform: translateY(-1px);
         }
-    
-        .fade-in {
+
+        /* Section Styling */
+        .section-padding {
+            padding: 6rem 0;
+        }
+
+        .section-subtitle {
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .section-title {
+            font-size: 2.25rem;
+            letter-spacing: -0.02em;
+            color: var(--slate-900);
+            margin-bottom: 3rem;
+        }
+
+        /* Scroll Reveal Animation classes */
+        .reveal-up {
             opacity: 0;
-            transform: translateY(20px);
-            animation: fadeInUp 0.6s ease-out forwards;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
         }
-    
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    </style>
 
-<style>
-    .service-card {
-        border: none;
-        border-radius: 15px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-        background: #fff;
-    }
-
-    .service-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-    }
-
-    .fade-in {
-        opacity: 0;
-        transform: translateY(20px);
-        animation: fadeInUp 0.6s ease-out forwards;
-    }
-
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
+        .reveal-up.visible {
             opacity: 1;
             transform: translateY(0);
         }
-    }
-    
-</style>
-{% comment %} <style>
-    .flip-card {
-        background-color: transparent;
-        width: 100%;
-        height: 350px;
-        perspective: 1000px;
-        cursor: pointer;
-    }
 
-    .flip-card-inner {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        text-align: center;
-        transition: transform 0.6s;
-        transform-style: preserve-3d;
-    }
+        /* Footer styling overrides */
+        .footer-custom {
+            background-color: var(--slate-900);
+            color: #94a3b8;
+            padding: 5rem 0 3rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
 
-    .flip-card:hover .flip-card-inner {
-        transform: rotateY(180deg);
-    }
+        .footer-custom h5 {
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
 
-    .flip-card-front, .flip-card-back {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        backface-visibility: hidden;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+        .footer-link {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
 
-    .flip-card-front {
-        background: #fff;
-    }
+        .footer-link:hover {
+            color: white;
+        }
 
-    .flip-card-back {
-        background: #02245B; /* Change background color for better visibility */
-        color: white;
-        transform: rotateY(180deg);
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
+        .social-circle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+        }
 
-    .card-body {
-        text-align: center;
-        padding: 20px;
-    }
-
-    .text-primary {
-        color: #02245B !important;
-    }
-</style> {% endcomment %}
-    
+        .social-circle-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
+
 <body>
-    <!-- Hero Section -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm fixed-top">
+
+    <!-- Header Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top glass-nav py-3">
         <div class="container">
-            <!-- Logo -->
-            <a class="navbar-brand" href="#">
-                <img src="{% static 'xlogo.png' %}" width="150" height="40" alt="Xpredict Labs">
+            <!-- Brand Logo -->
+            <a class="navbar-brand py-0" href="#">
+                <img src="{% static 'xlogo.png' %}" height="32" alt="Xpredict Labs" class="d-inline-block align-middle">
             </a>
     
-            <!-- Navbar Toggler for Mobile -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <!-- Mobile Toggle -->
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
     
-            <!-- Navbar Links -->
+            <!-- Nav Links -->
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto d-flex flex-column flex-lg-row gap-2 gap-lg-4">
+                <ul class="navbar-nav ms-auto align-items-center gap-2 gap-lg-4">
                     <li class="nav-item">
                         <a class="nav-link" href="#">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#footer">Contact Us</a>
+                        <a class="nav-link" href="#about">About Labs</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#services">Subsystems</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#footer">Contact</a>
+                    </li>
+                    
+                    <!-- Authenticated Dropdown / Login CTA -->
+                    {% if request.user.is_authenticated %}
+                    <li class="nav-item dropdown ms-lg-2">
+                        <button class="btn btn-light dropdown-toggle rounded-pill px-3 border d-flex align-items-center gap-2" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar avatar-xs rounded-circle bg-primary text-white" style="width: 22px; height: 22px; font-size: 0.65rem;">
+                                {{ request.user.username|slice:":1"|upper }}
+                            </span>
+                            <span class="small font-weight-bold text-dark">{{ request.user.first_name|default:request.user.username }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg mt-2 p-2 rounded-4" aria-labelledby="userMenuButton" style="min-width: 220px;">
+                            <li class="px-3 py-2 border-bottom mb-1">
+                                <div class="font-weight-bold text-dark small">{{ request.user.username }}</div>
+                                <div class="text-muted small" style="font-size: 0.75rem;">{{ request.user.email|default:"Workspace Member" }}</div>
+                            </li>
+                            <li>
+                                <a href="{% url 'vouchers_dashboard' %}" class="dropdown-item rounded-3 d-flex align-items-center py-2">
+                                    <i class="ti ti-wallet me-2 text-primary fs-4"></i> Financial Workspace
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'crm_dashboard' %}" class="dropdown-item rounded-3 d-flex align-items-center py-2">
+                                    <i class="ti ti-users-group me-2 text-success fs-4"></i> CRM Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'dealership_dashboard' %}" class="dropdown-item rounded-3 d-flex align-items-center py-2">
+                                    <i class="ti ti-building-store me-2 text-amber fs-4"></i> Dealership Portal
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'enquries' %}" class="dropdown-item rounded-3 d-flex align-items-center py-2">
+                                    <i class="ti ti-notes me-2 text-info fs-4"></i> Enquiries Listing
+                                </a>
+                            </li>
+                            <li class="border-top mt-2 pt-1">
+                                <form method="post" action="{% url 'logout' %}" class="p-0 m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item rounded-3 d-flex align-items-center py-2 text-danger">
+                                        <i class="ti ti-logout me-2 fs-4"></i> Logout
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item ms-lg-2">
+                        <a href="{% url 'login' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                            <i class="ti ti-login me-1"></i> Sign In
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
-
-                <!-- Login Dropdown -->
-                <div class="nav-item dropdown ms-lg-3 mt-2 mt-lg-0">
-                    <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
-                        Login
-                    </button>
-                    <ul class="dropdown-menu shadow-lg border-0" style="background-color: #02245B;">
-                        <li>
-                            <a href="http://127.0.0.1:9001/riva/login/" target="_blank" class="dropdown-item text-white d-flex align-items-center">
-                                <i class="ti ti-login me-2"></i> XCVR
-                            </a>
-                        </li>
-                        <li>
-                            <a href="http://www.xpredictdigital.com:9002/" target="_blank" class="dropdown-item text-white d-flex align-items-center">
-                                <i class="ti ti-world me-2"></i> XsHoT
-                            </a>
-                        </li>
-                    </ul>
-                </div>
             </div>
         </div>
     </nav>
 
-    <!-- Carousel -->
-    <div id="carouselExample" class="carousel slide" data-bs-ride="carousel" style="background-color: #02245B;">
-        <div class="carousel-inner">
-            <div class="carousel-item active">
-                <img src="{% static 'crm.jpg' %}" class="d-block w-100 img-fluid" alt="Business">
-            </div>
-            <div class="carousel-item">
-                <img src="{% static 'report.jpg' %}" class="d-block w-100 img-fluid" alt="Analytics">
-            </div>
-            <div class="carousel-item">
-                <img src="{% static 'evoucher.jpg' %}" class="d-block w-100 img-fluid" alt="Finance">
+    <!-- Hero / Workspace Overview Banner -->
+    <section class="hero-banner">
+        <div class="hero-shape-1"></div>
+        <div class="container">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-7">
+                    <span class="badge bg-primary-lt px-3 py-2 rounded-pill mb-3 font-weight-bold">Xpredict Labs Ecosystem</span>
+                    <h1 class="hero-title">Elevate Business Operations with <span>Smart Software</span></h1>
+                    <p class="text-muted leading-relaxed mb-4 fs-5" style="max-width: 600px;">
+                        Manage customer relations, track petty cash, log service checklists, and generate operational business intelligence reports all from a single secure workspace.
+                    </p>
+                    
+                    <!-- Quick Workspace Access Bar (If Logged In) -->
+                    {% if request.user.is_authenticated %}
+                    <div class="workspace-quick-bar mt-5 reveal-up visible">
+                        <div class="user-welcome-info">
+                            <div class="user-avatar-initial">
+                                {{ request.user.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <h4 class="mb-0 text-dark font-weight-bold">Welcome back, {{ request.user.first_name|default:request.user.username }}!</h4>
+                                <p class="text-muted small mb-0">Your secure modules are active.</p>
+                            </div>
+                        </div>
+                        <a href="{% url 'vouchers_dashboard' %}" class="btn-premium-action">
+                            <span>Enter Workspace</span>
+                            <i class="ti ti-arrow-right"></i>
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="mt-4">
+                        <a href="{% url 'login' %}" class="btn-premium-action">
+                            <span>Get Started</span>
+                            <i class="ti ti-arrow-right"></i>
+                        </a>
+                        <a href="#about" class="btn btn-light rounded-pill px-4 py-2 border ms-3 font-weight-bold">Learn More</a>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Graphic Slide / Mockup Image -->
+                <div class="col-lg-5">
+                    <div class="card border-0 shadow-lg rounded-4 overflow-hidden position-relative" style="background: white; border: 1px solid var(--slate-200) !important;">
+                        <!-- Soft decorative gradient overlay -->
+                        <div style="height: 320px; background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%); display: flex; align-items: center; justify-content: center; position: relative;">
+                            <div style="font-size: 8rem; color: rgba(37,99,235,0.08); position: absolute; font-weight: 900;">ERP</div>
+                            <div style="text-align: center; z-index: 10;">
+                                <div class="brand-glow-sphere mb-3">
+                                    <i class="ti ti-device-laptop"></i>
+                                </div>
+                                <h4 class="text-dark font-weight-bold">Integrated ERP Console</h4>
+                                <span class="badge bg-primary text-white rounded-pill px-3 py-1 mt-1 small">Secure Access</span>
+                            </div>
+                        </div>
+                        <div class="card-body p-4 text-center">
+                            <p class="text-muted small mb-0">
+                                Connect to XCVR networks, trace petty cash records, and manage dealership contracts dynamically.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <button class="carousel-control-prev" type="button" data-bs-target="#carouselExample" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon"></span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#carouselExample" data-bs-slide="next">
-            <span class="carousel-control-next-icon"></span>
-        </button>
-    </div>
+    </section>
 
     <!-- About Section -->
-    <section class="section text-center bg-light">
+    <section class="section-padding bg-white" id="about">
         <div class="container">
-            <h2 class="animated-heading scroll-reveal">About Xpredict <span style="color: red;">Labs</h2>
-            <p class="animated-text scroll-reveal">At Xpredict Labs, we are revolutionizing how businesses handle customer relationships, reports, and financial operations with cutting-edge solutions. Our CRM services help you manage customer interactions efficiently, while our advanced ERP system streamlines processes like managing e-vouchers and financial reporting.</p>
-            <p class="animated-text scroll-reveal">Our goal is to empower businesses with real-time, data-driven insights and innovative tools that not only enhance operational efficiency but also foster growth. From e-vouchers management to customer service reports, our services are designed to elevate your business to new heights.</p>
-        </div>
-    </section>
-
-    <!-- Projects Section -->
-    <section class="section text-center" style="background-color: #02245B;">
-        <div class="container">
-            <h2 class="text-white">PROJECTS</h2>
-            <div class="row">
-                <div class="col-12 col-sm-6 col-md-4">
-                    <div class="card service-card">
-                        <div class="card-body">
-                            <p class="card-text count" data-count="25">0</p>
-                            <h2 class="card-title">PROJECTS</h2>
-                        </div>
-                    </div>
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6">
+                    <span class="section-subtitle">Who We Are</span>
+                    <h2 class="section-title mb-4">Driving Efficiency Through Data-Driven ERP Solutions</h2>
+                    <p class="text-muted leading-relaxed mb-3">
+                        At Xpredict Labs, we develop professional enterprise modules focused on resolving operational bottlenecks. Our ecosystem merges core administrative pillars under one roof.
+                    </p>
+                    <p class="text-muted leading-relaxed">
+                        From managing dealer network commissions to tracking employee expense reports, our software modules are built with robust architectures designed to support scalability and secure user operations.
+                    </p>
                 </div>
-                <div class="col-12 col-sm-6 col-md-4">
-                    <div class="card service-card">
-                        <div class="card-body">
-                            <p class="card-text count" data-count="9">0</p>
-                            <h2 class="card-title">ON GOING</h2>
+                <div class="col-lg-6">
+                    <div class="row g-4">
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-number">25+</div>
+                                <div class="text-muted small">Projects Managed</div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-md-4 mx-auto">
-                    <div class="card service-card">
-                        <div class="card-body">
-                            <p class="card-text count" data-count="15">0</p>
-                            <h2 class="card-title">UPCOMING</h2>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-number">9+</div>
+                                <div class="text-muted small">Ongoing Deployments</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-number">15+</div>
+                                <div class="text-muted small">Upcoming Modules</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card" style="background: var(--primary-light); border-color: rgba(37,99,235,0.1);">
+                                <div class="stat-number text-primary">100%</div>
+                                <div class="text-primary small font-weight-bold">Secure Access</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -570,208 +506,211 @@
         </div>
     </section>
 
-    <!-- Services Section -->
-    <section class="section text-center">
+    <!-- Services / Subsystems Section -->
+    <section class="section-padding" id="services">
         <div class="container">
-            <h2>Our Softwares</h2>
-            <div class="row">
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card service-card">
-                        <img src="{% static 'crmcard.jpg' %}" class="card-img-top img-fluid" alt="CRM Solutions">
-                        <div class="card-body">
-                            <h3>CRM Solutions</h3>
-                            <p>Enhance customer relationships with AI-powered CRM tools.</p>
+            <div class="text-center mb-5">
+                <span class="section-subtitle">Software Modules</span>
+                <h2 class="section-title">Core Subsystems Ecosystem</h2>
+            </div>
+            
+            <div class="row g-4">
+                <!-- CRM Solutions -->
+                <div class="col-12 col-md-6 col-lg-4 reveal-up">
+                    <div class="portal-card">
+                        <div class="icon-box-premium">
+                            <i class="ti ti-users-group"></i>
                         </div>
+                        <h3 class="h3 font-weight-bold text-dark mb-2">CRM Solutions</h3>
+                        <p class="text-muted small mb-4 flex-grow-1 leading-relaxed">
+                            Organize lead listings, record follow-ups, and manage dealership commission distributions cleanly.
+                        </p>
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'crm_dashboard' %}" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Open CRM</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Sign In to Open</a>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card service-card">
-                        <img src="{% static 'reportcard.jpg' %}" class="card-img-top img-fluid" alt="Business Reports">
-                        <div class="card-body">
-                            <h3>Business Reports</h3>
-                            <p>Real-time reports providing critical insights.And Real-time Updates</p>
+
+                <!-- Business Reports -->
+                <div class="col-12 col-md-6 col-lg-4 reveal-up">
+                    <div class="portal-card">
+                        <div class="icon-box-premium" style="background: var(--success-light); color: var(--success);">
+                            <i class="ti ti-chart-bar"></i>
                         </div>
+                        <h3 class="h3 font-weight-bold text-dark mb-2">Business Reports</h3>
+                        <p class="text-muted small mb-4 flex-grow-1 leading-relaxed">
+                            Log on-site visit histories, generate PDF records, and monitor monthly financial overview metrics.
+                        </p>
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'vouchers_dashboard' %}" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">View Reports</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Sign In to Open</a>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card service-card">
-                        <img src="{% static 'evouchercard.jpg' %}" class="card-img-top img-fluid" alt="E-Voucher">
-                        <div class="card-body">
-                            <h3>E-Voucher Management</h3>
-                            <p>Efficiently create and manage digital vouchers.</p>
+
+                <!-- Petty Cash / Vouchers -->
+                <div class="col-12 col-md-6 col-lg-4 reveal-up">
+                    <div class="portal-card">
+                        <div class="icon-box-premium" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                            <i class="ti ti-wallet"></i>
                         </div>
+                        <h3 class="h3 font-weight-bold text-dark mb-2">Petty Cash Vouchers</h3>
+                        <p class="text-muted small mb-4 flex-grow-1 leading-relaxed">
+                            Request petty cash, manage advance payment groups, and track expenses across various accounts.
+                        </p>
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'vouchers_dashboard' %}" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Manage Vouchers</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Sign In to Open</a>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card service-card">
-                        <img src="{% static 'billingcard.jpg' %}" class="card-img-top img-fluid" alt="Billing Software">
-                        <div class="card-body">
-                            <h3>Billing Software</h3>
-                            <p>Automate your invoicing and billing processes.</p>
+
+                <!-- Billing & Invoicing -->
+                <div class="col-12 col-md-6 col-lg-4 reveal-up">
+                    <div class="portal-card">
+                        <div class="icon-box-premium" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            <i class="ti ti-file-invoice"></i>
                         </div>
+                        <h3 class="h3 font-weight-bold text-dark mb-2">Billing Software</h3>
+                        <p class="text-muted small mb-4 flex-grow-1 leading-relaxed">
+                            Generate commercial quotes, calculate margins, and track invoice statuses seamlessly.
+                        </p>
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'enquries' %}" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Go to Billing</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Sign In to Open</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- E-Commerce POS -->
+                <div class="col-12 col-md-6 col-lg-4 reveal-up">
+                    <div class="portal-card">
+                        <div class="icon-box-premium" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                            <i class="ti ti-device-desktop-analytics"></i>
+                        </div>
+                        <h3 class="h3 font-weight-bold text-dark mb-2">E-Commerce POS</h3>
+                        <p class="text-muted small mb-4 flex-grow-1 leading-relaxed">
+                            Handle transaction streams, inventory registers, and client checkouts instantly.
+                        </p>
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'vouchers_dashboard' %}" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Open POS Console</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Sign In to Open</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- RBAC Security -->
+                <div class="col-12 col-md-6 col-lg-4 reveal-up">
+                    <div class="portal-card">
+                        <div class="icon-box-premium" style="background: rgba(219, 39, 119, 0.1); color: #db2777;">
+                            <i class="ti ti-shield-checkered"></i>
+                        </div>
+                        <h3 class="h3 font-weight-bold text-dark mb-2">RBAC Access Control</h3>
+                        <p class="text-muted small mb-4 flex-grow-1 leading-relaxed">
+                            Restrict and control module visibility maps based on granular database roles.
+                        </p>
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'crm_dashboard' %}" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Configure Roles</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-light btn-sm rounded-pill w-100 mt-auto py-2 font-weight-bold">Sign In to Open</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Contact Section -->
-    <div class="container-fluid footer mt-5 py-5 wow fadeInUp" data-wow-delay="0.1s" style="background-color: #02245B;" id="footer">
-        <div class="container py-5">
-            <div class="row g-5">
+    <!-- Footer / Contact Section -->
+    <footer class="footer-custom" id="footer">
+        <div class="container">
+            <div class="row g-5 mb-5">
                 <!-- Our Office Section -->
-                <div class="col-lg-3 col-md-6 wow fadeInLeft" data-wow-delay="0.2s">
-                    <h5 class="text-white mb-4">Our Office</h5>
-                    <p class="mb-2">
-                        <span style="display: inline-flex; align-items: center;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-                                <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
-                            </svg>
-                            <span style="margin-left: 8px;">Thimlapura Road, Hurulichikanahalli, Bengaluru 560090</span>
-                        </span>
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="font-weight-bold text-white mb-4">Our Office</h5>
+                    <p class="mb-3 d-flex align-items-start gap-2">
+                        <i class="ti ti-map-pin fs-4 text-primary"></i>
+                        <span>Thimlapura Road, Hurulichikanahalli, Bengaluru 560090</span>
                     </p>
-                    <p class="mb-2">
-                        <span style="display: inline-flex; align-items: center;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" />
-                            </svg>
-                            <span style="margin-left: 8px;">+91 8762129695</span>
-                        </span>
+                    <p class="mb-3 d-flex align-items-center gap-2">
+                        <i class="ti ti-phone fs-4 text-primary"></i>
+                        <span>+91 8762129695</span>
                     </p>
-                    <p class="mb-2">
-                        <span style="display: inline-flex; align-items: center;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" />
-                                <path d="M3 7l9 6l9 -6" />
-                            </svg>
-                            <span style="margin-left: 8px;">info@xpredictlabs.com</span>
-                        </span>
+                    <p class="mb-0 d-flex align-items-center gap-2">
+                        <i class="ti ti-mail fs-4 text-primary"></i>
+                        <span>info@xpredictlabs.com</span>
                     </p>
                 </div>
     
                 <!-- Quick Links Section -->
-                <div class="col-lg-3 col-md-6 wow fadeInUp" data-wow-delay="0.3s">
-                    <h5 class="text-white mb-4">Quick Links</h5>
-                    <a class="text-white d-block mb-2" href="#">About Us</a>
-                    <a class="text-white d-block mb-2" href="#">Contact Us</a>
-                    <a class="text-white d-block mb-2" href="#">Our Services</a>
-                    <a class="text-white d-block mb-2" href="#">Terms & Conditions</a>
-                    <a class="text-white d-block" href="#">Support</a>
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="font-weight-bold text-white mb-4">Quick Links</h5>
+                    <ul class="list-unstyled p-0 m-0 d-flex flex-column gap-2">
+                        <li><a class="footer-link small" href="#">About Us</a></li>
+                        <li><a class="footer-link small" href="#services">Our Subsystems</a></li>
+                        <li><a class="footer-link small" href="#">Terms & Conditions</a></li>
+                        <li><a class="footer-link small" href="#">Workspace Support</a></li>
+                    </ul>
                 </div>
     
                 <!-- Business Hours Section -->
-                <div class="col-lg-3 col-md-6 wow fadeInRight" data-wow-delay="0.4s">
-                    <h5 class="text-white mb-4">Business Hours</h5>
-                    <p class="mb-1">Monday - Friday</p>
-                    <h4 class="text-light business-time">09:30 am - 06:00 pm</h4>
-                    <p class="mb-1">Saturday</p>
-                    <h4 class="text-light business-time">10:00 am - 05:00 pm</h4>
-                    <p class="mb-1">Sunday</p>
-                    <h4 class="text-light business-time">Closed</h4>
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="font-weight-bold text-white mb-4">Business Hours</h5>
+                    <p class="mb-1 small">Monday - Friday</p>
+                    <h4 class="text-white font-weight-bold mb-3" style="font-size: 1.1rem;">09:30 am - 06:00 pm</h4>
+                    <p class="mb-1 small">Saturday</p>
+                    <h4 class="text-white font-weight-bold mb-3" style="font-size: 1.1rem;">10:00 am - 05:00 pm</h4>
+                    <p class="mb-1 small">Sunday</p>
+                    <h4 class="text-white font-weight-bold" style="font-size: 1.1rem; color: #db2777 !important;">Closed</h4>
                 </div>
     
                 <!-- Social Media Section -->
-                <div class="col-lg-3 col-md-6 wow fadeInRight" data-wow-delay="0.5s">
-                    <h5 class="text-white mb-4">Follow Us</h5>
-                    <div class="d-flex align-items-center">
-                        <a href="#" class="me-3 text-white" target="_blank">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-facebook">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M7 10v4h3v7h4v-7h3l1 -4h-4v-2a1 1 0 0 1 1 -1h3v-4h-3a5 5 0 0 0 -5 5v2h-3" />
-                            </svg>
-                        </a>
-                
-                        <a href="#" class="me-3 text-white" target="_blank">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-x">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M4 4l11.733 16h4.267l-11.733 -16z" />
-                                <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" />
-                            </svg>
-                        </a>
-                
-                        <a href="#" class="me-3 text-white" target="_blank">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-instagram">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M4 8a4 4 0 0 1 4 -4h8a4 4 0 0 1 4 4v8a4 4 0 0 1 -4 4h-8a4 4 0 0 1 -4 -4z" />
-                                <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-                                <path d="M16.5 7.5v.01" />
-                            </svg>
-                        </a>
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="font-weight-bold text-white mb-4">Follow Us</h5>
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <a href="#" class="social-circle-btn"><i class="ti ti-brand-facebook fs-4"></i></a>
+                        <a href="#" class="social-circle-btn"><i class="ti ti-brand-x fs-4"></i></a>
+                        <a href="#" class="social-circle-btn"><i class="ti ti-brand-instagram fs-4"></i></a>
                     </div>
-                    <div class="d-flex align-items-center">
-                    <img src="{% static 'xdlogo.png' %}" class="image-fluid me-7" alt="Xpredict Labs">
-                    </div>
+                    <img src="{% static 'xdlogo.png' %}" height="32" class="d-block" style="opacity: 0.8; mix-blend-mode: screen;">
                 </div>
-                
             </div>
-            <hr>
+            
+            <hr class="border-transparent" style="border-top-color: rgba(255,255,255,0.08) !important;">
     
-            <div class="row mt-4">
+            <div class="row mt-4 pt-2">
                 <div class="col-12 text-center">
-                    <p class="text-white mb-2">Copyright © Xpredict Labs, All Right Reserved.</p>
-                    <p class="text-white">Designed By Xpredict Digital</p>
+                    <p class="small mb-1">Copyright © Xpredict Labs. All Rights Reserved.</p>
+                    <p class="small" style="font-size: 0.75rem;">Designed By Xpredict Digital</p>
                 </div>
             </div>
         </div>
-    </div>
+    </footer>
 
+    <!-- Scroll Reveal Logic -->
     <script>
-        $(window).on('scroll', function() {
-            $('.fade-in').each(function() {
-                let position = $(this).offset().top;
-                let scroll = $(window).scrollTop() + $(window).height();
-                if (scroll > position) { $(this).addClass('visible'); }
+        function revealOnScroll() {
+            let elements = document.querySelectorAll('.reveal-up');
+            let windowHeight = window.innerHeight;
+
+            elements.forEach(element => {
+                let positionFromTop = element.getBoundingClientRect().top;
+                if (positionFromTop < windowHeight - 50) {
+                    element.classList.add('visible');
+                }
             });
-        });
-        // Function to detect scroll and add "visible" class
-function revealOnScroll() {
-    let elements = document.querySelectorAll('.scroll-reveal');
-    let windowHeight = window.innerHeight;
-
-    elements.forEach(element => {
-        let positionFromTop = element.getBoundingClientRect().top;
-        if (positionFromTop < windowHeight - 50) {
-            element.classList.add('visible');
         }
-    });
-}
 
-// Run function on scroll
-window.addEventListener('scroll', revealOnScroll);
-window.addEventListener('load', revealOnScroll);
+        window.addEventListener('scroll', revealOnScroll);
+        window.addEventListener('load', revealOnScroll);
         
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            let counters = document.querySelectorAll('.count');
-            let observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        let counter = entry.target;
-                        let target = parseInt(counter.getAttribute('data-count'));
-                        let current = 0;
-                        let increment = Math.ceil(target / 50); // Adjust speed
-    
-                        let interval = setInterval(() => {
-                            current += increment;
-                            if (current >= target) {
-                                current = target;
-                                clearInterval(interval);
-                            }
-                            counter.textContent = current + (target > 9 ? '+' : '');
-                        }, 50); // Speed of counting
-                        
-                        observer.unobserve(counter);
-                    }
-                });
-            }, { threshold: 0.5 });
-    
-            counters.forEach(counter => observer.observe(counter));
-        });
+        // Run reveal once initially
+        setTimeout(revealOnScroll, 100);
     </script>
 </body>
 </html>

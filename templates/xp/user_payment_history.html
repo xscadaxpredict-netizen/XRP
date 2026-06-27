@@ -1,251 +1,350 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container-fluid">
-    <h2 class="mb-4 mt-4 text-center text-md-start">Your Payment History</h2>
-    <div class="row mb-3 align-items-center">
-        <!-- Export Dropdown -->
-        <div class="col-md-4 col-12 mb-2 mb-md-0">
-            <div class="d-flex justify-content-between justify-content-md-start align-items-center">
-                <div class="dropdown me-2">
-                    <button class="btn btn-secondary dropdown-toggle w-100 w-md-auto" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Export
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                        <li><a class="dropdown-item" href="{% url 'export_payments' %}?format=xlsx">Export as XLSX</a></li>
-                        <li><a class="dropdown-item" href="{% url 'export_payments' %}?format=csv">Export as CSV</a></li>
-                        <li><a class="dropdown-item" href="{% url 'export_payments' %}?format=pdf">Export as PDF</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><button class="dropdown-item text-primary" data-bs-toggle="modal" data-bs-target="#customExportModal">📅 Export by Date</button></li>
-                    </ul>
-                </div>
 
-                <!-- Custom Export Modal -->
-                <div class="modal fade" id="customExportModal" tabindex="-1" aria-labelledby="customExportModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <form method="get" action="{% url 'export_payments' %}" class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="customExportModalLabel">Export by Date Range</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label for="exportFormat" class="form-label">Select Format</label>
-                                    <select name="format" class="form-select" required>
-                                        <option value="xlsx">Excel (XLSX)</option>
-                                        <option value="csv">CSV</option>
-                                        <option value="pdf">PDF</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">From Date</label>
-                                    <input type="date" name="from" class="form-control" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">To Date</label>
-                                    <input type="date" name="to" class="form-control" required>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="submit" class="btn btn-success">Export</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-                {% if user.is_staff %}
-                <!-- User Dropdown for Admin -->
-                <div class="dropdown">
-                    <a href="#" class="btn btn-primary dropdown-toggle d-flex align-items-center gap-2 justify-content-center w-100 w-md-auto" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="icon icon-tabler icon-tabler-user">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z" fill="white" />
-                            <path d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z" fill="white" />
-                        </svg>
-                        <span class="text-white" style="font-size: 14px">User</span>
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="userDropdown">
-                        <li>
-                            <a class="dropdown-item" href="?user_id=">--Select User--</a>
-                        </li>
-                        {% for user in users %}
-                            <li>
-                                <a class="dropdown-item {% if user.id == selected_user_id %}active{% endif %}" href="?user_id={{ user.id }}&transaction_date_from={{ transaction_date_from }}&transaction_date_to={{ transaction_date_to }}&item_type={{ item_type_filter }}&search={{ search_query }}">
-                                    {{ user.username }}
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
+<style>
+  .dashboard-transition-container {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .dashboard-transition-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .dashboard-transition-container.fade-out {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.03) !important;
+  }
+</style>
+
+<div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+
+  <!-- Page Header -->
+  <div class="mb-4">
+    <h1 class="h2 fw-bold text-dark mb-0">Your Payment History</h1>
+  </div>
+
+  <!-- Controls Card (Search, User Filters, Exports) -->
+  <div class="card border-0 shadow-lg mb-4" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 10; position: relative;">
+    <div class="card-body p-3 p-md-4">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        
+        <!-- Left-aligned Actions and Filters -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          
+          <!-- Export Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle rounded-pill px-3 py-1.5 shadow-sm" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-download me-1"></i> Export
+            </button>
+            <ul class="dropdown-menu shadow-sm border-0 rounded-3" aria-labelledby="exportDropdown">
+              <li>
+                <a class="dropdown-item py-2" href="{% url 'export_payments' %}?format=xlsx">
+                  <i class="bi bi-file-excel me-2 text-success"></i>Export as XLSX
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item py-2" href="{% url 'export_payments' %}?format=csv">
+                  <i class="bi bi-filetype-csv me-2 text-primary"></i>Export as CSV
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item py-2" href="{% url 'export_payments' %}?format=pdf">
+                  <i class="bi bi-file-pdf me-2 text-danger"></i>Export as PDF
+                </a>
+              </li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li>
+                <button class="dropdown-item py-2 text-primary" data-bs-toggle="modal" data-bs-target="#customExportModal">
+                  📅 Export by Date
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- User Dropdown for Admin -->
+          {% if user.is_staff %}
+          <div class="dropdown">
+            <a href="#" class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 rounded-pill px-3 py-1.5 shadow-sm" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person"></i>
+              <span>User</span>
+            </a>
+            <ul class="dropdown-menu shadow-sm border-0 rounded-3" aria-labelledby="userDropdown" style="max-height: 250px; overflow-y: auto;">
+              <li>
+                <a class="dropdown-item py-2" href="?user_id=">--Select User--</a>
+              </li>
+              {% for u in users %}
+              <li>
+                <a class="dropdown-item py-2 {% if u.id == selected_user_id %}active{% endif %}" href="?user_id={{ u.id }}&transaction_date_from={{ transaction_date_from }}&transaction_date_to={{ transaction_date_to }}&item_type={{ item_type_filter }}&search={{ search_query }}">
+                  {{ u.username }}
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Right-aligned Search Form & Clear -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <form method="get" action="{% url 'payments' %}" autocomplete="off" class="d-flex align-items-center gap-2 mb-0">
+            <!-- Retain current query params except q -->
+            {% for key, value in request.GET.items %}
+              {% if key != 'q' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+              {% endif %}
+            {% endfor %}
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3 shadow-sm">
+                <i class="bi bi-search text-muted"></i>
+              </span>
+              <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="form-control border-start-0 rounded-end-pill px-3 shadow-sm" placeholder="Search by Paid To..." aria-label="Search" style="width: 240px;">
             </div>
+            {% if request.GET.q or selected_user_id %}
+              <a href="{% url 'payments' %}" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" title="Clear Search">
+                <i class="bi bi-x-lg"></i>
+              </a>
+            {% endif %}
+          </form>
         </div>
-
-        <!-- Search Bar -->
-        <div class="col-md-8 col-12">
-            <form method="get" action="{% url 'payments' %}" autocomplete="off" class="d-flex flex-column flex-md-row">
-                <input type="text" name="q" value="{{ request.GET.q }}" class="form-control me-md-2 mb-2 mb-md-0" placeholder="Search by Paid To or Transaction ID" style="max-width: 100%;">
-                <div class="d-flex">
-                    <button type="submit" class="btn btn-outline-primary me-2 w-100 w-md-auto">Search</button>
-                    <a href="{% url 'payments' %}" class="btn btn-outline-secondary w-100 w-md-auto">Clear</a>
-                </div>
-            </form>
-        </div>
+      </div>
     </div>
-</div>
+  </div>
 
-{% if payments %}
-<div class="table-responsive me-1 ms-1">
-    <table class="table table-bordered">
-        <thead>
+  <!-- Data Table Card -->
+  <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 1; position: relative;">
+    <div class="card-body p-4">
+      {% if payments %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light text-secondary small uppercase" style="background: rgba(13, 110, 253, 0.03);">
             <tr>
-                <th>Transaction ID</th>
-                <th>Paid To</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Amount</th>
-                <th>Remark</th>
-                <th>Screenshot</th>
-                <th>Date</th>
-                <th>Action</th>
+              <th class="fw-bold">Transaction ID</th>
+              <th class="fw-bold">Paid To</th>
+              <th class="fw-bold">From</th>
+              <th class="fw-bold">To</th>
+              <th class="fw-bold">Amount</th>
+              <th class="fw-bold">Remark</th>
+              <th class="fw-bold">Screenshot</th>
+              <th class="fw-bold">Date</th>
+              <th class="fw-bold text-end">Action</th>
             </tr>
-        </thead>
-        <tbody>
+          </thead>
+          <tbody>
             {% for payment in payments %}
             <tr>
-                <td>{{ payment.transaction_id }}</td>
-                <td>{{ payment.paid_to }}</td>
-                <td>{{ payment.from_date }}</td>
-                <td>{{ payment.to_date }}</td>
-                <td>{{ payment.amount }}</td>
-                <td>{{ payment.remarks|default:"—" }}</td>
-                <td>
-                    {% if payment.screenshot %}
-                        <a href="{{ payment.screenshot }}" target="_blank">View Screenshot</a>
-                    {% else %}
-                        <span class="text-muted">No Screenshot</span>
-                    {% endif %}
-                </td>
-                <td>{{ payment.created_at|date:"d M Y, H:i" }}</td>
-                <td>
-                    {% if payment.screenshot %}
-                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editPaymentModal{{ payment.id }}">
-                            Edit
-                        </button>
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
+              <td class="fw-bold">{{ payment.transaction_id }}</td>
+              <td>{{ payment.paid_to }}</td>
+              <td class="text-nowrap">{{ payment.from_date }}</td>
+              <td class="text-nowrap">{{ payment.to_date }}</td>
+              <td class="fw-bold">₹{{ payment.amount }}</td>
+              <td>{{ payment.remarks|default:"—" }}</td>
+              <td>
+                {% if payment.screenshot %}
+                <a href="{{ payment.screenshot }}" target="_blank" class="btn btn-outline-info btn-sm rounded-pill px-3 py-1 shadow-sm" style="font-size: 12px;">
+                  <i class="bi bi-file-earmark-image me-1"></i> View Screenshot
+                </a>
+                {% else %}
+                <span class="text-muted small">No Screenshot</span>
+                {% endif %}
+              </td>
+              <td class="text-nowrap">{{ payment.created_at|date:"d M Y, H:i" }}</td>
+              <td class="text-end">
+                {% if request.user.is_staff or request.user.is_superuser %}
+                  {% if payment.screenshot %}
+                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 py-1 shadow-sm transition-link" style="font-size: 12px;" data-bs-toggle="modal" data-bs-target="#editPaymentModal{{ payment.id }}">
+                    <i class="bi bi-pencil-square me-1"></i> Edit
+                  </button>
+                  {% else %}
+                  <span class="text-muted">—</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
             </tr>
-
-            <!-- Edit Modal -->
-            <div class="modal fade" id="editPaymentModal{{ payment.id }}" tabindex="-1" aria-labelledby="editPaymentModalLabel{{ payment.id }}" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title" id="editPaymentModalLabel{{ payment.id }}">Payment Details</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <form method="post" enctype="multipart/form-data" action="{% url 'update_payment' payment.id %}">
-                                {% csrf_token %}
-                                <div class="mb-3">
-                                    <label class="form-label">Transaction ID</label>
-                                    <input type="text" class="form-control" value="{{ payment.transaction_id }}" readonly>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Paid To</label>
-                                    <input type="text" class="form-control" value="{{ payment.paid_to }}" readonly>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">From Date</label>
-                                        <input type="text" class="form-control" value="{{ payment.from_date }}" readonly>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">To Date</label>
-                                        <input type="text" class="form-control" value="{{ payment.to_date }}" readonly>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Amount</label>
-                                    <input type="text" class="form-control" value="{{ payment.amount }}" readonly>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Remarks</label>
-                                    <input type="text" name="remarks" class="form-control" value="{{ payment.remarks }}">
-                                </div>
-                                <div class="mb-3 text-center">
-                                    {% if payment.screenshot %}
-                                      <p><strong>Current Upload:</strong></p>
-                                  
-                                      {% if payment.screenshot_name|lower|slice:"-4:" == ".jpg" or payment.screenshot_name|lower|slice:"-5:" == ".jpeg" or payment.screenshot_name|lower|slice:"-4:" == ".png" %}
-                                        <!-- 🖼 Image preview -->
-                                        <img src="{{ payment.screenshot }}" class="img-fluid rounded shadow mb-2" style="max-height: 350px;">
-                                  
-                                      {% elif payment.screenshot|lower|slice:"-4:" == ".txt" %}
-                                        <!-- 📜 Text file display -->
-                                        <a href="{{ payment.screenshot }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                          View Text File
-                                        </a>
-                                  
-                                      {% else %}
-                                        <!-- 📄 Other file types (like PDF, etc.) -->
-                                        <a href="{{ payment.screenshot }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                          Open Uploaded File
-                                        </a>
-                                      {% endif %}
-                                    {% else %}
-                                      <p class="text-muted">No file uploaded.</p>
-                                    {% endif %}
-                                  
-                                    <label class="form-label mt-3">Replace File (optional)</label>
-                                    <input type="file" name="screenshot" accept="image/*,.txt" class="form-control">
-                                  </div>
-                                <div class="text-center">
-                                    <button type="submit" class="btn btn-success">Update Screenshot</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
             {% endfor %}
-        </tbody>
-    </table>
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox display-4 d-block mb-3 text-secondary"></i>
+        No payments found.
+      </div>
+      {% endif %}
+    </div>
+  </div>
 </div>
-{% else %}
-<p>No payments found.</p>
+
+<!-- ==================== MODALS INJECTION (ROOT LEVEL) ==================== -->
+
+<!-- Custom Export Modal -->
+<div class="modal fade" id="customExportModal" tabindex="-1" aria-labelledby="customExportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="get" action="{% url 'export_payments' %}" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="customExportModalLabel">Export by Date Range</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label for="exportFormat" class="form-label fw-semibold">Select Format</label>
+          <select name="format" class="form-select rounded-3" required>
+            <option value="xlsx">Excel (XLSX)</option>
+            <option value="csv">CSV</option>
+            <option value="pdf">PDF</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">From Date</label>
+          <input type="date" name="from" class="form-control rounded-3" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">To Date</label>
+          <input type="date" name="to" class="form-control rounded-3" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success px-4 rounded-pill">Export</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modals -->
+{% if request.user.is_staff or request.user.is_superuser %}
+{% for payment in payments %}
+{% if payment.screenshot %}
+<div class="modal fade" id="editPaymentModal{{ payment.id }}" tabindex="-1" aria-labelledby="editPaymentModalLabel{{ payment.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header bg-primary text-white" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+        <h5 class="modal-title fw-bold" id="editPaymentModalLabel{{ payment.id }}">Payment Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form method="post" enctype="multipart/form-data" action="{% url 'update_payment' payment.id %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Transaction ID</label>
+            <input type="text" class="form-control rounded-3 bg-light" value="{{ payment.transaction_id }}" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Paid To</label>
+            <input type="text" class="form-control rounded-3 bg-light" value="{{ payment.paid_to }}" readonly>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">From Date</label>
+              <input type="text" class="form-control rounded-3 bg-light" value="{{ payment.from_date }}" readonly>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-semibold">To Date</label>
+              <input type="text" class="form-control rounded-3 bg-light" value="{{ payment.to_date }}" readonly>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Amount</label>
+            <input type="text" class="form-control rounded-3 bg-light" value="{{ payment.amount }}" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Remarks</label>
+            <input type="text" name="remarks" class="form-control rounded-3" value="{{ payment.remarks }}">
+          </div>
+          <div class="mb-3 text-center">
+            {% if payment.screenshot %}
+              <p class="fw-semibold">Current Upload:</p>
+          
+              {% if payment.screenshot_name|lower|slice:"-4:" == ".jpg" or payment.screenshot_name|lower|slice:"-5:" == ".jpeg" or payment.screenshot_name|lower|slice:"-4:" == ".png" %}
+                <!-- Image preview -->
+                <img src="{{ payment.screenshot }}" class="img-fluid rounded shadow mb-2" style="max-height: 350px;">
+          
+              {% elif payment.screenshot|lower|slice:"-4:" == ".txt" %}
+                <!-- Text file display -->
+                <a href="{{ payment.screenshot }}" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                  View Text File
+                </a>
+          
+              {% else %}
+                <!-- Other file types -->
+                <a href="{{ payment.screenshot }}" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                  Open Uploaded File
+                </a>
+              {% endif %}
+            {% else %}
+              <p class="text-muted">No file uploaded.</p>
+            {% endif %}
+          
+            <label class="form-label mt-3 fw-semibold">Replace File (optional)</label>
+            <input type="file" name="screenshot" accept="image/*,.txt" class="form-control rounded-3">
+          </div>
+          <div class="text-center mt-4">
+            <button type="submit" class="btn btn-success px-4 rounded-pill">Update Screenshot</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endif %}
-</div>
+{% endfor %}
+{% endif %}
+
+<script>
+  // Smooth Page Transition
+  document.addEventListener("DOMContentLoaded", function() {
+    const container = document.getElementById("dashboard-container");
+    if (container) {
+      requestAnimationFrame(() => {
+        container.classList.add("visible");
+      });
+    }
+
+    const transitionLinks = document.querySelectorAll(".transition-link");
+    transitionLinks.forEach(link => {
+      link.addEventListener("click", function(e) {
+        // Prevent event block for modal triggers
+        if (this.hasAttribute("data-bs-toggle")) return;
+
+        e.preventDefault();
+        const targetUrl = this.getAttribute("href");
+        if (container) {
+          container.classList.remove("visible");
+          container.classList.add("fade-out");
+        }
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 350);
+      });
+    });
+  });
+</script>
 
 {% if messages %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        {% for message in messages %}
-            Swal.fire({
-                icon: "{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}success{% endif %}",
-                title: "{{ message|escapejs }}",
-                showConfirmButton: false,
-                timer: 2500
-            });
-        {% endfor %}
-    });
+  document.addEventListener("DOMContentLoaded", function() {
+    {% for message in messages %}
+      Swal.fire({
+        icon: "{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}success{% endif %}",
+        title: "{{ message|escapejs }}",
+        showConfirmButton: false,
+        timer: 2500
+      });
+    {% endfor %}
+  });
 </script>
 {% endif %}
 
-<!-- Optional CSS for styling -->
-<style>
-.modal-content {
-  border-radius: 12px;
-  overflow: hidden;
-}
-.modal-header {
-  background: linear-gradient(90deg, #007bff, #0056b3);
-}
-.modal-body img {
-  border: 2px solid #e0e0e0;
-}
-</style>
 {% endblock %}

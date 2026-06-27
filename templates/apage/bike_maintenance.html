@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">Log Bike Maintenance</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'bike_maintenance_create' %}" enctype="multipart/form-data">
+
+                        {% csrf_token %}
+                        <!-- Select2 CSS -->
+                        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Bike *</label>
+                            {{ form.bike }}
+                            {{ form.bike.errors }}
+                        </div>
+                        <div class="row bg-light pt-3 pb-2 rounded mb-3 border">
+                            <h6 class="text-muted mb-3"><i class="fa fa-history"></i> Previous Service Info (Auto-filled)</h6>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label text-muted small">Last Oil Change or Service Date</label>
+                                {{ form.last_oil_change_or_service_date }}
+                                {{ form.last_oil_change_or_service_date.errors }}
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label text-muted small">Last Oil Change / Service KM</label>
+                                {{ form.last_oil_change_km }}
+                                {{ form.last_oil_change_km.errors }}
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-3 border-bottom pb-2">New Maintenance Details</h5>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3"> 
+                                <label class="form-label">Oil Change Date</label>
+                                {{ form.oil_change_date }}
+                                {{ form.oil_change_date.errors }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Current Mileage (km) *</label>
+                                {{ form.current_mileage }}
+                                {{ form.current_mileage.errors }}
+                            </div>
+                        </div>
+
+                        <h5 class="mt-3 border-bottom pb-2">Routine Checks</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.brakes_ok }}
+                                    <label class="form-check-label">Brakes OK</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.tires_ok }}
+                                    <label class="form-check-label">Tires OK</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    {{ form.lights_ok }}
+                                    <label class="form-check-label">Lights OK</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Upload Photos</label>
+                            <input type="file" name="photos" multiple class="form-control" accept="image/*">
+                            <small class="text-muted">You can select multiple photos at once.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Issues Faced (if any)</label>
+                            {{ form.issues_faced }}
+                            {{ form.issues_faced.errors }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Tag Users (They will receive a notification)</label>
+                            {{ form.tagged_users }}
+                            {{ form.tagged_users.errors }}
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'bike_maintenance_viewing' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-success">Save Maintenance Log</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2
+    if (typeof jQuery !== 'undefined') {
+        $('.select2').select2({
+            width: '100%',
+            placeholder: "Select users to tag..."
+        });
+    }
+
+    const bikeSelect = document.getElementById('id_bike');
+    const lastDateInput = document.getElementById('id_last_oil_change_or_service_date');
+    const lastKmInput = document.getElementById('id_last_oil_change_km');
+    
+    // Parse the JSON data passed from the view
+    const latestData = JSON.parse('{{ latest_data_json|escapejs }}');
+    
+    bikeSelect.addEventListener('change', function() {
+        const bikeId = this.value;
+        if (bikeId && latestData[bikeId]) {
+            lastDateInput.value = latestData[bikeId].last_oil_change_or_service_date || '';
+            lastKmInput.value = latestData[bikeId].last_oil_change_km || '';
+        } else {
+            lastDateInput.value = '';
+            lastKmInput.value = '';
+        }
+    });
+});
+</script>
+{% endblock extra_scripts %}

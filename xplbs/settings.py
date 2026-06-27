@@ -41,8 +41,9 @@ INSTALLED_APPS = [
     'app',
     'apage',
     'website',
-    'Riva',		
-   
+    'Riva',
+    'rest_framework',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -184,7 +185,15 @@ CSRF_COOKIE_SAMESITE = "Lax"
 
 
 
-FCM_SERVICE_ACCOUNT_FILE = "/Users/shashank/Downloads/sample2/sample/xplbs/xentrix-ed813-firebase-adminsdk-fbsvc-b42147e8c4.json"
+# FCM_SERVICE_ACCOUNT_FILE = "/Users/shashank/Downloads/sample2/sample/xplbs/xentrix-ed813-firebase-adminsdk-fbsvc-b42147e8c4.json"
+FCM_SERVICE_ACCOUNT_FILE = "/Users/shashank/Downloads/sample2/sample/xplbs/servicereport-afb90-firebase-adminsdk-fbsvc-dddf4e02db.json"
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+}
 
 
 

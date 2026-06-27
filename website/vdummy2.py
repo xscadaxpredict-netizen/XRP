@@ -255,7 +255,7 @@ def item_form(request):
 
     else:
         print("⚪ Default order applied (latest first)")
-        expenses = expenses.order_by('-id')
+        expenses = expenses.order_by('-transaction_date', '-id')
 
     # Only show non-drafts
     expenses = expenses.filter(is_draft=False)
@@ -683,6 +683,7 @@ def assign_advances(request):
         proof_file = request.FILES.get("proof_file")
         leader_id = request.POST.get("leader")
         payment_mode = request.POST.get("payment_mode", "net_banking")
+        assign_date_str = request.POST.get("assign_date")
 
         print(f"➡️ Group: {group_name}")
         print(f"➡️ Users: {user_ids}")
@@ -697,6 +698,17 @@ def assign_advances(request):
             messages.error(request, "Invalid amount.")
             return redirect("assign_advances")
 
+        # Parse Date
+        custom_date = timezone.now()
+        if assign_date_str:
+            try:
+                # Combining with current time to keep it a datetime object
+                parsed_date = datetime.strptime(assign_date_str, "%Y-%m-%d")
+                current_time = timezone.now().time()
+                custom_date = timezone.make_aware(datetime.combine(parsed_date, current_time))
+            except ValueError:
+                pass
+
         # Create / Get Group
         with db_transaction.atomic():
 
@@ -709,7 +721,8 @@ def assign_advances(request):
                 group = AdvanceGroup.objects.create(
                     name=group_name,
                     total_advance=0,
-                    payment_mode=payment_mode
+                    payment_mode=payment_mode,
+                    created_at=custom_date
                 )
             else:
                 group.payment_mode = payment_mode
@@ -813,8 +826,12 @@ def assign_advances(request):
         else:
             print("➡️ No allocation exists → Creating new one")
 
+            # Try to fetch 'Xpacct' user, fallback to request.user
+            xpacct_user = User.objects.filter(username="Xpacct").first()
+            creator_user = xpacct_user if xpacct_user else request.user
+
             allocation = Expense.objects.create(
-                created_by=request.user,
+                created_by=creator_user,
                 item_type="advances",
                 transaction_option="voucher",
                 transaction_category="internal",
@@ -840,10 +857,34 @@ def assign_advances(request):
             print("✔️ Created new allocation expense")
 
         print("====== ALLOCATION EXPENSE UPDATE END ======\n")
+        # 🔔 Create notification for Leader
+        if group.leader:
+            Notification.objects.create(
+                user=group.leader,
+                title="Advance Assigned",
+                message=f"₹{amount} advance has been assigned to group '{group.name}'. You are the group leader.",
+            )
+
+        # 🔔 Create notification for all assigned users (excluding leader to avoid duplicate)
+        for uid in user_ids:
+            try:
+                user = User.objects.get(id=uid)
+
+                if group.leader and user.id == group.leader.id:
+                    continue  # skip leader (already notified)
+
+                Notification.objects.create(
+                    user=user,
+                    title="Added to Advance Group",
+                    message=f"You have been added to advance group '{group.name}' with ₹{amount} assigned.",
+                )
+
+            except Exception as e:
+                print("Notification creation failed:", e)
 
         messages.success(
             request,
-            f"₹{amount} assigned to group '{group.name}'. {success} user(s) assigned. {failed} failed. Expense voucher updated/created.",
+            f"Successfully assigned ₹{amount} to '{group.name}'! 🚀 {success} user(s) added.",
         )
         return redirect("assign_advances")
 
@@ -1048,21 +1089,19 @@ def view_assigned_groups(request):
 
         user_rows = {}
 
-        for user in assigned_users:
-            user_rows[user.id] = {
-                "user": user,
-                "credit": group.total_advance,
-                "rows": [],
-                "balance": group.total_advance,
-            }
+        if selected_user_id:
+            assigned_users = assigned_users.filter(id=selected_user_id)
 
         expenses = Expense.objects.filter(
             item_type="advances",
             advance_group=group,
-            status__in=["pending", "paid"],
+            status__in=["pending", "approved", "paid"],
             is_draft=False,
             is_allocation=False,
         ).order_by("date", "id")
+
+        if selected_user_id:
+            expenses = expenses.filter(created_by_id=selected_user_id)
 
         if start_date and end_date:
             try:
@@ -1071,6 +1110,30 @@ def view_assigned_groups(request):
                 expenses = expenses.filter(date__range=[s, e])
             except Exception:
                 pass
+
+        # Calculate context-specific used amount
+        used = expenses.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        
+        # Remaining and overdue logic relative to the filters if applied,
+        # OR keep it as group-wide? 
+        # Usually, group level should stay group level, but 'Used' here should reflect the filters.
+        # User requested they work together.
+        
+        full_group_used, full_group_remaining, full_group_overdue = calculate_group_balances(group)
+        
+        # We will show the context-specific used, but maybe group-wide remaining?
+        # Let's use the local 'used' for the summary shown in the card if filters are on.
+        
+        remaining = group.total_advance - used
+        overdue = abs(remaining) if remaining < 0 else Decimal("0.00")
+
+        for user in assigned_users:
+            user_rows[user.id] = {
+                "user": user,
+                "credit": group.total_advance,
+                "rows": [],
+                "balance": group.total_advance,
+            }
 
         for exp in expenses:
             user = exp.created_by
@@ -1097,8 +1160,6 @@ def view_assigned_groups(request):
                 "overdue": balance < 0,
                 "overdue_amount": abs(balance) if balance < 0 else None,
             })
-
-        used, remaining, overdue = calculate_group_balances(group)
 
         # cleared_amount = Decimal("0.00")
         # if group.remaining_balance == 0 and remaining < 0:
@@ -2885,182 +2946,499 @@ def export_vouchers(request):
 
 
 
+# def export_to_xlsx(request):
+#     import xlsxwriter
+#     from io import BytesIO
+#     from django.http import HttpResponse
+#     from decimal import Decimal
+
+#     response = HttpResponse(
+#         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+#     )
+#     response['Content-Disposition'] = 'attachment; filename=vouchers.xlsx'
+
+#     output = BytesIO()
+#     workbook = xlsxwriter.Workbook(output)
+#     worksheet = workbook.add_worksheet('Vouchers')
+
+#     # --- Formats ---
+#     header_format = workbook.add_format({
+#         'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
+#         'fg_color': '#0070C0', 'font_color': 'white'
+#     })
+#     blue_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#B4C6E7'})
+#     white_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#D9E1F2'})
+#     link_blue_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'color': 'blue', 'underline': 1, 'fg_color': '#B4C6E7'})
+#     link_white_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'color': 'blue', 'underline': 1, 'fg_color': '#D9E1F2'})
+#     date_blue_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#B4C6E7', 'num_format': 'd-mmm-yyyy'})
+#     date_white_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#D9E1F2', 'num_format': 'd-mmm-yyyy'})
+
+#     # --- Headers ---
+#     headers = [
+#         "Serial No", "Date", "Item Name", "Item Type", "Payment Category",
+#         "Paid By", "Paid To", "Transaction Category",
+#         "Mode of Payment", "Amount", "Bill/GST Download", "Proof Download"
+#     ]
+#     worksheet.write_row(0, 0, headers, header_format)
+#     user_id = request.GET.get("created_by")
+
+#     # Fetch expenses
+#     expenses = get_filtered_expenses(request).filter(
+#         is_draft=False, delete_requested=False
+#     ).order_by("transaction_date", "id")
+#     site_url = request.build_absolute_uri('/')[:-1]
+#     if user_id:
+#         expenses = expenses.filter(created_by_id=user_id)
+
+
+#     # Filter expenses: only include fully attached or approved
+#     filtered_expenses = []
+#     for exp in expenses:
+#         if exp.item_type.lower() == "conveyance":
+#             filtered_expenses.append(exp)
+#             continue
+
+#         has_bill_gst = (exp.bill_photo or exp.gst_photo)
+#         has_proof = exp.proof_photo or exp.proof_photos.exists()
+
+#         if (has_bill_gst and has_proof) or getattr(exp, 'is_approved', False):
+#             filtered_expenses.append(exp)
+
+#     internal_total_amount = Decimal("0.00")
+#     internal_count = 0
+#     external_total_amount = Decimal("0.00")
+#     external_count = 0
+
+#     # --- Write Expenses ---
+#     serial = 1
+#     row_idx = 1
+#     for expense in filtered_expenses:
+#         date_value = expense.transaction_date
+#         item_name = expense.item_name or ""
+#         item_type = expense.item_type or ""
+#         payment_category = dict(expense.PAYMENT_OPTIONS).get(
+#             expense.transaction_option, expense.transaction_option or ""
+#         )
+#         paid_by = expense.created_by.first_name or expense.created_by.username.split("_")[0] if expense.created_by else ""
+
+#         # Paid To
+#         if expense.transaction_category == "internal":
+#             paid_to = expense.internal_option or ""
+#             if expense.advance_group and expense.advance_group.leader:
+#                 leader_name = expense.advance_group.leader.get_full_name() or expense.advance_group.leader.username
+#                 paid_to = f"{paid_to} {leader_name}"
+#         elif expense.transaction_category == "external":
+#             paid_to = expense.external_type or ""
+#         else:
+#             paid_to = ""
+
+#         t_category = expense.transaction_category or ""
+#         mode_of_payment = expense.payment_mode or ""
+#         amount = float(expense.amount or 0)
+
+#         # Bill/GST link
+#         bill_link = None
+#         if expense.item_type.lower() != "conveyance":
+#             if expense.bill_photo and hasattr(expense.bill_photo, "url"):
+#                 bill_link = (site_url + expense.bill_photo.url, "Download Bill/GST")
+#             elif expense.gst_photo and hasattr(expense.gst_photo, "url"):
+#                 bill_link = (site_url + expense.gst_photo.url, "Download GST")
+
+#         # Proof links
+#         proof_links = []
+#         if expense.item_type.lower() != "conveyance":
+#             proofs = list(expense.proof_photos.all())
+#             if not proofs and expense.proof_photo and hasattr(expense.proof_photo, "url"):
+#                 proofs = [expense]
+#             for proof in proofs:
+#                 if hasattr(proof, "file") and proof.file:
+#                     proof_links.append((site_url + proof.file.url, "Download Proof"))
+#                 elif hasattr(proof, "proof_photo") and proof.proof_photo:
+#                     proof_links.append((site_url + proof.proof_photo.url, "Download Proof"))
+
+#         if expense.transaction_category == 'internal':
+#             internal_total_amount += Decimal(expense.amount or 0)
+#             internal_count += 1
+#         elif expense.transaction_category == 'external':
+#             external_total_amount += Decimal(expense.amount or 0)
+#             external_count += 1
+
+#         # Alternate row color selection
+#         if row_idx % 2 == 0:
+#             row_fmt = white_format
+#             link_fmt = link_white_format
+#             date_fmt = date_white_format
+#         else:
+#             row_fmt = blue_format
+#             link_fmt = link_blue_format
+#             date_fmt = date_blue_format
+
+#         row_data = [
+#             serial, date_value, item_name, item_type, payment_category,
+#             paid_by, paid_to, t_category,
+#             mode_of_payment, amount, "", ""
+#         ]
+
+#         for col_idx, value in enumerate(row_data):
+#             if col_idx == 1 and date_value:
+#                 worksheet.write_datetime(row_idx, col_idx, date_value, date_fmt)
+#             else:
+#                 worksheet.write(row_idx, col_idx, value, row_fmt)
+
+#         if bill_link:
+#             worksheet.write_url(row_idx, 10, bill_link[0], link_fmt, string=bill_link[1])
+
+#         if proof_links:
+#             if len(proof_links) > 1:
+#                 for col_fill in range(11):
+#                     worksheet.merge_range(
+#                         row_idx, col_fill, row_idx + len(proof_links) - 1, col_fill,
+#                         row_data[col_fill], row_fmt
+#                     )
+#             for i, (url, label) in enumerate(proof_links):
+#                 worksheet.write_url(row_idx + i, 11, url, link_fmt, string=label)
+#             row_idx += len(proof_links) - 1
+
+#         serial += 1
+#         row_idx += 1
+
+#     # Auto-adjust column width
+#     for i, header in enumerate(headers):
+#         worksheet.set_column(i, i, max(len(header)+2, 20))
+
+#     # --- Summary Table ---
+#     summary_start = row_idx + 2
+#     worksheet.write(summary_start, 0, "Summary", header_format)
+#     worksheet.write_row(summary_start + 1, 0, ["Type", "Total Transactions", "Total Amount"], header_format)
+
+#     summary_data = [
+#         ["Internal", internal_count, float(internal_total_amount)],
+#         ["External", external_count, float(external_total_amount)]
+#     ]
+#     for i, row in enumerate(summary_data):
+#         for j, val in enumerate(row):
+#             worksheet.write(summary_start + 2 + i, j, val, blue_format)
+
+#     # --- Advance Group Balances Table ---
+#     balance_start = summary_start + 2 + len(summary_data) + 2
+#     worksheet.write(balance_start, 0, "Advance Group Balances", header_format)
+#     worksheet.write_row(balance_start + 1, 0, ["Group Name", "Total Advance", "Used Advance", "Remaining Balance", "Overdue"], header_format)
+
+#     fetch_user_id = request.GET.get("created_by")
+#     if fetch_user_id:
+#         balance_groups = AdvanceGroup.objects.filter(advanceassignment__user_id=fetch_user_id).distinct()
+#     else:
+#         # If no specific user, maybe show groups involved in the filtered expenses
+#         group_ids = [e.advance_group_id for e in filtered_expenses if e.advance_group_id]
+#         balance_groups = AdvanceGroup.objects.filter(id__in=group_ids).distinct()
+
+#     for i, group in enumerate(balance_groups):
+#         used, remaining, overdue = calculate_group_balances(group)
+#         row_data = [
+#             group.name,
+#             float(group.total_advance),
+#             float(used),
+#             max(0, float(remaining)),
+#             float(overdue)
+#         ]
+#         for j, val in enumerate(row_data):
+#             worksheet.write(balance_start + 2 + i, j, val, blue_format)
+
+#     workbook.close()
+#     response.write(output.getvalue())
+#     output.close()
+#     return response
+
 def export_to_xlsx(request):
     import xlsxwriter
     from io import BytesIO
     from django.http import HttpResponse
     from decimal import Decimal
+    from datetime import datetime, date
 
     response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response['Content-Disposition'] = 'attachment; filename=vouchers.xlsx'
+    response["Content-Disposition"] = "attachment; filename=vouchers.xlsx"
 
     output = BytesIO()
     workbook = xlsxwriter.Workbook(output)
-    worksheet = workbook.add_worksheet('Vouchers')
+    worksheet = workbook.add_worksheet("Vouchers")
 
-    # --- Formats ---
+    # ---------- Formats ----------
     header_format = workbook.add_format({
-        'bold': True, 'border': 1, 'align': 'center', 'valign': 'vcenter',
-        'fg_color': '#0070C0', 'font_color': 'white'
+        "bold": True, "border": 1, "align": "center", "valign": "vcenter",
+        "fg_color": "#0070C0", "font_color": "white"
     })
-    blue_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#B4C6E7'})
-    white_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#D9E1F2'})
-    link_blue_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'color': 'blue', 'underline': 1, 'fg_color': '#B4C6E7'})
-    link_white_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'color': 'blue', 'underline': 1, 'fg_color': '#D9E1F2'})
-    date_blue_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#B4C6E7', 'num_format': 'd-mmm-yyyy'})
-    date_white_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#D9E1F2', 'num_format': 'd-mmm-yyyy'})
 
-    # --- Headers ---
-    headers = [
-        "Serial No", "Date", "Item Name", "Item Type", "Payment Category",
-        "Paid By", "Paid To", "Transaction Category",
-        "Mode of Payment", "Amount", "Bill/GST Download", "Proof Download"
-    ]
-    worksheet.write_row(0, 0, headers, header_format)
+    blue_format = workbook.add_format({
+        "border": 1, "align": "center", "valign": "vcenter", "fg_color": "#B4C6E7"
+    })
+
+    white_format = workbook.add_format({
+        "border": 1, "align": "center", "valign": "vcenter", "fg_color": "#D9E1F2"
+    })
+
+    link_blue = workbook.add_format({
+        "border": 1, "align": "center", "valign": "vcenter",
+        "color": "blue", "underline": 1, "fg_color": "#B4C6E7"
+    })
+
+    link_white = workbook.add_format({
+        "border": 1, "align": "center", "valign": "vcenter",
+        "color": "blue", "underline": 1, "fg_color": "#D9E1F2"
+    })
+
+    date_blue = workbook.add_format({
+        "border": 1, "align": "center", "valign": "vcenter",
+        "fg_color": "#B4C6E7", "num_format": "dd-mmm-yyyy"
+    })
+
+    date_white = workbook.add_format({
+        "border": 1, "align": "center", "valign": "vcenter",
+        "fg_color": "#D9E1F2", "num_format": "dd-mmm-yyyy"
+    })
+
+    site_url = request.build_absolute_uri("/")[:-1]
     user_id = request.GET.get("created_by")
 
-    # Fetch expenses
+    # ---------- Fetch Expenses ----------
     expenses = get_filtered_expenses(request).filter(
         is_draft=False, delete_requested=False
     ).order_by("transaction_date", "id")
-    site_url = request.build_absolute_uri('/')[:-1]
+
     if user_id:
         expenses = expenses.filter(created_by_id=user_id)
 
-
-    # Filter expenses: only include fully attached or approved
+    # ---------- Filter Expenses ----------
     filtered_expenses = []
     for exp in expenses:
+
         if exp.item_type.lower() == "conveyance":
             filtered_expenses.append(exp)
             continue
 
-        has_bill_gst = (exp.bill_photo or exp.gst_photo)
+        has_bill = exp.bill_photo or exp.gst_photo
         has_proof = exp.proof_photo or exp.proof_photos.exists()
 
-        if (has_bill_gst and has_proof) or getattr(exp, 'is_approved', False):
+        if (has_bill and has_proof) or getattr(exp, "is_approved", False):
             filtered_expenses.append(exp)
 
-    internal_total_amount = Decimal("0.00")
+    # ---------- Calculate Max Proof Count ----------
+    max_proofs = 0
+
+    for exp in filtered_expenses:
+        proofs = list(exp.proof_photos.all())
+
+        if not proofs and exp.proof_photo:
+            proofs = [exp]
+
+        max_proofs = max(max_proofs, len(proofs))
+
+    allocations = Expense.objects.filter(
+        advance_group__isnull=False,
+        is_allocation=True
+    ).prefetch_related("proof_photos")
+
+    for alloc in allocations:
+        proofs = list(alloc.proof_photos.all())
+
+        if not proofs and alloc.proof_photo:
+            proofs = [alloc]
+
+        max_proofs = max(max_proofs, len(proofs))
+
+    # ---------- Headers ----------
+    headers = [
+        "Serial No", "Date", "Item Name", "Item Type", "Payment Category",
+        "Paid By", "Paid To", "Transaction Category",
+        "Mode of Payment", "Amount", "Bill/GST"
+    ]
+
+    for i in range(1, max_proofs + 1):
+        headers.append(f"Proof {i}")
+
+    worksheet.write_row(0, 0, headers, header_format)
+
+    # ---------- Totals ----------
+    internal_total = Decimal("0")
+    external_total = Decimal("0")
     internal_count = 0
-    external_total_amount = Decimal("0.00")
     external_count = 0
 
-    # --- Write Expenses ---
+    # ---------- Write Voucher Rows ----------
     serial = 1
-    row_idx = 1
-    for expense in filtered_expenses:
-        date_value = expense.transaction_date
-        item_name = expense.item_name or ""
-        item_type = expense.item_type or ""
-        payment_category = dict(expense.PAYMENT_OPTIONS).get(
-            expense.transaction_option, expense.transaction_option or ""
+    row = 1
+
+    for exp in filtered_expenses:
+
+        row_fmt = blue_format if row % 2 else white_format
+        link_fmt = link_blue if row % 2 else link_white
+        date_fmt = date_blue if row % 2 else date_white
+
+        date_value = exp.transaction_date
+
+        if date_value:
+            try:
+                if isinstance(date_value, date) and not isinstance(date_value, datetime):
+                    date_value = datetime.combine(date_value, datetime.min.time())
+
+                worksheet.write_datetime(row, 1, date_value, date_fmt)
+            except:
+                worksheet.write(row, 1, str(date_value), row_fmt)
+
+        item_name = exp.item_name or ""
+        item_type = exp.item_type or ""
+
+        payment_category = dict(exp.PAYMENT_OPTIONS).get(
+            exp.transaction_option, exp.transaction_option or ""
         )
-        paid_by = expense.created_by.first_name or expense.created_by.username.split("_")[0] if expense.created_by else ""
 
-        # Paid To
-        if expense.transaction_category == "internal":
-            paid_to = expense.internal_option or ""
-            if expense.advance_group and expense.advance_group.leader:
-                leader_name = expense.advance_group.leader.get_full_name() or expense.advance_group.leader.username
-                paid_to = f"{paid_to} {leader_name}"
-        elif expense.transaction_category == "external":
-            paid_to = expense.external_type or ""
+        paid_by = (
+            exp.created_by.first_name
+            or exp.created_by.username.split("_")[0]
+            if exp.created_by else ""
+        )
+
+        if exp.transaction_category == "internal":
+            paid_to = exp.internal_option or ""
+            if exp.advance_group and exp.advance_group.leader:
+                leader = (
+                    exp.advance_group.leader.get_full_name()
+                    or exp.advance_group.leader.username
+                )
+                paid_to = f"{paid_to} {leader}"
         else:
-            paid_to = ""
+            paid_to = exp.external_type or ""
 
-        t_category = expense.transaction_category or ""
-        mode_of_payment = expense.payment_mode or ""
-        amount = float(expense.amount or 0)
+        amount = float(exp.amount or 0)
 
-        # Bill/GST link
-        bill_link = None
-        if expense.item_type.lower() != "conveyance":
-            if expense.bill_photo and hasattr(expense.bill_photo, "url"):
-                bill_link = (site_url + expense.bill_photo.url, "Download Bill/GST")
-            elif expense.gst_photo and hasattr(expense.gst_photo, "url"):
-                bill_link = (site_url + expense.gst_photo.url, "Download GST")
-
-        # Proof links
-        proof_links = []
-        if expense.item_type.lower() != "conveyance":
-            proofs = list(expense.proof_photos.all())
-            if not proofs and expense.proof_photo and hasattr(expense.proof_photo, "url"):
-                proofs = [expense]
-            for proof in proofs:
-                if hasattr(proof, "file") and proof.file:
-                    proof_links.append((site_url + proof.file.url, "Download Proof"))
-                elif hasattr(proof, "proof_photo") and proof.proof_photo:
-                    proof_links.append((site_url + proof.proof_photo.url, "Download Proof"))
-
-        if expense.transaction_category == 'internal':
-            internal_total_amount += Decimal(expense.amount or 0)
+        if exp.transaction_category == "internal":
+            internal_total += Decimal(exp.amount or 0)
             internal_count += 1
-        elif expense.transaction_category == 'external':
-            external_total_amount += Decimal(expense.amount or 0)
+        elif exp.transaction_category == "external":
+            external_total += Decimal(exp.amount or 0)
             external_count += 1
 
-        # Alternate row color selection
-        if row_idx % 2 == 0:
-            row_fmt = white_format
-            link_fmt = link_white_format
-            date_fmt = date_white_format
-        else:
-            row_fmt = blue_format
-            link_fmt = link_blue_format
-            date_fmt = date_blue_format
-
         row_data = [
-            serial, date_value, item_name, item_type, payment_category,
-            paid_by, paid_to, t_category,
-            mode_of_payment, amount, "", ""
+            serial, "", item_name, item_type, payment_category,
+            paid_by, paid_to, exp.transaction_category,
+            exp.payment_mode, amount, ""
         ]
 
         for col_idx, value in enumerate(row_data):
-            if col_idx == 1 and date_value:
-                worksheet.write_datetime(row_idx, col_idx, date_value, date_fmt)
-            else:
-                worksheet.write(row_idx, col_idx, value, row_fmt)
+            if col_idx != 1:
+                worksheet.write(row, col_idx, value, row_fmt)
 
-        if bill_link:
-            worksheet.write_url(row_idx, 10, bill_link[0], link_fmt, string=bill_link[1])
+        # Bill / GST
+        if exp.bill_photo:
+            worksheet.write_url(row, 10, site_url + exp.bill_photo.url, link_fmt, "Bill")
+        elif exp.gst_photo:
+            worksheet.write_url(row, 10, site_url + exp.gst_photo.url, link_fmt, "GST")
 
-        if proof_links:
-            if len(proof_links) > 1:
-                for col_fill in range(11):
-                    worksheet.merge_range(
-                        row_idx, col_fill, row_idx + len(proof_links) - 1, col_fill,
-                        row_data[col_fill], row_fmt
-                    )
-            for i, (url, label) in enumerate(proof_links):
-                worksheet.write_url(row_idx + i, 11, url, link_fmt, string=label)
-            row_idx += len(proof_links) - 1
+        # Proofs
+        proof_links = []
+
+        proofs = list(exp.proof_photos.all())
+
+        if not proofs and exp.proof_photo:
+            proofs = [exp]
+
+        for p in proofs:
+            if hasattr(p, "file") and p.file:
+                proof_links.append(site_url + p.file.url)
+            elif hasattr(p, "proof_photo") and p.proof_photo:
+                proof_links.append(site_url + p.proof_photo.url)
+
+        for idx, link in enumerate(proof_links):
+            worksheet.write_url(row, 11 + idx, link, link_fmt, f"Proof {idx+1}")
 
         serial += 1
-        row_idx += 1
+        row += 1
 
-    # Auto-adjust column width
-    for i, header in enumerate(headers):
-        worksheet.set_column(i, i, max(len(header)+2, 20))
+    # ---------- Summary ----------
+    summary_start = row + 2
 
-    # --- Summary Table ---
-    summary_start = row_idx + 2
     worksheet.write(summary_start, 0, "Summary", header_format)
-    worksheet.write_row(summary_start + 1, 0, ["Type", "Total Transactions", "Total Amount"], header_format)
 
-    summary_data = [
-        ["Internal", internal_count, float(internal_total_amount)],
-        ["External", external_count, float(external_total_amount)]
+    worksheet.write_row(
+        summary_start + 1,
+        0,
+        ["Type", "Total Transactions", "Total Amount"],
+        header_format
+    )
+
+    summary_rows = [
+        ["Internal", internal_count, float(internal_total)],
+        ["External", external_count, float(external_total)]
     ]
-    for i, row in enumerate(summary_data):
-        for j, val in enumerate(row):
-            worksheet.write(summary_start + 2 + i, j, val, blue_format)
+
+    for i, r in enumerate(summary_rows):
+        worksheet.write_row(summary_start + 2 + i, 0, r, blue_format)
+
+    # ---------- Advance Group Balances ----------
+    balance_start = summary_start + 6
+
+    advance_headers = [
+        "Group Name", "Total Advance", "Used Advance", "Remaining Balance", "Overdue"
+    ]
+
+    for i in range(1, max_proofs + 1):
+        advance_headers.append(f"Proof {i}")
+
+    worksheet.write(balance_start, 0, "Advance Group Balances", header_format)
+    worksheet.write_row(balance_start + 1, 0, advance_headers, header_format)
+
+    fetch_user_id = request.GET.get("created_by")
+
+    if fetch_user_id:
+        balance_groups = AdvanceGroup.objects.filter(
+            advanceassignment__user_id=fetch_user_id
+        ).distinct()
+    else:
+        group_ids = [e.advance_group_id for e in filtered_expenses if e.advance_group_id]
+        balance_groups = AdvanceGroup.objects.filter(id__in=group_ids).distinct()
+
+    row = balance_start + 2
+
+    for group in balance_groups:
+
+        used, remaining, overdue = calculate_group_balances(group)
+
+        worksheet.write(row, 0, group.name, blue_format)
+        worksheet.write(row, 1, float(group.total_advance), blue_format)
+        worksheet.write(row, 2, float(used), blue_format)
+        worksheet.write(row, 3, max(0, float(remaining)), blue_format)
+        worksheet.write(row, 4, float(overdue), blue_format)
+
+        allocation = Expense.objects.filter(
+            advance_group=group,
+            is_allocation=True
+        ).first()
+
+        proof_links = []
+
+        if allocation:
+            proofs = allocation.proof_photos.all()
+
+            for proof in proofs:
+                if proof.file:
+                    proof_links.append(site_url + proof.file.url)
+
+            if not proof_links and allocation.proof_photo:
+                proof_links.append(site_url + allocation.proof_photo.url)
+
+        for idx, link in enumerate(proof_links):
+            worksheet.write_url(row, 5 + idx, link, link_blue, f"Proof {idx+1}")
+
+        row += 1
+
+    worksheet.set_column(0, len(headers), 22)
 
     workbook.close()
     response.write(output.getvalue())
     output.close()
+
     return response
 
 def export_to_pdf(request):
@@ -3132,7 +3510,46 @@ def export_to_pdf(request):
         </tr>
         """
 
-    html_content += "</tbody></table></body></html>"
+    html_content += "</tbody></table>"
+
+    # --- Advance Group Balances Table ---
+    fetch_user_id = request.GET.get("created_by")
+    if fetch_user_id:
+        balance_groups = AdvanceGroup.objects.filter(advanceassignment__user_id=fetch_user_id).distinct()
+    else:
+        group_ids = [e.advance_group_id for e in vouchers if e.advance_group_id]
+        balance_groups = AdvanceGroup.objects.filter(id__in=group_ids).distinct()
+
+    if balance_groups.exists():
+        html_content += """
+        <br>
+        <h2>Advance Group Balances</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Group Name</th>
+                    <th>Total Advance</th>
+                    <th>Used Advance</th>
+                    <th>Remaining Balance</th>
+                    <th>Overdue</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for group in balance_groups:
+            used, remaining, overdue = calculate_group_balances(group)
+            html_content += f"""
+            <tr>
+                <td>{group.name}</td>
+                <td>{float(group.total_advance)}</td>
+                <td>{float(used)}</td>
+                <td>{max(0, float(remaining))}</td>
+                <td>{float(overdue)}</td>
+            </tr>
+            """
+        html_content += "</tbody></table>"
+
+    html_content += "</body></html>"
 
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="vouchers.pdf"'
@@ -3207,6 +3624,29 @@ def export_to_csv(request):
             bill_gst_col,
             proof_col,
         ])
+
+    # --- Advance Group Balances Section ---
+    writer.writerow([])
+    writer.writerow(["Advance Group Balances"])
+    writer.writerow(["Group Name", "Total Advance", "Used Advance", "Remaining Balance", "Overdue"])
+
+    fetch_user_id = request.GET.get("created_by")
+    if fetch_user_id:
+        balance_groups = AdvanceGroup.objects.filter(advanceassignment__user_id=fetch_user_id).distinct()
+    else:
+        group_ids = [e.advance_group_id for e in expenses if e.advance_group_id]
+        balance_groups = AdvanceGroup.objects.filter(id__in=group_ids).distinct()
+
+    for group in balance_groups:
+        used, remaining, overdue = calculate_group_balances(group)
+        writer.writerow([
+            group.name,
+            float(group.total_advance),
+            float(used),
+            max(0, float(remaining)),
+            float(overdue)
+        ])
+
     return response
 
 
@@ -3558,108 +3998,483 @@ def get_users_by_zone(request):
 
     return JsonResponse({'users': users})
 
-# from datetime import date, timedelta
-# from django.shortcuts import render
-# from .models import User, Zone, CashVoucher, UserProfile
-#without leader balance subtraction
+
+
+
+# from django.db.models import Q, Count, Sum
+# from datetime import datetime
+# from decimal import Decimal
+# from collections import defaultdict
+# from app.models import Zone, UserProfile   # ✅ Correct import
+
+# from django.db.models import Q, Count, Sum
+# from datetime import datetime
+# from decimal import Decimal
+# from collections import defaultdict
+# from app.models import Zone, UserProfile   # correct import
+
 # def payable(request):
 #     users = User.objects.all()
 #     zones = Zone.objects.all()
+#     expenses = Expense.objects.none()
 #     selected_user = None
 #     selected_zone = None
-#     from_date = request.POST.get('from_date')
-#     to_date = request.POST.get('to_date')
 #     filtered_users = User.objects.none()
-#     total_amount_to_be_paid = Decimal('0.00')
-#     min_date = None
-#     max_date = None
-#     expenses = []  # empty by default
 
-#     if request.method == "POST":
-#         queryset = Expense.objects.all().select_related("advance_group")
-#         user_id = request.POST.get("user_id")
-#         zone_id = request.POST.get("zone_id")
+#     total_amount_to_be_paid = Decimal("0.00")
+#     final_amount_to_pay = Decimal("0.00")
 
-#         # Zone filter
-#         if zone_id:
-#             selected_zone = get_object_or_404(Zone, id=zone_id)
+#     leader_sub_balance = Decimal("0.00")
+#     leader_overdue_total = Decimal("0.00")
+#     leader_group_balances = []
+
+#     from_date = request.POST.get("from_date") or request.GET.get("from_date")
+#     to_date = request.POST.get("to_date") or request.GET.get("to_date")
+
+#     queryset = Expense.objects.all()
+
+#     # Check POST or GET for params
+#     if request.method == "POST" or request.GET.get("user_id") or request.GET.get("zone_id"):
+#         user_id = request.POST.get("user_id") or request.GET.get("user_id")
+#         zone_id = request.POST.get("zone_id") or request.GET.get("zone_id")
+
+#         queryset = Expense.objects.all()
+
+#         # ------------------ ZONE FILTER ---------------------
+#         if zone_id and UserProfile:
+#             selected_zone = Zone.objects.get(id=zone_id)
 #             users_in_zone = UserProfile.objects.filter(zone=selected_zone).values_list("user", flat=True)
 #             filtered_users = User.objects.filter(id__in=users_in_zone)
 #             queryset = queryset.filter(created_by__in=users_in_zone)
 
-#         # User filter
+#         # ------------------ USER FILTER ---------------------
 #         if user_id:
-#             selected_user = get_object_or_404(User, id=user_id)
+#             selected_user = User.objects.get(id=user_id)
 #             queryset = queryset.filter(created_by=selected_user)
 
-#         # Date filter
+#         # ------------------ DATE FILTER (Expenses only) -----
+#         date_filter_expenses = {}
 #         if from_date and to_date:
 #             try:
-#                 from_date_parsed = datetime.strptime(from_date, "%Y-%m-%d").date()
-#                 to_date_parsed = datetime.strptime(to_date, "%Y-%m-%d").date()
-#                 queryset = queryset.filter(transaction_date__gte=from_date_parsed,
-#                                            transaction_date__lte=to_date_parsed)
-#             except ValueError:
+#                 f = datetime.strptime(from_date, "%Y-%m-%d").date()
+#                 t = datetime.strptime(to_date, "%Y-%m-%d").date()
+#                 date_filter_expenses = {"transaction_date__gte": f, "transaction_date__lte": t}
+#                 queryset = queryset.filter(**date_filter_expenses)
+#             except:
 #                 pass
 
-#         if queryset.exists():
-#             min_date = queryset.earliest("transaction_date").transaction_date
-#             max_date = queryset.latest("transaction_date").transaction_date
+#         # ------------------ EXPENSE QUERY ---------------------
+#         expenses = (
+#             queryset
+#                 .filter(is_allocation=False)  # 🔥 DO NOT include allocated vouchers
+#                 .annotate(proof_count=Count("proof_photos"))
+#                 .filter(
+#                     Q(item_type="conveyance")
+#                     | Q(is_approved=True)
+#                     | (
+#                         ~Q(item_type="conveyance")
+#                         & ~Q(transaction_option="voucher")
+#                         & (
+#                             (Q(bill_photo__isnull=False) & ~Q(bill_photo=""))
+#                             | (Q(gst_photo__isnull=False) & ~Q(gst_photo=""))
+#                         )
+#                         & (
+#                             (Q(proof_photo__isnull=False) & ~Q(proof_photo=""))
+#                             | Q(proof_count__gt=0)
+#                         )
+#                     )
+#                 )
+#                 .exclude(Q(status="paid") | Q(status="rejected") | Q(is_rejected=True))
+#                 .filter(is_draft=False)
+#                 .filter(Q(cash_vouchers__isnull=True) | Q(cash_vouchers__status="approved"))
+#         )
 
-#         # Annotate proof counts
-#         expenses = queryset.annotate(proof_count=Count("proof_photos")).order_by("-transaction_date", "-id")
+#         # ------------------ OVERDUE CHECK ---------------------
+#         if selected_user:
+#             for exp in expenses:
+#                 if exp.advance_group:
+#                     used_total = Expense.objects.filter(
+#                         advance_group=exp.advance_group,
+#                         is_allocation=False,
+#                         is_draft=False,
+#                         status__in=["pending", "approved", "paid"],
+#                         **date_filter_expenses
+#                     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
-#         # Track remaining per advance group
-#         advance_group_remaining = {}
-#         advance_due_expenses = []
+#                     group_total = exp.advance_group.total_advance
+#                     exp.overdue_amount = (
+#                         used_total - group_total if used_total > group_total else Decimal("0.00")
+#                     )
+#                 else:
+#                     exp.overdue_amount = Decimal("0.00")
 
-#         for exp in expenses:
-#             exp.overdue_amount = Decimal('0.00')
-#             if exp.item_type != "advances" and exp.amount:
-#                 total_amount_to_be_paid += exp.amount
-#             if exp.item_type == "advances" and exp.advance_group:
-#                 ag_id = exp.advance_group.id
-#                 if ag_id not in advance_group_remaining:
-#                     advance_group_remaining[ag_id] = exp.advance_group.total_advance
-#                 advance_group_remaining[ag_id] -= exp.amount or Decimal("0.00")
-#                 if advance_group_remaining[ag_id] < 0:
-#                     exp.overdue_amount = abs(advance_group_remaining[ag_id])
-#                     total_amount_to_be_paid += exp.overdue_amount
-#                     advance_group_remaining[ag_id] = Decimal('0.00')
-#                     advance_due_expenses.append(exp)
-#     else:
-#         # no POST → show nothing
-#         advance_due_expenses = []
+#         total_amount_to_be_paid = sum([exp.amount or Decimal("0.00") for exp in expenses])
 
+#         # ================== 🔥 LEADER ADVANCE BALANCE ==================
+#         if selected_user:
+#             leader_assignments = AdvanceAssignment.objects.filter(
+#                 user=selected_user,
+#                 is_leader=True,
+#                 group__is_closed=False,   # ✅ only open groups
+#             )
+
+#             # 🔥 NEW DATE FILTER FOR GROUPS
+#             date_filter_groups = {}
+#             if from_date and to_date:
+#                 try:
+#                     f = datetime.strptime(from_date, "%Y-%m-%d").date()
+#                     t = datetime.strptime(to_date, "%Y-%m-%d").date()
+#                     date_filter_groups = {
+#                         "created_at__date__gte": f,
+#                         "created_at__date__lte": t,
+#                     }
+#                 except:
+#                     pass
+
+#             # 🔥 FILTER GROUPS BY CREATED_AT
+#             leader_assignments = leader_assignments.filter(group__in=AdvanceGroup.objects.filter(**date_filter_groups))
+
+#             for assignment in leader_assignments:
+#                 group = assignment.group
+
+#                 used_total = (
+#                     Expense.objects.filter(
+#                         advance_group=group,
+#                         is_allocation=False,
+#                         is_draft=False,
+#                         status__in=["pending", "approved", "paid"],
+#                         **date_filter_expenses
+#                     ).aggregate(total=Sum("amount"))["total"]
+#                     or Decimal("0.00")
+#                 )
+
+#                 raw_remaining = group.total_advance - used_total
+
+#                 # ✅ Only POSITIVE remaining is treated as "advance balance"
+#                 if raw_remaining > 0:
+#                     remaining = raw_remaining
+#                     overdue = Decimal("0.00")
+#                 else:
+#                     remaining = Decimal("0.00")
+#                     overdue = -raw_remaining  # = used_total - total_advance
+
+#                 leader_sub_balance += remaining
+#                 leader_overdue_total += overdue
+
+#                 leader_group_balances.append({
+#                     "group_name": group.name,
+#                     "created_at": group.created_at.date(),
+#                     "remaining": remaining,
+#                     "overdue": overdue
+#                 })
+
+#             final_amount_to_pay = total_amount_to_be_paid - leader_sub_balance + leader_overdue_total
+
+#     # ---------------- CONTEXT -----------------
 #     context = {
 #         "users": users,
 #         "zones": zones,
 #         "expenses": expenses,
-#         "advance_due_expenses": advance_due_expenses,
 #         "selected_user": selected_user,
 #         "selected_zone": selected_zone,
+#         "filtered_users": filtered_users,
+
+#         "total_amount_to_be_paid": total_amount_to_be_paid,
+#         "leader_sub_balance": leader_sub_balance,
+#         "leader_overdue_total": leader_overdue_total,
+#         "leader_group_balances": leader_group_balances,
+#         "final_amount_to_pay": final_amount_to_pay,
+
 #         "from_date": from_date,
 #         "to_date": to_date,
-#         "filtered_users": filtered_users,
-#         "total_amount_to_be_paid": total_amount_to_be_paid,
-#         "min_date": min_date,
-#         "max_date": max_date,
 #     }
 
 #     return render(request, "xp/payable.html", context)
 
 
-from django.db.models import Q, Count, Sum
-from datetime import datetime
-from decimal import Decimal
-from collections import defaultdict
-from app.models import Zone, UserProfile   # ✅ Correct import
 
-from django.db.models import Q, Count, Sum
-from datetime import datetime
-from decimal import Decimal
-from collections import defaultdict
-from app.models import Zone, UserProfile   # correct import
+
+
+
+# # pay_now.py
+# from django.shortcuts import render
+# from .models import User, CashVoucher, Expense, AdvanceAssignment
+# from datetime import datetime
+# from decimal import Decimal
+
+# def pay_now(request, user_id):
+#     selected_user = User.objects.get(id=user_id)
+
+#     from_date = request.GET.get('from_date')
+#     to_date = request.GET.get('to_date')
+#     selected_filter = request.GET.get('selected_filter')
+
+
+#     # FIX → Always use ONLY the final_amount_to_pay coming from PARAM "amount"
+#     amount_param = request.GET.get('amount')
+#     try:
+#         total_amount_to_be_paid = Decimal(amount_param) if amount_param else Decimal("0.00")
+#     except:
+#         total_amount_to_be_paid = Decimal("0.00")
+
+#     # FIX → final_amount_to_pay MUST BE this same value, without recomputation here
+#     final_amount_to_pay = total_amount_to_be_paid
+
+#     # Leader advance balances (STILL NEEDED FOR DISPLAY PURPOSE ONLY)
+#     leader_assignments = AdvanceAssignment.objects.filter(user=selected_user, is_leader=True)
+#     total_leader_balance = sum([a.group.remaining_balance for a in leader_assignments]) or Decimal('0.00')
+
+#     # DO NOT CHANGE final_amount_to_pay HERE (just display)
+#     expenses = Expense.objects.filter(created_by=selected_user, status="pending")
+
+#     # Generate transaction ID
+#     current_year = str(datetime.now().year)[2:]
+#     current_month = str(datetime.now().month).zfill(2)
+#     counter = CashVoucher.objects.filter(created_by=selected_user).count() + 1
+#     transaction_id = f"XPTR{current_year}{current_month}{counter:04d}"
+#     queryset = Expense.objects.all()
+
+#     payment_details = None
+#     if request.method == 'POST':
+#         print("POST Data:", request.POST)
+#         transaction_id = request.POST.get('transaction_id')
+#         amount = request.POST.get('amount')
+#         from_date = request.POST.get('from_date')
+#         to_date = request.POST.get('to_date')
+#         screenshot = request.FILES.get('screenshot')
+#         remarks = request.POST.get('remarks', '').strip()
+
+#         payment_details = {
+#             'transaction_id': transaction_id,
+#             'amount': amount,
+#             'from_date': from_date,
+#             'to_date': to_date,
+#             'screenshot': screenshot,
+#             'remarks' : remarks,
+#         }
+
+#     return render(request, 'xp/pay_now.html', {
+#         'selected_user': selected_user,
+#         'expenses': expenses,
+#         'total_amount_to_be_paid': total_amount_to_be_paid,   # SAME as final_amount_to_pay
+#         'final_amount_to_pay': final_amount_to_pay,
+
+#         'transaction_id': transaction_id,
+#         'from_date': from_date,
+#         'to_date': to_date,
+#         'selected_filter': selected_filter,
+#         'payment_details': payment_details,
+#         'zone_id': request.GET.get("zone_id"), # Pass zone_id to template
+#     })
+
+
+# from django.shortcuts import render, redirect, get_object_or_404
+# from django.contrib import messages
+# from django.db.models import Sum
+# from decimal import Decimal
+# from datetime import datetime
+
+# from .models import Expense, Payment, User, Notification, AdvanceAssignment, AdvanceGroup
+
+# def process_payment(request):
+    
+#     if request.method != "POST":
+#         messages.error(request, "Invalid request method.")
+#         return redirect('pay_now', user_id=request.POST.get('user_id'))
+
+#     try:
+#         user_id = request.POST.get('user_id')
+#         transaction_id = request.POST.get('transaction_id')
+#         amount_from_form = request.POST.get('amount') or "0"   # this is Final Amount to Pay shown in UI
+#         from_date = request.POST.get('from_date')
+#         to_date = request.POST.get('to_date')
+#         screenshot = request.FILES.get('screenshot')
+#         remarks = request.POST.get('remarks')
+
+#         selected_user = get_object_or_404(User, id=user_id)
+#         amount_from_form = Decimal(amount_from_form)
+
+#         from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+#         to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+
+#         print("=== PROCESS PAYMENT START ===")
+#         print(f"User: {selected_user.username}")
+#         print(f"Transaction ID: {transaction_id}")
+#         print(f"Final Amount from form (Pay Now): {amount_from_form}")
+#         print(f"From Date: {from_date_obj}  To Date: {to_date_obj}")
+
+#         # --- Get all pending expenses in date range ---
+#         expenses_query = Expense.objects.filter(
+#             created_by=selected_user,
+#             status="pending",
+#             transaction_date__range=[from_date_obj, to_date_obj]
+#         )
+#         total_expenses = expenses_query.aggregate(total=Sum('amount'))['total'] or Decimal(0)
+
+#         print(f"Pending Expenses Count: {expenses_query.count()}")
+#         print(f"Total Expenses (raw amount) in range: {total_expenses}")
+
+#         if total_expenses == 0:
+#             messages.warning(request, "No pending vouchers to pay.")
+#             return redirect('pay_now', user_id=user_id)
+
+#         # --- Leader groups & their balances ---
+#         leader_assignments = AdvanceAssignment.objects.filter(
+#             user=selected_user,
+#             is_leader=True
+#         ).select_related("group")
+
+#         total_leader_balance = sum(
+#             [max(a.group.remaining_balance, Decimal("0.00")) for a in leader_assignments]
+#         ) or Decimal("0.00")
+
+#         print(f"Total leader advance remaining (all groups): {total_leader_balance}")
+
+#         # --- How much advance can we apply in this payment? ---
+#         # We cannot use more advance than the voucher total
+#         advance_to_apply = min(max(total_leader_balance, 0), total_expenses)
+#         remaining_to_allocate = advance_to_apply
+
+#         print(f"Advance to apply in this payment: {advance_to_apply}")
+
+#         # ✅ Track which groups were actually used in THIS payment
+#         used_group_ids = set()
+
+#         # --- Deduct advance from each group until advance_to_apply is exhausted ---
+#         for assignment in leader_assignments:
+#             group = assignment.group
+
+#             if remaining_to_allocate <= 0:
+#                 break  # we've used all advance we can use for this payment
+
+#             can_use = min(group.remaining_balance, remaining_to_allocate)
+
+#             if can_use <= 0:
+#                 continue
+
+#             print(f"  Using ₹{can_use} from group '{group.name}' "
+#                   f"(before: remaining={group.remaining_balance}, used={group.used_advance})")
+
+#             group.used_advance += can_use
+#             group.remaining_balance -= can_use
+
+#             used_group_ids.add(group.id)  # ✅ mark this group as used
+
+#             if group.remaining_balance <= 0:
+#                 group.remaining_balance = Decimal("0.00")
+#                 group.is_closed = True
+#                 print(f"  -> Group '{group.name}' fully used, closing group")
+
+#             group.save()
+
+#             remaining_to_allocate -= can_use
+
+#             print(f"  After: group '{group.name}' used_advance={group.used_advance}, "
+#                   f"remaining_balance={group.remaining_balance}")
+#             print(f"  Remaining advance to allocate: {remaining_to_allocate}")
+
+#         # --- Recompute final amount to pay based on what we actually deducted ---
+#         # Vouchers total - advance used in this payment
+#         # --------------------------
+#         # LEADER OVERDUE CALCULATION
+#         # --------------------------
+#         leader_overdue = Decimal("0.00")
+#         for assignment in leader_assignments:
+#             g = assignment.group
+#             # overdue = used_advance - total_advance
+#             diff = g.used_advance - g.total_advance
+#             if diff > 0:
+#                 leader_overdue += diff
+
+#         print(f"Leader Overdue Total: {leader_overdue}")
+
+#         # --------------------------
+#         # CORRECT FINAL AMOUNT FORMULA (SAME AS UI)
+#         # --------------------------
+#         # total_leader_balance already calculated earlier
+#         computed_final_amount = total_expenses + leader_overdue - total_leader_balance
+
+#         if computed_final_amount < 0:
+#             computed_final_amount = Decimal("0.00")
+
+#         print(f"Final Amount to Pay (UI-MATCHED): {computed_final_amount}")
+
+#         print(f"Final amount to pay (computed): {computed_final_amount}")
+#         print(f"Final amount from form: {amount_from_form}")
+
+#         # Use the computed one (it should match the form; if not, logs will show)
+#         final_amount_to_pay = computed_final_amount
+
+#         # --- Mark all vouchers as PAID ---
+#         for expense in expenses_query:
+#             expense.status = "paid"
+#             expense.save()
+
+#             Notification.objects.create(
+#                 user=expense.created_by,
+#                 title="Voucher Paid",
+#                 message=f"Voucher {expense.evoucher_number} of ₹{expense.amount} has been paid.",
+#             )
+
+#             print(f"Voucher {expense.id} marked as PAID")
+
+#         # -- CLEAR GROUP BALANCES AFTER PAYMENT --
+#         for assignment in leader_assignments:
+#             group = assignment.group
+
+#             # ✅ ONLY groups actually used in THIS payment
+#             if group.id not in used_group_ids:
+#                 continue
+
+#             print(f"[CLEARING GROUP] {group.name}")
+
+#             if group.remaining_balance <= 0:
+#                 group.remaining_balance = Decimal("0.00")
+
+#                 # Clamp used_advance to total_advance → no more dues on this group
+#                 if group.used_advance > group.total_advance:
+#                     group.used_advance = group.total_advance
+
+#                 # ✅ Close group so it won't appear in future payable
+#                 group.is_closed = True
+
+#                 group.save(update_fields=["used_advance", "remaining_balance", "is_closed"])
+
+#                 print(
+#                     f"  -> After clear: used={group.used_advance}, "
+#                     f"remaining={group.remaining_balance}, closed={group.is_closed}"
+#                 )
+
+#         # --- Save Payment record ---
+#         Payment.objects.create(
+#             paid_to=selected_user,
+#             transaction_id=transaction_id,
+#             amount=final_amount_to_pay,
+#             from_date=from_date_obj,
+#             to_date=to_date_obj,
+#             screenshot=screenshot,
+#             remarks=remarks,
+#         )
+
+#         print(f"Payment Record Created: ₹{final_amount_to_pay}")
+#         print("=== PROCESS PAYMENT END ===")
+
+#         messages.success(
+#             request,
+#             f"Payment of ₹{final_amount_to_pay} processed successfully! "
+#             f"Vouchers marked paid and advances cleared."
+#         )
+        
+#         # Redirect maintaining filters
+#         zone_id = request.POST.get('zone_id', '')
+#         redirect_url = f"/website/payable/?user_id={user_id}&zone_id={zone_id}&from_date={from_date}&to_date={to_date}"
+#         return redirect(redirect_url)
+
+#     except Exception as e:
+#         print(f"Error in process_payment: {str(e)}")
+#         messages.error(request, f"Error occurred: {str(e)}")
+#         return redirect('pay_now', user_id=request.POST.get('user_id'))
+
 
 def payable(request):
     users = User.objects.all()
@@ -3676,14 +4491,17 @@ def payable(request):
     leader_overdue_total = Decimal("0.00")
     leader_group_balances = []
 
-    from_date = request.POST.get("from_date")
-    to_date = request.POST.get("to_date")
+    from_date = request.POST.get("from_date") or request.GET.get("from_date")
+    to_date = request.POST.get("to_date") or request.GET.get("to_date")
 
     queryset = Expense.objects.all()
 
-    if request.method == "POST":
-        user_id = request.POST.get("user_id")
-        zone_id = request.POST.get("zone_id")
+    # Check POST or GET for params
+    if request.method == "POST" or request.GET.get("user_id") or request.GET.get("zone_id"):
+        user_id = request.POST.get("user_id") or request.GET.get("user_id")
+        zone_id = request.POST.get("zone_id") or request.GET.get("zone_id")
+        if zone_id:
+            selected_zone = Zone.objects.get(id=zone_id)
 
         queryset = Expense.objects.all()
 
@@ -3693,6 +4511,17 @@ def payable(request):
             users_in_zone = UserProfile.objects.filter(zone=selected_zone).values_list("user", flat=True)
             filtered_users = User.objects.filter(id__in=users_in_zone)
             queryset = queryset.filter(created_by__in=users_in_zone)
+            if user_id and not filtered_users.filter(id=user_id).exists():
+                filtered_users = filtered_users | User.objects.filter(id=user_id)
+
+        # ✅ Populate users dropdown when zone is selected (POST or GET)
+
+        if selected_zone and not filtered_users.exists():
+            users_in_zone = UserProfile.objects.filter(
+                zone=selected_zone
+            ).values_list("user", flat=True)
+
+            filtered_users = User.objects.filter(id__in=users_in_zone)
 
         # ------------------ USER FILTER ---------------------
         if user_id:
@@ -3811,11 +4640,16 @@ def payable(request):
                 leader_group_balances.append({
                     "group_name": group.name,
                     "created_at": group.created_at.date(),
+                    "total_assigned": group.total_advance,
                     "remaining": remaining,
                     "overdue": overdue
                 })
 
             final_amount_to_pay = total_amount_to_be_paid - leader_sub_balance + leader_overdue_total
+
+    # ✅ ENSURE selected user always exists in dropdown
+    if selected_user and not filtered_users.filter(id=selected_user.id).exists():
+        filtered_users = filtered_users | User.objects.filter(id=selected_user.id)
 
     # ---------------- CONTEXT -----------------
     context = {
@@ -3911,6 +4745,7 @@ def pay_now(request, user_id):
         'to_date': to_date,
         'selected_filter': selected_filter,
         'payment_details': payment_details,
+        'zone_id': request.GET.get("zone_id"), # Pass zone_id to template
     })
 
 
@@ -3983,6 +4818,9 @@ def process_payment(request):
 
         print(f"Advance to apply in this payment: {advance_to_apply}")
 
+        # ✅ Track which groups were actually used in THIS payment
+        used_group_ids = set()
+
         # --- Deduct advance from each group until advance_to_apply is exhausted ---
         for assignment in leader_assignments:
             group = assignment.group
@@ -4000,6 +4838,8 @@ def process_payment(request):
 
             group.used_advance += can_use
             group.remaining_balance -= can_use
+
+            used_group_ids.add(group.id)  # ✅ mark this group as used
 
             if group.remaining_balance <= 0:
                 group.remaining_balance = Decimal("0.00")
@@ -4040,7 +4880,6 @@ def process_payment(request):
 
         print(f"Final Amount to Pay (UI-MATCHED): {computed_final_amount}")
 
-
         print(f"Final amount to pay (computed): {computed_final_amount}")
         print(f"Final amount from form: {amount_from_form}")
 
@@ -4056,18 +4895,22 @@ def process_payment(request):
                 user=expense.created_by,
                 title="Voucher Paid",
                 message=f"Voucher {expense.evoucher_number} of ₹{expense.amount} has been paid.",
+                status="unread"
             )
-            send_push(user, title, body);
 
             print(f"Voucher {expense.id} marked as PAID")
 
-            # -- CLEAR GROUP BALANCES AFTER PAYMENT --
-            for assignment in leader_assignments:
-                group = assignment.group
+        # -- CLEAR GROUP BALANCES AFTER PAYMENT --
+        for assignment in leader_assignments:
+            group = assignment.group
 
-                print(f"[CLEARING GROUP] {group.name}")
+            # ✅ ONLY groups actually used in THIS payment
+            if group.id not in used_group_ids:
+                continue
 
-                # Reset remaining balance to zero
+            print(f"[CLEARING GROUP] {group.name}")
+
+            if group.remaining_balance <= 0:
                 group.remaining_balance = Decimal("0.00")
 
                 # Clamp used_advance to total_advance → no more dues on this group
@@ -4079,9 +4922,10 @@ def process_payment(request):
 
                 group.save(update_fields=["used_advance", "remaining_balance", "is_closed"])
 
-                print(f"  -> After clear: used={group.used_advance}, remaining={group.remaining_balance}, closed={group.is_closed}")
-
-
+                print(
+                    f"  -> After clear: used={group.used_advance}, "
+                    f"remaining={group.remaining_balance}, closed={group.is_closed}"
+                )
 
         # --- Save Payment record ---
         Payment.objects.create(
@@ -4091,7 +4935,7 @@ def process_payment(request):
             from_date=from_date_obj,
             to_date=to_date_obj,
             screenshot=screenshot,
-            remarks=remarks, 
+            remarks=remarks,
         )
 
         print(f"Payment Record Created: ₹{final_amount_to_pay}")
@@ -4102,12 +4946,18 @@ def process_payment(request):
             f"Payment of ₹{final_amount_to_pay} processed successfully! "
             f"Vouchers marked paid and advances cleared."
         )
-        return redirect('dashboard')
+        
+        # Redirect maintaining filters
+        zone_id = request.POST.get('zone_id', '')
+        redirect_url = f"/website/payable/?user_id={user_id}&zone_id={zone_id}&from_date={from_date}&to_date={to_date}"
+        return redirect(redirect_url)
 
     except Exception as e:
         print(f"Error in process_payment: {str(e)}")
         messages.error(request, f"Error occurred: {str(e)}")
         return redirect('pay_now', user_id=request.POST.get('user_id'))
+    
+
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -4506,14 +5356,22 @@ def reject_expense(request):
 
     try:
         expense = Expense.objects.get(id=expense_id)
+
         expense.is_rejected = True
         expense.rejection_reason = reason
         expense.rejected_at = timezone.now()
-        expense.is_approved = False  # optional: reset approval
-        # DO NOT TOUCH status here
+        expense.is_approved = False
         expense.save()
 
+        # ✅ CREATE NOTIFICATION ONLY FOR THAT EXPENSE OWNER
+        Notification.objects.create(
+            user=expense.created_by,  # 👈 only that user
+            title="Expense Rejected ❌",
+            message=f"Your voucher {expense.evoucher_number} was rejected. Reason: {reason}"
+        )
+
         return JsonResponse({'success': True})
+
     except Expense.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Expense not found'}, status=404)
 
@@ -4920,7 +5778,8 @@ def directpay_preview(request):
         if target_user_id:
             system_user = get_object_or_404(User, id=target_user_id)
         else:
-            system_user = User.objects.get(id=16)  # fallback default
+            kirti_user = User.objects.filter(username="Kirti").first()
+            system_user = kirti_user if kirti_user else request.user
         created_count = 0
 
         for dp_id in selected_ids:
@@ -4988,7 +5847,8 @@ def directpay_preview(request):
         if target_user_id:
             system_user = get_object_or_404(User, id=target_user_id)
         else:
-            system_user = User.objects.get(id=16)  # fallback default
+            kirti_user = User.objects.filter(username="Kirti").first()
+            system_user = kirti_user if kirti_user else request.user
         created_count = 0
 
         for dp_id in selected_ids:
@@ -5180,6 +6040,7 @@ from .models import MobileSession, FCMToken
 
 
 @login_required
+@csrf_exempt
 def mobile_session(request):
     session, _ = MobileSession.objects.get_or_create(
         user=request.user,
@@ -5190,7 +6051,7 @@ def mobile_session(request):
 
 @csrf_exempt
 def mobile_token_login(request):
-    token = request.headers.get("X-MOBILE-TOKEN")
+    token = request.headers.get("Authorization") or request.headers.get("X-MOBILE-TOKEN")
 
     if not token:
         return redirect("/riva/login/")
@@ -5217,6 +6078,7 @@ def save_fcm_token(request):
 
     mobile_token = request.headers.get("Authorization")
     if not mobile_token:
+        print("❌ Authorization header missing")
         return JsonResponse({"error": "no auth"}, status=401)
 
     mobile_token = mobile_token.replace("Bearer ", "")
@@ -5225,18 +6087,38 @@ def save_fcm_token(request):
         session = MobileSession.objects.get(token=mobile_token)
         user = session.user
     except MobileSession.DoesNotExist:
+        print(f"❌ Invalid Mobile Token: {mobile_token}")
         return JsonResponse({"error": "invalid token"}, status=401)
 
+    # Try getting from POST (Form data)
     fcm_token = request.POST.get("fcm_token")
-    print("🔥 USER:", user)
-    print("🔥 FCM TOKEN:", fcm_token)
+
+    # If not in POST, try JSON body
+    if not fcm_token:
+        try:
+            import json
+            if request.body:
+                data = json.loads(request.body)
+                fcm_token = data.get("fcm_token") or data.get("token")
+                print("✅ Found FCM token in JSON body")
+        except Exception as e:
+            print(f"⚠️ JSON Parse Error: {e}")
+
+    print(f"🔥 USER: {user.username}")
+    print(f"🔥 FCM TOKEN RECEIVED: {fcm_token}")
 
     if fcm_token:
-        obj, _ = FCMToken.objects.get_or_create(
+        obj, created = FCMToken.objects.get_or_create(
             user=user,
             token=fcm_token
         )
-        print("🔥 SAVED:", obj.token)
+        if created:
+             print(f"✅ NEW FCM Token Saved: {obj.token}")
+        else:
+             print(f"ℹ️ FCM Token already exists: {obj.token}")
+    else:
+        print("❌ No FCM Token found in request")
+        return JsonResponse({"error": "missing fcm_token"}, status=400)
 
     return JsonResponse({"status": "ok"})
 

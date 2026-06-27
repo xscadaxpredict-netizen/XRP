@@ -71,6 +71,38 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Event listeners to recalculate the duration when start or end time changes
-    startTimeInput.addEventListener('change', calculateDuration);
-    endTimeInput.addEventListener('change', calculateDuration);
+    if(startTimeInput && endTimeInput) {
+      startTimeInput.addEventListener('change', calculateDuration);
+      endTimeInput.addEventListener('change', calculateDuration);
+    }
+
+    // Handle Date Validation
+    const dateInput = document.getElementById('dated');
+    const dateError = document.getElementById('date-error');
+    if (dateInput && dateError) {
+      dateInput.addEventListener('change', function() {
+        const selectedDate = new Date(this.value);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (selectedDate > today) {
+          dateError.style.display = 'block';
+          this.value = ''; // clear the invalid date
+        } else {
+          dateError.style.display = 'none';
+        }
+      });
+    }
+
+    // Handle Attachment Addition
+    const attachmentSection = document.getElementById('attachment-section');
+    const addAttachmentBtn = document.getElementById('add-attachment-btn');
+    if (addAttachmentBtn && attachmentSection) {
+      addAttachmentBtn.addEventListener('click', function() {
+        const newAttachmentInput = document.createElement('div');
+        newAttachmentInput.classList.add('mb-3', 'col-12');
+        newAttachmentInput.innerHTML = `<input type="file" class="form-control" name="attachment[]" multiple>`;
+        // insert before the button wrapper
+        attachmentSection.insertBefore(newAttachmentInput, addAttachmentBtn.parentElement);
+      });
+    }
   });

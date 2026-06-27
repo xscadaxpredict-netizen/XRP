@@ -1,322 +1,310 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% comment %} <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta14/dist/js/tabler.min.js"></script> {% endcomment %}
-<div class="container-fluid"><br>
-  <h2>Confirmed Orders</h2>
 
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-
-  <div class="input-icon d-flex flex-column flex-sm-row mb-4">
-    <div class="btn-group mb-2 me-1 mb-sm-0">
-        <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-            Export
-        </button>
-        <div class="dropdown-menu">
-            <a class="dropdown-item" href="{% url 'export_confirmed_orders_csv' %}">Export as CSV</a>
-            <a class="dropdown-item" href="{% url 'export_confirmed_orders_xlsx' %}">Export as XLSX</a>
-            <a class="dropdown-item" href="{% url 'export_confirmed_orders_pdf' %}">Export as PDF</a>
-            <a class="dropdown-item" href="#" onclick="printPage()">Print</a>
-        </div>
-    </div>
-    
-    <form method="GET" action="" class="d-flex flex-column flex-sm-row align-items-start">
-        <!-- Search Input -->
-        <input 
-            type="text" 
-            name="search" 
-            value="{{ search_query }}" 
-            class="form-control mb-2 mb-sm-0"
-            placeholder="Search Confirmed Orders…" 
-            aria-label="Search Confirmed Orders">
-        
-        <!-- Search Button -->
-        <button type="submit" class="btn btn-primary ms-2 mb-2 mb-sm-0">Search</button>
-
-        <!-- Clear Button -->
-        <button 
-            type="button" 
-            class="btn btn-secondary ms-2 mb-2 mb-sm-0" 
-            onclick="clearSearch()">Clear</button>
-    </form>
-</div>
-<div class="card">
-  <div id="table-default" class="table-responsive">
-
-    <table class="table table-striped">
-      <thead>
-          <tr>
-              {% comment %} <th>#</th> {% endcomment %}
-              <th>Company Name</th>
-              <th>Cust Name</th>
-              <th>Contact</th>
-              <th>Product</th>
-              <th>ID</th>
-              <th>Closing Date</th>
-              <th>Quotation Number</th>
-              <th>Action</th>
-          </tr>
-      </thead>
-      <tbody>
-          {% if confirmed_orders %}
-              {% with counter=0 %}
-                  {% for order in confirmed_orders %}
-                      {% for confirmed_entry in order.confirmed_enquiry_set.all %}
-                        {% with counter=counter|add:1 %}
-                          <tr>
-                              {% comment %} <td>{{ forloop.counter }}</td> <!-- Automatically increments for each row --> {% endcomment %}
-                              <td>{{ order.companyname }}</td>
-                              <td>{{ order.customername }}</td>
-                              <td>{{ order.contact }}</td>
-                              <td>{{ order.products }}</td>
-                              <td>{{ order.id }}</td>
-                              <td>{{ order.closuredate }}</td>
-                              {% if confirmed_entry.relegate %}
-                              <td>
-                                <button class="btn btn-danger font-weight-bold btn-sm " style="width: 180px; height: 40px;" disabled>
-                                  Relegated
-                              </button>
-                              
-                              </td>
-                              {% else %}
-                              <td>{{ confirmed_entry.quotation }}</td>
-                              {% endif %}
-
-                              <td>
-                                <div class="d-flex button-container">
-                                    <!-- View Button -->
-                                    <a class="btn btn-info mb-2 mb-sm-0 me-sm-2 btn-sm btn-custom {% if confirmed_entry.relegate %}disabled{% endif %}" 
-                                      href="{% url 'confirmed_view' order.id confirmed_entry.quotation %}">
-                                        View
-                                    </a>
-                                    
-                                    <!-- Relegate Button -->
-                                    <button type="button" 
-                                            class="btn btn-danger mb-2 mb-sm-0 me-sm-2 btn-sm btn-custom {% if confirmed_entry.relegate %}disabled{% endif %}" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#confirmModal" 
-                                            data-order-id="{{ order.id }}" 
-                                            data-quotation-number="{{ confirmed_entry.quotation }}">
-                                        Relegate
-                                    </button>
-                                    
-                                    <!-- Revert Button -->
-                                    <a class="btn btn-primary mb-2 mb-sm-0 me-sm-2 btn-sm btn-custom {% if confirmed_entry.revert %}disabled{% endif %} {% if confirmed_entry.relegate %}disabled{% endif %}" 
-                                      data-bs-toggle="modal" 
-                                      data-bs-target="#revertModal" 
-                                      data-order-id="{{ order.id }}" 
-                                      id="revertButton-{{ order.id }}">
-                                        Revert 
-                                    </a>
-                                </div>
-                            </td>
-
-
-                          </tr>
-                        {% endwith %}
-                      {% endfor %}
-                  {% endfor %}
-              {% endwith %}
-          {% else %}
-              <tr>
-                  <td colspan="9">No confirmed orders found.</td>
-              </tr>
-          {% endif %}
-      </tbody>
-    </table>
-  </div>
-
-
-</div>
-</div>
-<div class="modal fade" id="revertModal" tabindex="-1" aria-labelledby="revertModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="POST" action="{% url 'revert_to_enquiries' 0 %}" id="revertForm">
-        {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title" id="revertModalLabel">Revert to Enquiries</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <!-- Remarks Field -->
-          <div class="mb-3">
-            <label for="remarks" class="form-label">Remarks</label>
-            <textarea name="remarks" id="remarks" class="form-control" rows="3" required></textarea>
-          </div>
-          <!-- Hidden Timestamp Field -->
-          <input type="hidden" name="timestamp" id="timestamp">
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <button type="submit" class="btn btn-primary" id="submitButton">Submit</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
-
-<!-- Bootstrap Confirmation Modal with Reason -->
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="confirmModalLabel">Confirm Action</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p>Are you sure you want to push this order to Lost Orders?</p>
-        <form id="confirmLostForm" method="POST">
-          {% csrf_token %}
-          <div class="mb-3">
-            <label for="reason" class="form-label">Reason for Moving to Lost Orders</label>
-            <textarea id="reason" name="reason" class="form-control" rows="3" required></textarea>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" form="confirmLostForm" class="btn btn-danger">Yes, Move to Lost Orders</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const revertModal = document.getElementById('revertModal');
-    revertModal.addEventListener('show.bs.modal', function () {
-      const timestampField = revertModal.querySelector('input[name="timestamp"]');
-      const currentTime = new Date().toISOString();
-      timestampField.value = currentTime; // Set the current timestamp
-    });
-  });
-
-  // Update the form action dynamically when the modal is triggered
-  document.addEventListener('DOMContentLoaded', function () {
-    const modal = document.getElementById('confirmModal');
-    const form = document.getElementById('confirmLostForm');
-  
-    modal.addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget; // Button that triggered the modal
-      const orderId = button.getAttribute('data-order-id'); // Extract order ID
-      const quotationNumber = button.getAttribute('data-quotation-number'); // Extract quotation number
-      // Set the form action with both the orderId and quotationNumber
-      form.action = `/riva/push-to-lost-order/${orderId}/${quotationNumber}/`; 
-     
-    });
-  });
-  
-</script>
-<script>
-  // Replace the current history state on page load
- // window.history.replaceState({ page: 'initial' }, '', window.location.href);
-
-  // Push a new history state after replacing
-  //window.history.pushState({ page: 'custom' }, '', window.location.href);
-
-  // Listen for back navigation
-  //window.addEventListener('popstate', function () {
-     // alert("Back navigation is not allowed.");
-     // window.location.href = '/enqhome/';
-  //});
-  function printPage() {
-      // Hide non-printable elements like the export dropdown, search bar, etc., if needed
-      const elementsToHide = document.querySelectorAll('.dropdown, .pagination, .page-header, .input-icon');
-      elementsToHide.forEach(element => element.style.display = 'none');
-
-      // Trigger the browser's print functionality
-      window.print();
-
-      // Restore hidden elements after printing
-      setTimeout(() => {
-          elementsToHide.forEach(element => element.style.display = '');
-      }, 0);
-  }
-</script>
 <style>
-
-/* Default for larger screens (buttons side by side) */
-.button-container {
-    display: flex;
-    flex-direction: row; /* Buttons remain side by side */
-    flex-wrap: wrap; /* Allow wrapping to next line if space is tight */
-}
-
-/* Custom class for button size */
-.btn-custom {
-    font-size: 12px; /* Adjust font size for smaller buttons */
-    padding: 5px 10px; /* Adjust padding for small buttons */
-    margin: 5px; /* Add some space between buttons */
-}
-
-/* For small screens: Stack buttons vertically */
-@media (max-width: 575px) {
-    .button-container {
-        flex-direction: column;
+    .dashboard-transition-container {
+        opacity: 0;
+        transform: translateY(15px);
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
-
-    .btn-custom {
-        font-size: 10px; /* Smaller font size on small screens */
-        padding: 4px 8px; /* Reduced padding on small screens */
+    .dashboard-transition-container.visible {
+        opacity: 1;
+        transform: translateY(0);
     }
-}
+    .dashboard-transition-container.fade-out {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 110, 253, 0.03) !important;
+    }
+    
+    .btn-custom-pill {
+        font-size: 0.8rem;
+        padding: 5px 12px;
+    }
+</style>
 
-  @media print {
-      /* Hide unnecessary UI elements */
-      .btn-group, 
-      .page-header, 
-      .pagination, 
-      .navbar, 
-      .footer {
-          display: none !important;
-      }
-      
-      /* Adjust table layout for better printing */
-      table {
-          width: 100%;
-          border-collapse: collapse;
-      }
+<div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h1 class="h2 fw-bold text-dark mb-0">Confirmed Orders</h1>
+    </div>
 
-      th, td {
-          border: 1px solid #000;
-          padding: 8px;
-          text-align: left;
-      }
+    <!-- Controls Card (Exports, Search) -->
+    <div class="card border-0 shadow-lg mb-4" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 10; position: relative;">
+        <div class="card-body p-4">
+            <div class="row g-3 align-items-center justify-content-between">
+                <!-- Left actions: Export -->
+                <div class="col-12 col-md-auto d-flex align-items-center gap-2 flex-wrap">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary px-4 rounded-pill dropdown-toggle shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download me-1"></i> Export
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-start shadow-sm border-0 rounded-3">
+                            <a class="dropdown-item py-2" href="{% url 'export_confirmed_orders_pdf' %}"><i class="bi bi-file-pdf me-2 text-danger"></i>PDF</a>
+                            <a class="dropdown-item py-2" href="{% url 'export_confirmed_orders_csv' %}"><i class="bi bi-filetype-csv me-2 text-primary"></i>CSV</a>
+                            <a class="dropdown-item py-2" href="{% url 'export_confirmed_orders_xlsx' %}"><i class="bi bi-file-excel me-2 text-success"></i>XLSX</a>
+                            <hr class="dropdown-divider">
+                            <a class="dropdown-item py-2" href="#" onclick="printPage()"><i class="bi bi-printer me-2"></i>Print</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right actions: Search Form -->
+                <div class="col-12 col-md-auto">
+                    <form method="GET" action="" class="d-flex align-items-center gap-2 mb-0">
+                        <div class="input-group">
+                            <input type="text" name="search" value="{{ search_query }}" class="form-control rounded-start-pill border-end-0 ps-3 shadow-sm" placeholder="Search Confirmed Orders…" style="width: 240px;">
+                            <button type="submit" class="btn btn-primary rounded-end-pill px-3 shadow-sm">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                        {% if search_query %}
+                            <button type="button" class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" onclick="clearSearch()" title="Clear Search">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
-      /* Ensure the content takes up the full width of the print page */
-      body {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-      }
+    <!-- Data Table Card -->
+    <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); z-index: 1; position: relative;">
+        <div class="card-body p-4">
+            <div id="table-default" class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light text-secondary small uppercase" style="background: rgba(13, 110, 253, 0.03);">
+                        <tr>
+                            <th class="fw-bold">Company Name</th>
+                            <th class="fw-bold">Cust Name</th>
+                            <th class="fw-bold">Contact</th>
+                            <th class="fw-bold">Product</th>
+                            <th class="fw-bold">ID</th>
+                            <th class="fw-bold">Closing Date</th>
+                            <th class="fw-bold">Quotation Number</th>
+                            <th class="fw-bold text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if confirmed_orders %}
+                            {% for order in confirmed_orders %}
+                                {% for confirmed_entry in order.confirmed_enquiry_set.all %}
+                                    <tr>
+                                        <td class="fw-bold text-dark">{{ order.companyname }}</td>
+                                        <td>{{ order.customername }}</td>
+                                        <td>{{ order.contact|default:"-" }}</td>
+                                        <td>{{ order.products }}</td>
+                                        <td class="text-secondary fw-bold">#{{ order.id }}</td>
+                                        <td class="text-nowrap">{{ order.closuredate|date:"M d, Y"|default:"-" }}</td>
+                                        
+                                        {% if confirmed_entry.relegate %}
+                                            <td>
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill"><i class="bi bi-x-circle me-1"></i>Relegated</span>
+                                            </td>
+                                        {% else %}
+                                            <td class="fw-bold text-primary">{{ confirmed_entry.quotation }}</td>
+                                        {% endif %}
 
-      /* Hide other unnecessary elements */
-      .dropdown-menu {
-          display: none !important;
-      }
-  }
-</style>    
+                                        <td class="text-end">
+                                            <div class="d-inline-flex gap-1 justify-content-end">
+                                                <!-- View Button -->
+                                                <a class="btn btn-outline-primary btn-custom-pill rounded-pill shadow-sm {% if confirmed_entry.relegate %}disabled{% endif %}" 
+                                                   href="{% url 'confirmed_view' order.id confirmed_entry.quotation %}">
+                                                    <i class="bi bi-eye me-1"></i> View
+                                                </a>
+                                                
+                                                <!-- Relegate Button -->
+                                                <button type="button" 
+                                                        class="btn btn-outline-danger btn-custom-pill rounded-pill shadow-sm {% if confirmed_entry.relegate %}disabled{% endif %}" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#confirmModal" 
+                                                        data-order-id="{{ order.id }}" 
+                                                        data-quotation-number="{{ confirmed_entry.quotation }}">
+                                                    <i class="bi bi-arrow-right-circle me-1"></i> Relegate
+                                                </button>
+                                                
+                                                <!-- Revert Button -->
+                                                <button type="button" 
+                                                        class="btn btn-outline-secondary btn-custom-pill rounded-pill shadow-sm {% if confirmed_entry.revert or confirmed_entry.relegate %}disabled{% endif %}" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#revertModal" 
+                                                        data-order-id="{{ order.id }}" 
+                                                        id="revertButton-{{ order.id }}">
+                                                    <i class="bi bi-arrow-left-circle me-1"></i> Revert
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="bi bi-check-circle display-4 d-block mb-3 text-secondary"></i>
+                                    No confirmed orders found.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Revert to Enquiry Modal -->
+<div class="modal fade" id="revertModal" tabindex="-1" aria-labelledby="revertModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <form method="POST" action="{% url 'revert_to_enquiries' 0 %}" id="revertForm">
+                {% csrf_token %}
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark" id="revertModalLabel"><i class="bi bi-arrow-left-circle text-primary me-2"></i>Revert to Enquiries</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-secondary pt-3">
+                    <p class="small mb-3">Reverting this order will move it back to the active enquiries listing. Please supply a reason below:</p>
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label fw-semibold text-dark">Remarks / Reason</label>
+                        <textarea name="remarks" id="remarks" class="form-control rounded-3" rows="3" placeholder="Explain why this order is being reverted..." required></textarea>
+                    </div>
+                    <input type="hidden" name="timestamp" id="timestamp">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm" id="submitButton">Submit Revert</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Relegate to Lost Orders Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark" id="confirmModalLabel"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Relegate Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-secondary pt-3">
+                <p class="small mb-3">Are you sure you want to relegate this confirmed order to Lost Orders? Please provide a reason:</p>
+                <form id="confirmLostForm" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="reason" class="form-label fw-semibold text-dark">Reason for relegation</label>
+                        <textarea id="reason" name="reason" class="form-control rounded-3" rows="3" placeholder="Provide the reason for relegation..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="confirmLostForm" class="btn btn-danger px-4 rounded-pill shadow-sm">Yes, Move to Lost Orders</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-  function clearSearch() {
-      const searchInput = document.querySelector('input[name="search"]');
-      searchInput.value = '';
-      searchInput.form.submit();
-  }
-  // Capture the button click event
-  document.querySelectorAll('[data-bs-toggle="modal"]').forEach(function(button) {
-    button.addEventListener('click', function() {
-      // Get the order ID from the data attribute of the clicked button
-      var orderId = button.getAttribute('data-order-id');
-      
-      // Update the form action in the modal to include the correct order ID
-      var form = document.getElementById('revertForm');
-      var actionUrl = "{% url 'revert_to_enquiries' enquiry_id=0 %}".replace('0', orderId);
-      form.setAttribute('action', actionUrl);
+    document.addEventListener("DOMContentLoaded", function() {
+        // Page transition fade-in
+        const container = document.getElementById("dashboard-container");
+        if (container) {
+            requestAnimationFrame(() => {
+                container.classList.add("visible");
+            });
+        }
+
+        const transitionLinks = document.querySelectorAll(".transition-link");
+        transitionLinks.forEach(link => {
+            link.addEventListener("click", function(e) {
+                e.preventDefault();
+                const targetUrl = this.getAttribute("href");
+                if (container) {
+                    container.classList.remove("visible");
+                    container.classList.add("fade-out");
+                }
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 350);
+            });
+        });
+
+        // Set Revert modal timestamp
+        const revertModal = document.getElementById('revertModal');
+        if (revertModal) {
+            revertModal.addEventListener('show.bs.modal', function () {
+                const timestampField = revertModal.querySelector('input[name="timestamp"]');
+                if (timestampField) {
+                    timestampField.value = new Date().toISOString();
+                }
+            });
+        }
+
+        // Handle Revert action URL injection
+        document.querySelectorAll('[data-bs-target="#revertModal"]').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var orderId = button.getAttribute('data-order-id');
+                var form = document.getElementById('revertForm');
+                if (form && orderId) {
+                    var actionUrl = "{% url 'revert_to_enquiries' enquiry_id=0 %}".replace('0', orderId);
+                    form.setAttribute('action', actionUrl);
+                }
+            });
+        });
+
+        // Handle Relegate action URL injection
+        const relegateModal = document.getElementById('confirmModal');
+        const relegateForm = document.getElementById('confirmLostForm');
+        if (relegateModal && relegateForm) {
+            relegateModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const orderId = button.getAttribute('data-order-id');
+                const quotationNumber = button.getAttribute('data-quotation-number');
+                relegateForm.action = `/riva/push-to-lost-order/${orderId}/${quotationNumber}/`; 
+            });
+        }
     });
-  });
+
+    function clearSearch() {
+        const searchInput = document.querySelector('input[name="search"]');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.form.submit();
+        }
+    }
+
+    function printPage() {
+        const elementsToHide = document.querySelectorAll('.dropdown, .pagination, .page-header, .input-icon, .btn-group');
+        elementsToHide.forEach(element => element.style.display = 'none');
+        window.print();
+        setTimeout(() => {
+            elementsToHide.forEach(element => element.style.display = '');
+        }, 0);
+    }
 </script>
 
+<style>
+    @media print {
+        .btn-group, .page-header, .pagination, .navbar, .footer, .btn {
+            display: none !important;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+    }
+</style>
 {% endblock %}

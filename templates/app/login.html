@@ -7,499 +7,704 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Xpredict | Login</title>
   <link rel="icon" href="{% static 'xtitle.jpeg' %}" type="image/x-icon">
+  <!-- Tabler and Google Fonts -->
   <link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  
   <style>
     :root {
-      --yellow: #FFD700;
-      --blue: #206bc4;
-      --orange: #F97316;
-      --black: #1E293B;
-      --bg-light: #F1F5F9;
+      --primary: #2563eb;
+      --primary-glow: rgba(37, 99, 235, 0.15);
+      --success: #0d9488;
+      --success-glow: rgba(13, 148, 136, 0.15);
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-600: #475569;
+      --slate-100: #f8fafc;
+      --slate-200: #e2e8f0;
+      --font-display: 'Outfit', sans-serif;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
     }
 
     body {
-      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-      height: 100vh;
       margin: 0;
-      overflow: hidden;
-      font-family: 'Inter', sans-serif;
-      color: var(--black);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: 0;
+      font-family: var(--font-sans);
+      background-color: var(--slate-100);
+      color: var(--slate-800);
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    #particle-canvas {
-      position: fixed;
+    /* Split Screen Layout */
+    .login-container {
+      display: flex;
+      min-height: 100vh;
+      width: 100vw;
+      position: relative;
+    }
+
+    /* Left Side: Form Container */
+    .form-panel {
+      width: 40%;
+      background: rgba(255, 255, 255, 0.98);
+      border-right: 1px solid var(--slate-200);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 3rem 4rem;
+      z-index: 10;
+      position: relative;
+      transition: width 0.5s ease;
+    }
+
+    /* Right Side: Interactive Visuals */
+    .visual-panel {
+      width: 60%;
+      background: radial-gradient(circle at 80% 20%, #ffffff 0%, #e2e8f0 100%);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      padding: 2rem;
+    }
+
+    #interactive-canvas {
+      position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none;
-      z-index: 0;
+      z-index: 1;
     }
 
-    .login-card {
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      padding: 3rem 4rem;
-      border-radius: 24px;
-      width: 100%;
-      max-width: 480px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-      z-index: 10;
+    /* Brand Overlay Graphic */
+    .brand-visual-card {
       position: relative;
-      transform: translateY(0);
-      transition: transform 0.3s ease;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      padding: 2.5rem;
+      border-radius: 28px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.08);
+      text-align: center;
+      transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
     }
 
-    .login-card:hover {
-      transform: translateY(-5px);
+    .brand-visual-card:hover {
+      box-shadow: 0 40px 80px -12px rgba(37, 99, 235, 0.15);
     }
 
-    /* Bots Container */
-    #anim-stage {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      align-items: flex-end;
-      height: 120px;
-      margin-bottom: 2rem;
-      transform-origin: center bottom;
-      transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    /* Scale down bots slightly to fit better */
-    .bot {
-      transform: scale(0.8);
-      transform-origin: bottom center;
-      transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      overflow: visible !important;
-    }
-
-    /* Reactive states for bots */
-    .watching #anim-stage {
-      transform: translateY(-10px);
-    }
-
-    .covering #anim-stage {
-      transform: translateY(10px) scale(0.95);
-    }
-
-    /* Bot Base & Eye Protection */
-    .eye-lid {
-      transition: opacity 0.3s;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .covering .eye-lid {
+    .brand-content-wrap {
+      transition: opacity 0.4s ease, transform 0.4s ease;
       opacity: 1;
+      transform: scale(1);
     }
-
-    .covering .pupil {
+    
+    .brand-content-wrap.fade-out {
       opacity: 0;
+      transform: scale(0.95);
     }
 
-    .covering .eye-white {
-      fill: rgba(255, 255, 255, 0.1) !important;
-      transition: fill 0.3s;
+    .brand-glow-sphere {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary), var(--success));
+      border-radius: 50%;
+      margin: 0 auto 1.5rem;
+      filter: drop-shadow(0 10px 20px rgba(37, 99, 235, 0.3));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: float 6s ease-in-out infinite;
+      transition: background 0.4s ease, filter 0.4s ease;
     }
 
-    /* Purple Bot Arm Polish */
-    .arm {
-      transition: transform 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      transform-origin: center bottom;
+    .brand-glow-sphere i {
+      font-size: 2rem;
+      color: white;
     }
 
-    .covering .arm-l {
-      transform: translate(24px, -48px) rotate(145deg);
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(5deg); }
     }
 
-    .covering .arm-r {
-      transform: translate(-24px, -48px) rotate(-145deg);
+    /* Typography */
+    h1, h2, h3 {
+      font-family: var(--font-display);
+      font-weight: 700;
     }
 
-    /* Head Movements */
-    .head-group {
-      transition: transform 0.5s ease;
-      transform-origin: center bottom;
+    .form-title {
+      font-size: 2.2rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(to right, var(--slate-900), var(--slate-600));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .watching .head-group {
-      transform: rotate(-5deg);
+    /* Form Fields Styling */
+    .form-group-custom {
+      position: relative;
+      margin-bottom: 1.5rem;
     }
 
-    .covering .head-group {
-      transform: rotate(15deg) translateY(5px);
+    .form-label-custom {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--slate-600);
+      margin-bottom: 0.5rem;
+      display: block;
     }
 
-    /* Blink Animation */
-    @keyframes blink {
-
-      0%,
-      92%,
-      100% {
-        transform: scaleY(1);
-      }
-
-      96% {
-        transform: scaleY(0.1);
-      }
+    .input-wrapper {
+      position: relative;
     }
 
-    .eye-group {
-      transform-origin: center;
-      animation: blink 5s infinite;
+    .input-wrapper i.input-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 1.2rem;
+      transition: color 0.3s ease;
     }
 
-    .covering .eye-group {
-      animation: none;
-    }
-
-    .form-control {
-      background: rgba(255, 255, 255, 0.8);
-      border: 2px solid #E2E8F0;
-      padding: 0.9rem 1.2rem;
-      font-size: 1rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      border-radius: 14px;
-    }
-
-    .form-control:focus {
+    .form-control-custom {
+      width: 100%;
       background: white;
-      border-color: var(--blue);
-      box-shadow: 0 0 0 4px rgba(32, 107, 196, 0.15);
-      transform: scale(1.01);
+      border: 1px solid var(--slate-200);
+      padding: 0.85rem 1rem 0.85rem 2.8rem;
+      font-size: 0.95rem;
+      color: var(--slate-900);
+      border-radius: 14px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+      box-sizing: border-box;
     }
 
-    .login-btn {
-      background: var(--black);
+    .form-control-custom:focus {
+      background: white;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px var(--primary-glow);
+    }
+
+    .form-control-custom:focus + i.input-icon {
+      color: var(--primary);
+    }
+
+    /* Password field adjust */
+    .password-input {
+      padding-right: 3rem;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      transition: color 0.3s ease;
+    }
+
+    .password-toggle:hover {
+      color: var(--slate-900);
+    }
+
+    /* Buttons */
+    .btn-submit-premium {
+      background: linear-gradient(135deg, var(--primary), #1d4ed8);
       color: white;
       border: none;
-      padding: 1.2rem;
+      padding: 1rem;
+      font-size: 1rem;
+      font-weight: 600;
       width: 100%;
       border-radius: 14px;
-      font-weight: 700;
-      font-size: 1.1rem;
       cursor: pointer;
-      transition: all 0.3s;
-      margin-top: 1.5rem;
-      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
-    .login-btn:hover {
-      background: #000;
-      transform: translateY(-3px);
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    .btn-submit-premium:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px -5px rgba(37, 99, 235, 0.5);
+      background: linear-gradient(135deg, #1d4ed8, #1e40af);
     }
 
-    .logo-img {
+    .btn-submit-premium:active {
+      transform: translateY(0);
+    }
+
+    /* Alerts */
+    .custom-alert {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+      color: #b91c1c;
+      padding: 1rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Footer Logo styling */
+    .logo-footer {
       mix-blend-mode: multiply;
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
+    }
+    .logo-footer:hover {
+      opacity: 0.8;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) {
+      .form-panel {
+        width: 100%;
+        min-height: 100vh;
+        border-right: none;
+        padding: 3rem 2rem;
+      }
+      .visual-panel {
+        display: none;
+      }
     }
   </style>
 </head>
 
 <body>
-  <canvas id="particle-canvas"></canvas>
 
-  <div class="login-card">
-    <div id="anim-stage">
-      <!-- YELLOW BOT -->
-      <svg width="100" height="120" viewBox="0 0 100 120" class="bot">
-        <g class="head-group">
-          <path d="M10 90 Q50 0 90 90 Z" fill="var(--yellow)" />
-          <g class="eye-group">
-            <circle cx="35" cy="65" r="9" fill="white" class="eye-white" />
-            <circle id="p1l" cx="35" cy="65" r="4" fill="var(--black)" class="pupil" />
-            <path d="M26 65 Q35 60 44 65" fill="none" stroke="var(--black)" stroke-width="3" class="eye-lid" />
-          </g>
-          <g class="eye-group">
-            <circle cx="65" cy="65" r="9" fill="white" class="eye-white" />
-            <circle id="p1r" cx="65" cy="65" r="4" fill="var(--black)" class="pupil" />
-            <path d="M56 65 Q65 60 74 65" fill="none" stroke="var(--black)" stroke-width="3" class="eye-lid" />
-          </g>
-          <!-- Smile -->
-          <path d="M40 80 Q50 88 60 80" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" />
-        </g>
-      </svg>
+  <div class="login-container">
+    <!-- Left Panel: Form -->
+    <div class="form-panel">
+      <div class="mb-5">
+        <h1 class="form-title">Welcome Back</h1>
+        <p class="text-muted small">Enter your credentials to access the Xpredict dashboard</p>
+      </div>
 
-      <!-- PURPLE BOT (The shy eye-coverer) -->
-      <svg width="120" height="130" viewBox="0 0 100 120" class="bot">
-        <!-- Eyes Group -->
-        <g class="head-group">
-          <rect x="15" y="30" width="70" height="70" rx="20" fill="var(--blue)" />
-          <g class="eye-group">
-            <circle cx="35" cy="60" r="8" fill="white" class="eye-white" />
-            <circle id="p2l" cx="35" cy="60" r="4" fill="var(--black)" class="pupil" />
-          </g>
-          <g class="eye-group">
-            <circle cx="65" cy="60" r="8" fill="white" class="eye-white" />
-            <circle id="p2r" cx="65" cy="60" r="4" fill="var(--black)" class="pupil" />
-          </g>
-          <!-- Smile -->
-          <path d="M35 78 Q50 88 65 78" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" />
-          <!-- Eyelids -->
-          <rect x="27" y="58" width="16" height="4" rx="2" fill="var(--black)" class="eye-lid" />
-          <rect x="57" y="58" width="16" height="4" rx="2" fill="var(--black)" class="eye-lid" />
-        </g>
-        <!-- Arms -->
-        <rect x="10" y="75" width="14" height="35" rx="7" fill="#1a56a6" class="arm arm-l" />
-        <rect x="76" y="75" width="14" height="35" rx="7" fill="#1a56a6" class="arm arm-r" />
-      </svg>
+      {% if messages %}
+      {% for message in messages %}
+      <div class="custom-alert">
+        <i class="ti ti-alert-triangle fs-5"></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+      {% endif %}
 
-      <!-- ORANGE BOT -->
-      <svg width="90" height="120" viewBox="0 0 100 120" class="bot">
-        <g class="head-group">
-          <circle cx="50" cy="80" r="35" fill="var(--orange)" />
-          <g class="eye-group">
-            <circle cx="35" cy="70" r="8" fill="white" class="eye-white" />
-            <circle id="p3l" cx="35" cy="70" r="4" fill="var(--black)" class="pupil" />
-            <path d="M27 70 Q35 63 43 70" fill="none" stroke="var(--black)" stroke-width="3" class="eye-lid" />
-          </g>
-          <g class="eye-group">
-            <circle cx="65" cy="70" r="8" fill="white" class="eye-white" />
-            <circle id="p3r" cx="65" cy="70" r="4" fill="var(--black)" class="pupil" />
-            <path d="M57 70 Q65 63 73 70" fill="none" stroke="var(--black)" stroke-width="3" class="eye-lid" />
-          </g>
-          <!-- Smile -->
-          <path d="M35 85 Q50 95 65 85" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" />
-        </g>
-      </svg>
-    </div>
-
-    <div class="text-center mb-4">
-      <h1 class="fw-bold h2">Welcome Back</h1>
-      <p class="text-muted small">Enter your credentials to access the workspace</p>
-    </div>
-
-    {% if messages %}
-    {% for message in messages %}
-    <div
-      class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} shadow-sm border-0 rounded-3 mb-4">
-      {{ message }}</div>
-    {% endfor %}
-    {% endif %}
-
-    <div id="login-form">
       <form method="post">
         {% csrf_token %}
-        <div class="mb-4">
-          <label class="form-label small fw-bold text-uppercase opacity-50">Username</label>
-          <input type="text" name="username" id="id_username" class="form-control" placeholder="Enter username" required
-            autofocus>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label small fw-bold text-uppercase opacity-50">Password</label>
-          <div class="input-group input-group-flat">
-            <input type="password" name="password" id="id_password" class="form-control" placeholder="••••••••"
-              required>
-            <span class="input-group-text">
-              <a href="#" class="link-secondary" title="Show password" data-bs-toggle="tooltip"
-                onclick="togglePassword(); return false;" id="togglePassword">
-                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
-                  stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                  <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                  <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-                </svg>
-              </a>
-            </span>
+        
+        <!-- Username Field -->
+        <div class="form-group-custom">
+          <label class="form-label-custom">Username</label>
+          <div class="input-wrapper">
+            <input type="text" name="username" id="id_username" class="form-control-custom" placeholder="Enter your username" required autofocus>
+            <i class="ti ti-user input-icon"></i>
           </div>
         </div>
 
-        <button type="submit" class="login-btn">
-          Login
-        </button>
-        <div class="text-center mt-3">
-          <a href="{% url 'password_reset' %}" class="small text-muted">I forgot password</a>
+        <!-- Password Field -->
+        <div class="form-group-custom">
+          <label class="form-label-custom">Password</label>
+          <div class="input-wrapper">
+            <input type="password" name="password" id="id_password" class="form-control-custom password-input" placeholder="••••••••" required>
+            <i class="ti ti-lock input-icon"></i>
+            <button type="button" class="password-toggle" id="togglePasswordBtn" onclick="togglePasswordVisibility()">
+              <i class="ti ti-eye fs-4" id="eyeIcon"></i>
+            </button>
+          </div>
         </div>
+
+        <!-- Submit & Forgot Password -->
+        <div class="d-flex align-items-center justify-content-between mt-3 mb-4">
+          <label class="form-check m-0">
+            <input type="checkbox" name="remember_me" class="form-check-input">
+            <span class="form-check-label text-muted small">Remember me</span>
+          </label>
+          <a href="{% url 'password_reset' %}" class="small text-primary text-decoration-none">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn-submit-premium">
+          <span>Sign In</span>
+          <i class="ti ti-arrow-right fs-5"></i>
+        </button>
       </form>
+
+      <!-- Footer Brand -->
+      <div class="mt-5 pt-4 text-center border-top border-transparent" style="border-top-color: rgba(0,0,0,0.05) !important;">
+        <img src="{% static 'xlogo.png' %}" height="28" class="logo-footer">
+      </div>
     </div>
 
-    <div class="mt-4 text-center">
-      <img src="{% static 'xlogo.png' %}" height="30" class="logo-img opacity-50 grayscale">
+    <!-- Right Panel: Interactive Canvas & Card -->
+    <div class="visual-panel">
+      <canvas id="interactive-canvas"></canvas>
+      
+      <div class="brand-visual-card" id="brandCard">
+        <div class="brand-content-wrap" id="brandContentWrap">
+          <div class="brand-glow-sphere" id="brandSphere">
+            <i class="ti ti-shield-lock" id="sphereIcon"></i>
+          </div>
+          <h2 class="text-dark mb-2 h2 font-weight-bold" style="font-size: 1.5rem; color: var(--slate-900);" id="visualTitle">Secure Portal</h2>
+          <p class="text-muted small mb-0 lh-lg" id="visualDesc">
+            Accessing real-time analytical workspace. The interactive node network indicates active connection streams to the Xpredict enterprise server.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    const usernameInput = document.getElementById('id_username');
-    const passwordInput = document.getElementById('id_password');
-    // Using login-card as the wrapper for state classes essentially
-    const wrapper = document.querySelector('.login-card');
-
-    function togglePassword() {
-      let passwordField = document.getElementById("id_password");
-      let eyeIcon = document.getElementById("togglePassword").querySelector('svg');
-
+    // Toggle Password Visibility
+    function togglePasswordVisibility() {
+      const passwordField = document.getElementById("id_password");
+      const eyeIcon = document.getElementById("eyeIcon");
       if (passwordField.type === "password") {
-        passwordField.type = "text";  // Show password
-        eyeIcon.innerHTML = `<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M3 3l18 18"/><path d="M17 17a8 8 0 0 1 -10 0m-2 -2a8 8 0 0 1 -2 -4c2.4 -4 5.4 -6 9 -6a8 8 0 0 1 8 6c-.223 .89 -.614 1.736 -1.142 2.5" />`; // Eye-off icon
+        passwordField.type = "text";
+        eyeIcon.className = "ti ti-eye-off fs-4";
       } else {
-        passwordField.type = "password"; // Hide password
-        eyeIcon.innerHTML = `<path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />`; // Eye icon
+        passwordField.type = "password";
+        eyeIcon.className = "ti ti-eye fs-4";
       }
-      // Force focus to ensure bots keep covering eyes
-      passwordField.focus();
     }
 
-    const pupils = [
-      { el: document.getElementById('p1l'), cx: 0, cy: 0 },
-      { el: document.getElementById('p1r'), cx: 0, cy: 0 },
-      { el: document.getElementById('p2l'), cx: 0, cy: 0 },
-      { el: document.getElementById('p2r'), cx: 0, cy: 0 },
-      { el: document.getElementById('p3l'), cx: 0, cy: 0 },
-      { el: document.getElementById('p3r'), cx: 0, cy: 0 }
-    ];
-
-    // Initialize centers
-    function updateCenters() {
-      pupils.forEach(p => {
-        const rect = p.el.getBoundingClientRect();
-        p.cx = rect.left + rect.width / 2;
-        p.cy = rect.top + rect.height / 2;
-      });
-    }
-    window.addEventListener('resize', updateCenters);
-    setTimeout(updateCenters, 500);
-
-    // GLOBAL MOUSE TRACKING
-    document.addEventListener('mousemove', (e) => {
-      if (document.body.classList.contains('covering')) return;
-
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
-
-      pupils.forEach(p => {
-        const dx = mouseX - p.cx;
-        const dy = mouseY - p.cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        // Limit pupil movement to 6px radius
-        const limit = 6;
-        const angle = Math.atan2(dy, dx);
-
-        const moveX = Math.cos(angle) * Math.min(dist / 50, limit);
-        const moveY = Math.sin(angle) * Math.min(dist / 50, limit);
-
-        p.el.setAttribute('transform', `translate(${moveX}, ${moveY})`);
-      });
-    });
-
-    function resetPupils() {
-      pupils.forEach(p => p.el.setAttribute('transform', 'translate(0, 0)'));
-    }
-
-    // --- PARTICLE SYSTEM ---
-    const canvas = document.getElementById('particle-canvas');
+    // Interactive Canvas Particles Mesh
+    const canvas = document.getElementById('interactive-canvas');
     const ctx = canvas.getContext('2d');
+    
+    let width = canvas.width = canvas.offsetWidth;
+    let height = canvas.height = canvas.offsetHeight;
+    
     let particles = [];
-
-    function resizeCanvas() {
-      // Resize to window since it is fixed
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-
+    let mouse = { x: null, y: null, radius: 150 };
+    
+    // Core parameters that change based on input focus
+    let secureMode = false;
+    let focusMode = false;
+    let themeColor = '37, 99, 235'; // Primary RGB
+    
     class Particle {
       constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 2 + 0.5;
-        this.speedX = Math.random() * 0.4 - 0.2;
-        this.speedY = Math.random() * 0.4 - 0.2;
-        this.opacity = Math.random() * 0.5 + 0.2;
-
-        // Anti-Gravity Palette (Darker for Light Mode)
-        const colors = [
-          'rgba(8, 145, 178, ',   // Darker Cyan
-          'rgba(30, 64, 175, ',   // Deep Blue
-          'rgba(124, 58, 237, '   // Dark Purple
-        ];
-        this.colorBase = colors[Math.floor(Math.random() * colors.length)];
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.radius = Math.random() * 2 + 1;
+        this.originalVx = this.vx;
+        this.originalVy = this.vy;
       }
+      
       update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        if (this.x > canvas.width) this.x = 0;
-        else if (this.x < 0) this.x = canvas.width;
-        if (this.y > canvas.height) this.y = 0;
-        else if (this.y < 0) this.y = canvas.height;
+        // Orbit or behave differently in secure mode
+        if (secureMode) {
+          // Circular rotation around center
+          const dx = this.x - (width / 2);
+          const dy = this.y - (height / 2);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist > 5) {
+            const angle = Math.atan2(dy, dx) + 0.005; // speed
+            const targetX = (width / 2) + Math.cos(angle) * dist;
+            const targetY = (height / 2) + Math.sin(angle) * dist;
+            this.x += (targetX - this.x) * 0.05;
+            this.y += (targetY - this.y) * 0.05;
+          }
+        } else {
+          this.x += this.vx;
+          this.y += this.vy;
+          
+          if (this.x < 0 || this.x > width) this.vx *= -1;
+          if (this.y < 0 || this.y > height) this.vy *= -1;
+          
+          // Mouse interaction (Repel slightly)
+          if (mouse.x !== null && mouse.y !== null) {
+            const dx = this.x - mouse.x;
+            const dy = this.y - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < mouse.radius) {
+              const force = (mouse.radius - dist) / mouse.radius;
+              const angle = Math.atan2(dy, dx);
+              this.x += Math.cos(angle) * force * 3;
+              this.y += Math.sin(angle) * force * 3;
+            }
+          }
+        }
       }
+      
       draw() {
-        ctx.fillStyle = this.colorBase + this.opacity + ')';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${themeColor}, ${secureMode ? 0.8 : 0.45})`;
         ctx.fill();
       }
     }
-
-
-    function initParticles() {
+    
+    function init() {
       particles = [];
-      for (let i = 0; i < 120; i++) { // Increased particle count for full screen
+      const count = Math.min(Math.floor((width * height) / 9000), 120);
+      for (let i = 0; i < count; i++) {
         particles.push(new Particle());
       }
     }
-
-    function animateParticles() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      
+      // Draw grid pattern (subtle lines)
+      ctx.strokeStyle = 'rgba(0,0,0,0.018)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      
+      // Render connection lines
       for (let i = 0; i < particles.length; i++) {
         particles[i].update();
         particles[i].draw();
-
-        // Draw lines between nearby particles
+        
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
           const dy = particles[i].y - particles[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          if (distance < 120) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 100) {
+            const alpha = (100 - dist) / 100 * (secureMode ? 0.35 : 0.18);
+            ctx.strokeStyle = `rgba(${themeColor}, ${alpha})`;
+            ctx.lineWidth = 0.8;
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(8, 145, 178, ${0.2 * (1 - distance / 120)})`; // Darker Cyan Lines
-            ctx.lineWidth = 0.6;
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
             ctx.stroke();
           }
         }
       }
-
-      requestAnimationFrame(animateParticles);
+      
+      // Draw link to mouse cursor
+      if (mouse.x !== null && mouse.y !== null && !secureMode) {
+        for (let i = 0; i < particles.length; i++) {
+          const dx = particles[i].x - mouse.x;
+          const dy = particles[i].y - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < mouse.radius - 20) {
+            const alpha = (mouse.radius - dist) / mouse.radius * 0.15;
+            ctx.strokeStyle = `rgba(${themeColor}, ${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(mouse.x, mouse.y);
+            ctx.stroke();
+          }
+        }
+      }
+      
+      requestAnimationFrame(animate);
     }
+    
+    window.addEventListener('resize', () => {
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+      init();
+    });
+    
+    window.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    });
+    
+    window.addEventListener('mouseleave', () => {
+      mouse.x = null;
+      mouse.y = null;
+    });
 
+    // --- FEATURE SLIDES ROTATOR ---
+    const slides = [
+      {
+        icon: "ti-users-group",
+        title: "Enterprise CRM",
+        desc: "Automate dealer networks, manage lead pipelines, schedule follow-ups, and track sales performance in one centralized hub."
+      },
+      {
+        icon: "ti-chart-bar",
+        title: "Advanced Reporting",
+        desc: "Visualize performance and spending analytics with interactive graphs, custom tables, and monthly transactional distribution."
+      },
+      {
+        icon: "ti-file-invoice",
+        title: "Commercial Billing",
+        desc: "Generate professional commercial quotations, calculate margins dynamically, and split revenues between dealerships."
+      },
+      {
+        icon: "ti-wallet",
+        title: "Petty Cash Management",
+        desc: "Streamline employee advance assignments, allocate petty cash limits, track used balances, and manage verification workflows."
+      },
+      {
+        icon: "ti-device-desktop-analytics",
+        title: "E-Commerce POS",
+        desc: "Handle instant transactions, sync digital checkout registers, manage inventory assets, and log real-time payment history."
+      },
+      {
+        icon: "ti-shield-checkered",
+        title: "RBAC Security System",
+        desc: "Configure granular user roles and submodule visibility maps using a robust Role-Based Access Control configuration."
+      }
+    ];
 
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    initParticles();
-    animateParticles();
+    let currentSlide = 0;
+    let slideInterval = null;
+    let isUserInteracting = false; 
 
-    // FORM BEHAVIORS
+    const brandContentWrap = document.getElementById('brandContentWrap');
+    const brandSphere = document.getElementById('brandSphere');
+    const sphereIcon = document.getElementById('sphereIcon');
+    const visualTitle = document.getElementById('visualTitle');
+    const visualDesc = document.getElementById('visualDesc');
+
+    function showSlide(index) {
+      if (isUserInteracting) return;
+      
+      brandContentWrap.classList.add('fade-out');
+      
+      setTimeout(() => {
+        const slide = slides[index];
+        sphereIcon.className = `ti ${slide.icon}`;
+        visualTitle.innerText = slide.title;
+        visualDesc.innerText = slide.desc;
+        
+        // Reset styles that might have been changed by focus
+        visualTitle.style.color = "var(--slate-900)";
+        brandSphere.style.background = 'linear-gradient(135deg, var(--primary), var(--success))';
+        brandSphere.style.filter = 'drop-shadow(0 10px 20px rgba(37, 99, 235, 0.3))';
+        
+        brandContentWrap.classList.remove('fade-out');
+      }, 400);
+    }
+    
+    function nextSlide() {
+      currentSlide = (currentSlide + 1) % slides.length;
+      showSlide(currentSlide);
+    }
+    
+    function startSlideRotation() {
+      if (slideInterval) clearInterval(slideInterval);
+      slideInterval = setInterval(nextSlide, 4500);
+    }
+    
+    // Dynamic interactive transitions based on input focus
+    const usernameInput = document.getElementById('id_username');
+    const passwordInput = document.getElementById('id_password');
+    
     usernameInput.addEventListener('focus', () => {
-      document.body.classList.add('watching'); // Apply to body or wrapper? Styling uses .watching #anim-stage
-      wrapper.classList.add('watching');
+      isUserInteracting = true;
+      focusMode = true;
+      secureMode = false;
+      themeColor = '37, 99, 235'; // Blue
+      
+      brandContentWrap.classList.add('fade-out');
+      setTimeout(() => {
+        brandSphere.style.filter = 'drop-shadow(0 10px 25px rgba(37, 99, 235, 0.5))';
+        sphereIcon.className = "ti ti-network";
+        visualTitle.innerText = "Active Connection";
+        visualTitle.style.color = "var(--primary)";
+        visualDesc.innerText = "Securing workspace channel. Please provide your username to retrieve authentication modules.";
+        brandContentWrap.classList.remove('fade-out');
+      }, 400);
     });
-
+    
     usernameInput.addEventListener('blur', () => {
-      wrapper.classList.remove('watching');
+      isUserInteracting = false;
+      resetVisuals();
     });
-
+    
     passwordInput.addEventListener('focus', () => {
-      wrapper.classList.add('covering');
-      wrapper.classList.remove('watching');
-      document.body.classList.add('covering'); // For mousemove check
+      isUserInteracting = true;
+      focusMode = true;
+      secureMode = true;
+      themeColor = '13, 148, 136'; // Teal
+      
+      brandContentWrap.classList.add('fade-out');
+      setTimeout(() => {
+        brandSphere.style.filter = 'drop-shadow(0 10px 25px rgba(13, 148, 136, 0.5))';
+        brandSphere.style.background = 'linear-gradient(135deg, var(--success), #0f766e)';
+        sphereIcon.className = "ti ti-lock-square-rounded";
+        visualTitle.innerText = "Encrypted Layer";
+        visualTitle.style.color = "var(--success)";
+        visualDesc.innerText = "Securing data connection layer. The node network is switching to a centralized orbital safety layout to safeguard user credentials.";
+        brandContentWrap.classList.remove('fade-out');
+      }, 400);
     });
-
+    
     passwordInput.addEventListener('blur', () => {
-      wrapper.classList.remove('covering');
-      document.body.classList.remove('covering');
-      updateCenters();
+      isUserInteracting = false;
+      resetVisuals();
     });
+    
+    function resetVisuals() {
+      setTimeout(() => {
+        if (document.activeElement !== usernameInput && document.activeElement !== passwordInput) {
+          focusMode = false;
+          secureMode = false;
+          themeColor = '37, 99, 235';
+          showSlide(currentSlide);
+        }
+      }, 100);
+    }
+    
+    // Parallax Effect on the Brand Card
+    const brandCard = document.getElementById('brandCard');
+    document.addEventListener('mousemove', (e) => {
+      if (window.innerWidth < 992) return;
+      const xAxis = (window.innerWidth / 2 - e.pageX) / 45;
+      const yAxis = (window.innerHeight / 2 - e.pageY) / 45;
+      brandCard.style.transform = `perspective(1000px) rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+    });
+    
+    // Initialise elements
+    init();
+    animate();
+    
+    // Set initial slide content and start rotation
+    sphereIcon.className = `ti ${slides[0].icon}`;
+    visualTitle.innerText = slides[0].title;
+    visualDesc.innerText = slides[0].desc;
+    startSlideRotation();
   </script>
 </body>
 

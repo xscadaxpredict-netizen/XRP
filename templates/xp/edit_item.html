@@ -1,270 +1,318 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<form id="voucherForm" action="{% url 'edit_item' item_id=expense.id %}" method="post" enctype="multipart/form-data" >
-    {% csrf_token %}
-    <h2 class="text-center"><i>Edit-EVoucher</i></h2>
-    
-    <div class="container-fluid">
-        <div class="row mt-5 ms-3 me-3">
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">E-Voucher Number</label>
-                    <input type="text" class="form-control" name="e_voucher_number" value="{{ expense.evoucher_number }}" readonly>
-                </div>
 
-                <div class="mb-3">
-                    <div class="form-label">Select an item type</div>
-                    <select class="form-select" name="item_type" id="item_type" required>
-                        <option value="" {% if not expense.item_type %}selected{% endif %} disabled>Select Item Type</option>
-                        <option value="fright_transportation" {% if expense.item_type == 'fright_transportation' %}selected{% endif %}>Fright/Transportation</option>
-                        <option value="food_grocery" {% if expense.item_type == 'food_grocery' %}selected{% endif %}>Food/Grocery</option>
-                        <option value="fuel_oil" {% if expense.item_type == 'fuel_oil' %}selected{% endif %}>Fuel and Oil</option>
-                        <option value="others" {% if expense.item_type == 'others' %}selected{% endif %}>Others</option>
-                        <option value="vendor" {% if expense.item_type == 'vendor' %}selected{% endif %}>Vendor</option>
-                        <option value="reimbursement" {% if expense.item_type == 'reimbursement' %}selected{% endif %}>Reimbursement</option>
-                        <option value="site_services" {% if expense.item_type == 'site_services' %}selected{% endif %}>Site Services</option>
-                        <option value="advances" {% if expense.item_type == 'advances' %}selected{% endif %}>Advances</option>
-                        <option value="travelling" {% if expense.item_type == 'travelling' %}selected{% endif %}>Travelling</option>
-                        <option value="electricity_bill" {% if expense.item_type == 'electricity_bill' %}selected{% endif %}>Electricity Bill</option>
-                        <option value="internet_bill" {% if expense.item_type == 'internet_bill' %}selected{% endif %}>Internet Bill</option>
-                        <option value="postage_telegram" {% if expense.item_type == 'postage_telegram' %}selected{% endif %}>Postage and Telegram</option>
-                        <option value="machine_repair" {% if expense.item_type == 'machine_repair' %}selected{% endif %}>Machine Repair and Maintenance - Machinery</option>
-                        <option value="conveyance" {% if expense.item_type == 'conveyance' %}selected{% endif %}>Conveyance</option>
-                        <option value="stationary_printing" {% if expense.item_type == 'stationary_printing' %}selected{% endif %}>Stationary and Printing</option>
-                        <option value="hospitality" {% if expense.item_type == 'hospitality' %}selected{% endif %}>Hospitality</option>
-                    </select>
-                </div>
-                <div id="advanceFields" style="{% if expense.item_type != 'advances' %}display:none{% endif %}">
-                    <label for="selected_group_id">Advance Group</label>
-                    <select name="selected_group_id" class="form-control">
-                      {% for group in user_groups %}
-                        <option value="{{ group.group.id }}" {% if expense.advance_group and expense.advance_group.id == group.group.id %}selected{% endif %}>
-                          {{ group.group.name }}
-                        </option>
-                      {% endfor %}
-                    </select>
-                  </div>
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-                <div class="mb-3">
-                    <label class="form-label">Item Name</label>
-                    <input type="text" class="form-control" name="item_name" value="{{ expense.item_name }}" required>
-                </div>
-                
+<style>
+  .dashboard-transition-container {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .dashboard-transition-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .dashboard-transition-container.fade-out {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  
+  .required {
+    color: #dc3545;
+    font-weight: bold;
+    margin-left: 2px;
+  }
+  
+  .borrowed-entry {
+    border-style: dashed !important;
+    transition: all 0.25s ease;
+  }
+  .borrowed-entry:hover {
+    border-color: var(--bs-primary) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.03) !important;
+  }
+</style>
 
-                <div class="mb-3">
-                    <label class="form-label" for="selectOption">Payment Category<span class="required">*</span></label>
-                    <select class="form-select" id="selectOption" name="transaction_option" onchange="updateFormFields()">
-                        <option value="" {% if not submitted_data %}disabled{% endif %} selected>Select an option</option>
-                
-                        <!-- Static Options -->
-                        <option value="bill" {% if expense.transaction_option == 'bill' %}selected{% endif %}>Bill</option>
-                        <option value="voucher" {% if expense.transaction_option == 'voucher' %}selected{% endif %}>Voucher</option>
-                        <option value="gst" {% if expense.transaction_option == 'gst' %}selected{% endif %}>GST</option>
-                
-                        <!-- Dynamic Options for Conveyance, initially hidden -->
-                        {% for option in conveyance_options %}
-                            <option value="{{ option.vehicle_type }}" 
-                                {% if expense.transaction_option == option.vehicle_type %}selected{% endif %} 
-                                class="vehicle-option" >
-                                {{ option.get_vehicle_type_display }} (₹{{ option.price_per_km }}/km)
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div id="kilometers-field" 
-                style="{% if expense.transaction_option == '2_wheeler' or expense.transaction_option == '4_wheeler' %}display: block;{% else %}display: none;{% endif %};">
-               <label for="kilometers" class="form-label">
-                   Kilometers<span class="required">*</span>
-               </label>
-               <input type="number" 
-                      id="kilometers" 
-                      name="kilometers" 
-                      class="form-control" 
-                      placeholder="Enter kilometers"
-                      step="0.1" 
-                      min="0"
-                      value="{% if expense.km %}{{ expense.km|floatformat:2 }}{% endif %}">
-           </div>
-                
-                
-                <div class="mb-3" id="billPhotoContainer" {% if expense.transaction_option == 'bill' %}style="display: block;"{% else %}style="display: none;"{% endif %}>
-                    <label for="billPhoto" class="form-label">Upload Bill Photo</label>
-                    {% if expense.bill_photo %}
-                        <div>
-                            <a href="{{ expense.bill_photo.url }}" target="_blank" class="btn btn-link">View Uploaded Bill Photo</a>
-                        </div>
-                        <div class="mt-2">
-                            <label>
-                                <input type="checkbox" name="remove_bill_photo" id="removeBillPhoto"> Remove this photo
-                            </label>
-                        </div>
-                    {% endif %}
-                    <input type="file" class="form-control mt-2" name="bill_photo" id="billPhoto">
-                </div>
+<div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+  <!-- Back Link -->
+  <div class="mb-3">
+    <a href="{% url 'vouchers_dashboard' %}" class="text-decoration-none text-muted small transition-link">
+      <i class="bi bi-arrow-left me-1"></i> Back to E-Vouchers
+    </a>
+  </div>
 
-                <div class="mb-3" id="gstPhotoContainer" {% if expense.transaction_option == 'gst' %}style="display: block;"{% else %}style="display: none;"{% endif %}>
-                    <label for="gstPhoto" class="form-label">Upload GST Photo</label>
-                    {% if expense.gst_photo %}
-                        <div>
-                            <a href="{{ expense.gst_photo.url }}" target="_blank" class="btn btn-link">View Uploaded GST Photo</a>
-                        </div>
-                        <div class="mt-2">
-                            <label>
-                                <input type="checkbox" name="remove_gst_photo" id="removeGSTPhoto"> Remove this photo
-                            </label>
-                        </div>
-                    {% endif %}
-                    <input type="file" class="form-control mt-2" name="gst_photo" id="gstPhoto">
-                </div>
-
-                {% comment %} <div class="mb-3" id="voucherInput" style="display: none;">
-                    <label for="voucher_number" class="form-label">Voucher Number<span class="required">*</span></label>
-                    <select class="form-control" name="voucher_number" id="voucher_number" onchange="updateAmount()">
-                        <option value="" disabled selected>Select Voucher Number</option>
-                        {% for voucher in approved_vouchers %}
-                            {% if voucher.expense is None %}
-                                <option value="{{ voucher.voucher_number }}" data-amount="{{ voucher.amount }}">
-                                    {{ voucher.voucher_number }} ({{voucher.item_name}})
-                                </option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div> {% endcomment %}
-
-            </div>
-
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <div class="form-label">Transaction Category</div>
-                    <select class="form-select" id="transactionCategory" name="transaction_category" onchange="toggleTransactionField()" required>
-                        <option value="" {% if not expense.transaction_category %}selected{% endif %} disabled>Select Transaction Category</option>
-                        <option value="internal"
-                            {% if expense.transaction_category == 'internal' %}
-                                selected
-                            {% else %}
-                                disabled
-                            {% endif %}
-                        >Internal</option>
-                        <option value="external" {% if expense.transaction_category == 'external' %}selected{% endif %}>External</option>
-                    </select>
-                </div>
-                <div id="internalDropdown" class="mb-3">
-                    <label class="form-label">Internal Options</label>
-                    <select class="form-select" id="internalOptionSelect" name="internal_option">
-                        <option value="" disabled>Select Name</option>
-                        {% for user in users %}
-                            <option value="{{ user.first_name }}" {% if user.username == internal_option_value %}selected{% endif %}>
-                                {{ user.first_name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                
-
-               
-
-
-
-                <div id="externalInput" style="display: none;" class="mb-3">
-                    <label for="externalType" class="form-label">External Name</label>
-                    <input type="text" id="externalType" name="external_type" class="form-control" placeholder="Enter External Name" value="{{ expense.external_type }}">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Total Amount</label>
-                    <input type="number" class="form-control" id="totalAmount" name="amount" placeholder="Amount" step="0.01" min="0" value="{{ expense.amount }}" required>
-                </div>
-                {% if borrowed_info %}
-                <div class="mt-3">
-                    <h5>Borrowed Details</h5>
-                    <ul class="list-group">
-                    {% for entry in borrowed_info %}
-                        <li class="list-group-item">
-                        <span class="text-success">
-                            Borrowed ₹{{ entry.amount|floatformat:2 }} from 
-                            {{ entry.borrowed_from.get_full_name|default:entry.borrowed_from.first_name }}
-                        </span>
-                        </li>
-                    {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-                <div class="borrowed-entry">
-                    <div class="form-group">
-                        <label for="borrowed_amount">Borrowed Amount</label>
-                        <input type="number" step="0.01" name="borrowed_amounts[]" class="form-control" placeholder="Enter borrowed amount">
-                    </div>
-            
-                    <div class="form-group">
-                        <label for="borrowed_from">Borrowed From</label>
-                        <select name="borrowed_froms[]" class="form-control">
-                            <option value="">Select User</option>
-                            {% for user in users %}
-                                <option value="{{ user.id }}">{{ user.first_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="button" id="add-borrowed-entry" class="btn btn-primary mt-2">Add Borrow</button>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="paymentMode">Payment Mode </label>
-                    <select class="form-select" id="paymentMode" name="payment_mode" required>
-                        <option value="" {% if not expense.payment_mode %} selected {% endif %} disabled>Select Payment Mode</option>
-                        <option value="cash" {% if expense.payment_mode == 'cash' %}selected{% endif %}>Cash</option>
-                        <option value="upi" {% if expense.payment_mode == 'upi' %}selected{% endif %}>UPI</option>
-                        <option value="net_banking" {% if expense.payment_mode == 'net_banking' %}selected{% endif %}>Net Banking</option>
-                        <option value="credit" {% if expense.payment_mode == 'credit' %}selected{% endif %}>Credit</option>
-                        <option value="debit" {% if expense.payment_mode == 'debit' %}selected{% endif %}>Debit</option>
-                    </select>
-                </div>
-
-                <div class="mb-3" id="proofPhotoContainer">
-                    <label for="proofPhoto" class="form-label">Upload Proof Photo</label>
-                    {% if expense.proof_photo %}
-                        <p>Current File: 
-                            <a href="{{ expense.proof_photo.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Preview Proof</a>
-                        </p>
-                    {% endif %}
-                    <div id="proofUploads">
-                        <input type="file" name="proof_photos" class="form-control mb-2" multiple>
-                    </div>
-                    <button type="button" class="btn btn-secondary btn-sm mt-1" onclick="addProofPhoto()">Add More</button>
-                </div>
-                {% for photo in expense.proof_photos.all %}
-                <p>
-                    Additional Proof:
-                    <a href="{{ photo.file.url }}" target="_blank" class="btn btn-outline-info btn-sm">Preview</a>
-                </p>
-{% endfor %}
-                
-
-                
-
-                
-                <div class="mb-3">
-                    <label for="transaction_date" class="form-label">Transaction Date</label>
-                    <input 
-                        type="date" 
-                        class="form-control" 
-                        name="transaction_date" 
-                        id="transaction_date" 
-                        value="{{ expense.transaction_date|date:'Y-m-d' }}" 
-                        required>
-                </div> 
-            </div>
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary">Update Expense</button>
-                {% comment %} <button type="button" name="save_as_draft" class="btn btn-warning" id="saveDraftButton">Save as Draft</button> {% endcomment %}
-            </div>
-            
-            <!-- Button to add new borrow entry -->
-            
-            
-            </div>
-        </div>
+  <!-- Page Header -->
+  <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <h1 class="h2 fw-bold text-dark mb-0">Edit E-Voucher</h1>
+    <div class="bg-white border rounded-3 px-3 py-2 shadow-sm fs-6 text-muted">
+      <strong class="text-dark"><i class="bi bi-calendar3 me-1"></i>Date:</strong> {{ current_date }}
     </div>
-</form>
+  </div>
+
+  <form id="voucherForm" action="{% url 'edit_item' item_id=expense.id %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Card Container -->
+    <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+      <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-file-earmark-text-fill me-2 text-primary"></i>E-Voucher Information</h3>
+      </div>
+
+      <div class="card-body p-4">
+        <div class="row g-4">
+          
+          <!-- Left Column -->
+          <div class="col-lg-6">
+            <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+              <i class="bi bi-file-earmark-text text-primary me-2"></i>Voucher Details
+            </h5>
+
+            <!-- E-Voucher Number -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark">E-Voucher Number</label>
+              <input type="text" class="form-control rounded-3 shadow-sm bg-light text-muted" name="e_voucher_number" value="{{ expense.evoucher_number }}" readonly>
+            </div>
+
+            <!-- Item Type -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark" for="item_type"><span class="required">*</span> Select an item type</label>
+              <select class="form-select rounded-3 shadow-sm" name="item_type" id="item_type" required>
+                <option value="" {% if not expense.item_type %}selected{% endif %} disabled>Select Item Type</option>
+                <option value="fright_transportation" {% if expense.item_type == 'fright_transportation' %}selected{% endif %}>Fright/Transportation</option>
+                <option value="food_grocery" {% if expense.item_type == 'food_grocery' %}selected{% endif %}>Food/Grocery</option>
+                <option value="fuel_oil" {% if expense.item_type == 'fuel_oil' %}selected{% endif %}>Fuel and Oil</option>
+                <option value="others" {% if expense.item_type == 'others' %}selected{% endif %}>Others</option>
+                <option value="vendor" {% if expense.item_type == 'vendor' %}selected{% endif %}>Vendor</option>
+                <option value="reimbursement" {% if expense.item_type == 'reimbursement' %}selected{% endif %}>Reimbursement</option>
+                <option value="site_services" {% if expense.item_type == 'site_services' %}selected{% endif %}>Site Services</option>
+                <option value="advances" {% if expense.item_type == 'advances' %}selected{% endif %}>Advances</option>
+                <option value="travelling" {% if expense.item_type == 'travelling' %}selected{% endif %}>Travelling</option>
+                <option value="electricity_bill" {% if expense.item_type == 'electricity_bill' %}selected{% endif %}>Electricity Bill</option>
+                <option value="internet_bill" {% if expense.item_type == 'internet_bill' %}selected{% endif %}>Internet Bill</option>
+                <option value="postage_telegram" {% if expense.item_type == 'postage_telegram' %}selected{% endif %}>Postage and Telegram</option>
+                <option value="machine_repair" {% if expense.item_type == 'machine_repair' %}selected{% endif %}>Machine Repair and Maintenance - Machinery</option>
+                <option value="conveyance" {% if expense.item_type == 'conveyance' %}selected{% endif %}>Conveyance</option>
+                <option value="stationary_printing" {% if expense.item_type == 'stationary_printing' %}selected{% endif %}>Stationary and Printing</option>
+                <option value="hospitality" {% if expense.item_type == 'hospitality' %}selected{% endif %}>Hospitality</option>
+              </select>
+            </div>
+
+            <!-- Advance Group Fields (Shown dynamically if advances selected) -->
+            <div class="mb-3" id="advanceFields" style="{% if expense.item_type != 'advances' %}display:none;{% endif %}">
+              <label for="selected_group_id" class="form-label fw-semibold text-dark">Advance Group</label>
+              <select name="selected_group_id" class="form-select rounded-3 shadow-sm">
+                <option value="">-- Select Group --</option>
+                {% for group in user_groups %}
+                  <option value="{{ group.group.id }}" {% if expense.advance_group and expense.advance_group.id == group.group.id %}selected{% endif %}>
+                    {{ group.group.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Item Name -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark"><span class="required">*</span> Item Name</label>
+              <input type="text" class="form-control rounded-3 shadow-sm" name="item_name" value="{{ expense.item_name }}" required>
+            </div>
+
+            <!-- Payment Category -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark" for="selectOption"><span class="required">*</span> Payment Category</label>
+              <select class="form-select rounded-3 shadow-sm" id="selectOption" name="transaction_option" onchange="updateFormFields()">
+                <option value="" disabled>Select an option</option>
+                <option value="bill" {% if expense.transaction_option == 'bill' %}selected{% endif %}>Bill</option>
+                <option value="voucher" {% if expense.transaction_option == 'voucher' %}selected{% endif %}>Voucher</option>
+                <option value="gst" {% if expense.transaction_option == 'gst' %}selected{% endif %}>GST</option>
+                {% for option in conveyance_options %}
+                  <option value="{{ option.vehicle_type }}" {% if expense.transaction_option == option.vehicle_type %}selected{% endif %} class="vehicle-option">
+                    {{ option.get_vehicle_type_display }} (₹{{ option.price_per_km }}/km)
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Kilometers field -->
+            <div class="mb-3" id="kilometers-field" style="{% if expense.transaction_option == '2_wheeler' or expense.transaction_option == '4_wheeler' %}display: block;{% else %}display: none;{% endif %}">
+              <label for="kilometers" class="form-label fw-semibold text-dark">Kilometers<span class="required">*</span></label>
+              <input type="number" id="kilometers" name="kilometers" class="form-control rounded-3 shadow-sm" placeholder="Enter kilometers" step="0.1" min="0" value="{% if expense.km %}{{ expense.km|floatformat:2 }}{% endif %}">
+            </div>
+
+            <!-- Upload Bill Photo -->
+            <div class="mb-3" id="billPhotoContainer" {% if expense.transaction_option == 'bill' %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+              <label for="billPhoto" class="form-label fw-semibold text-dark">Upload Bill Photo</label>
+              {% if expense.bill_photo %}
+                <div class="mb-2 p-2 border rounded bg-light d-flex align-items-center justify-content-between">
+                  <a href="{{ expense.bill_photo.url }}" target="_blank" class="btn btn-sm btn-link text-decoration-none fw-semibold">
+                    <i class="bi bi-file-earmark-image"></i> View Uploaded Bill Photo
+                  </a>
+                  <div class="form-check">
+                    <input type="checkbox" name="remove_bill_photo" id="removeBillPhoto" class="form-check-input">
+                    <label class="form-check-label small text-danger fw-semibold" for="removeBillPhoto">Remove</label>
+                  </div>
+                </div>
+              {% endif %}
+              <input type="file" class="form-control rounded-3 shadow-sm" name="bill_photo" id="billPhoto">
+            </div>
+
+            <!-- Upload GST Photo -->
+            <div class="mb-3" id="gstPhotoContainer" {% if expense.transaction_option == 'gst' %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+              <label for="gstPhoto" class="form-label fw-semibold text-dark">Upload GST Photo</label>
+              {% if expense.gst_photo %}
+                <div class="mb-2 p-2 border rounded bg-light d-flex align-items-center justify-content-between">
+                  <a href="{{ expense.gst_photo.url }}" target="_blank" class="btn btn-sm btn-link text-decoration-none fw-semibold">
+                    <i class="bi bi-file-earmark-image"></i> View Uploaded GST Photo
+                  </a>
+                  <div class="form-check">
+                    <input type="checkbox" name="remove_gst_photo" id="removeGSTPhoto" class="form-check-input">
+                    <label class="form-check-label small text-danger fw-semibold" for="removeGSTPhoto">Remove</label>
+                  </div>
+                </div>
+              {% endif %}
+              <input type="file" class="form-control rounded-3 shadow-sm" name="gst_photo" id="gstPhoto">
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="col-lg-6">
+            <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">
+              <i class="bi bi-gear text-primary me-2"></i>Transaction Settings
+            </h5>
+
+            <!-- Transaction Category -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark" for="transactionCategory"><span class="required">*</span> Transaction Category</label>
+              <select class="form-select rounded-3 shadow-sm" id="transactionCategory" name="transaction_category" onchange="toggleTransactionField()" required>
+                <option value="" {% if not expense.transaction_category %}selected{% endif %} disabled>Select Transaction Category</option>
+                <option value="internal" {% if expense.transaction_category == 'internal' %}selected{% else %}disabled{% endif %}>Internal</option>
+                <option value="external" {% if expense.transaction_category == 'external' %}selected{% endif %}>External</option>
+              </select>
+            </div>
+
+            <!-- Internal Dropdown Options -->
+            <div id="internalDropdown" class="mb-3" style="display: none;">
+              <label class="form-label fw-semibold text-dark" for="internalOptionSelect">Internal Options</label>
+              <select class="form-select rounded-3 shadow-sm" id="internalOptionSelect" name="internal_option">
+                <option value="" disabled>Select Name</option>
+                {% for user in users %}
+                  <option value="{{ user.first_name }}" {% if user.username == internal_option_value %}selected{% endif %}>
+                    {{ user.first_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- External Input Option -->
+            <div id="externalInput" class="mb-3" style="display: none;">
+              <label for="externalType" class="form-label fw-semibold text-dark">External Name</label>
+              <input type="text" id="externalType" name="external_type" class="form-control rounded-3 shadow-sm" placeholder="Enter External Name" value="{{ expense.external_type }}">
+            </div>
+
+            <!-- Total Amount -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark" for="totalAmount"><span class="required">*</span> Total Amount</label>
+              <input type="number" class="form-control rounded-3 shadow-sm" id="totalAmount" name="amount" placeholder="Amount" step="0.01" min="0" value="{{ expense.amount }}" required>
+            </div>
+
+            <!-- Borrowed Details Display -->
+            {% if borrowed_info %}
+              <div class="mb-3 border rounded-3 p-3 bg-light">
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-person-fill-exclamation text-warning me-1"></i>Borrowed Details</h6>
+                <ul class="list-group list-group-flush rounded-3">
+                  {% for entry in borrowed_info %}
+                    <li class="list-group-item bg-transparent text-secondary px-0 py-1.5 small">
+                      <i class="bi bi-arrow-right-short text-success"></i> Borrowed <strong class="text-dark">₹{{ entry.amount|floatformat:2 }}</strong> from <strong class="text-dark">{{ entry.borrowed_from.get_full_name|default:entry.borrowed_from.first_name }}</strong>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+
+            <!-- Dynamic Borrowed Entries Section -->
+            <div id="borrowed-amounts-container" style="display: none;" class="mb-3">
+              <!-- Entries are appended here by Javascript -->
+            </div>
+
+            <!-- Add Borrow Button -->
+            <div class="mb-4">
+              <button type="button" id="add-borrowed-entry" class="btn btn-outline-primary btn-sm rounded-pill px-3 shadow-sm" style="display: none;">
+                <i class="bi bi-plus-lg me-1"></i> Add Borrow
+              </button>
+            </div>
+
+            <!-- Payment Mode -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold text-dark" for="paymentMode"><span class="required">*</span> Payment Mode</label>
+              <select class="form-select rounded-3 shadow-sm" id="paymentMode" name="payment_mode" required>
+                <option value="" {% if not expense.payment_mode %}selected{% endif %} disabled>Select Payment Mode</option>
+                <option value="cash" {% if expense.payment_mode == 'cash' %}selected{% endif %}>Cash</option>
+                <option value="upi" {% if expense.payment_mode == 'upi' %}selected{% endif %}>UPI</option>
+                <option value="net_banking" {% if expense.payment_mode == 'net_banking' %}selected{% endif %}>Net Banking</option>
+                <option value="credit" {% if expense.payment_mode == 'credit' %}selected{% endif %}>Credit</option>
+                <option value="debit" {% if expense.payment_mode == 'debit' %}selected{% endif %}>Debit</option>
+              </select>
+            </div>
+
+            <!-- Proof Photo Container -->
+            <div class="mb-3" id="proofPhotoContainer">
+              <label for="proofPhoto" class="form-label fw-semibold text-dark">Upload Proof Photo</label>
+              {% if expense.proof_photo %}
+                <div class="mb-2 p-2 border rounded bg-light">
+                  <a href="{{ expense.proof_photo.url }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm">
+                    <i class="bi bi-file-earmark-image"></i> Preview Current Proof
+                  </a>
+                </div>
+              {% endif %}
+              
+              <div id="proofUploads" class="mb-2">
+                <input type="file" name="proof_photos" class="form-control rounded-3 shadow-sm mb-2" multiple>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm" onclick="addProofPhoto()">
+                <i class="bi bi-plus-lg me-1"></i> Add More Proof
+              </button>
+            </div>
+
+            <!-- Additional Proof Photos Display -->
+            {% if expense.proof_photos.all %}
+              <div class="mb-3 border rounded-3 p-3 bg-light">
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-images text-primary me-1"></i>Additional Proof Files</h6>
+                <div class="d-flex flex-column gap-2">
+                  {% for photo in expense.proof_photos.all %}
+                    <div class="d-flex align-items-center justify-content-between p-2 border rounded bg-white">
+                      <a href="{{ photo.file.url }}" target="_blank" class="btn btn-sm btn-link text-decoration-none fw-semibold">
+                        <i class="bi bi-file-earmark-image"></i> Preview File {{ forloop.counter }}
+                      </a>
+                      <div class="form-check">
+                        <input type="checkbox" name="remove_proof_photos[]" value="{{ photo.id }}" id="removeProof{{ photo.id }}" class="form-check-input">
+                        <label class="form-check-label small text-danger fw-semibold" for="removeProof{{ photo.id }}">Remove</label>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+            <!-- Transaction Date -->
+            <div class="mb-3">
+              <label for="transaction_date" class="form-label fw-semibold text-dark"><span class="required">*</span> Transaction Date</label>
+              <input type="date" class="form-control rounded-3 shadow-sm" name="transaction_date" id="transaction_date" value="{{ expense.transaction_date|date:'Y-m-d' }}" required>
+            </div> 
+
+          </div>
+        </div>
+
+        <!-- Submit actions -->
+        <div class="mt-4 pt-3 border-top d-flex gap-2 justify-content-end">
+          <a href="{% url 'vouchers_dashboard' %}" class="btn btn-outline-secondary rounded-pill px-4 py-2">Cancel</a>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 py-2" style="background: #003366; border: none;"><i class="bi bi-save me-1"></i> Update Expense</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -300,7 +348,7 @@
         const input = document.createElement("input");
         input.type = "file";
         input.name = "proof_photos";
-        input.className = "form-control mb-2";
+        input.className = "form-control rounded-3 shadow-sm mb-2";
         container.appendChild(input);
     }
     
@@ -324,34 +372,9 @@
         updateFormFields();
         toggleTransactionField();
     }
-    document.getElementById("add-borrowed-entry").addEventListener("click", function() {
-        const container = document.querySelector(".borrowed-entry");
-        const entryHTML = `
-            <div class="form-group">
-                <label for="borrowed_amount">Borrowed Amount</label>
-                <input type="number" step="0.01" name="borrowed_amounts[]" class="form-control" placeholder="Enter borrowed amount">
-            </div>
-            <div class="form-group">
-                <label for="borrowed_from">Borrowed From</label>
-                <select name="borrowed_froms[]" class="form-control">
-                    <option value="">Select User</option>
-                    {% for user in users %}
-                        <option value="{{ user.id }}">{{ user.first_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', entryHTML);
-    });
-
-
-
-
-
-    
     
     document.addEventListener("DOMContentLoaded", function () {
-        const paymentCategory = document.getElementById("transaction_option");
+        const paymentCategory = document.getElementById("selectOption");
         const kilometersField = document.getElementById("kilometers-field");
         const kilometersInput = document.getElementById("kilometers");
         const totalAmountField = document.getElementById("totalAmount");
@@ -363,7 +386,6 @@
                 kilometersField.style.display = "block";
                 console.log("Kilometers field is now visible");
             } else {
-                
                 kilometersField.style.display = "none";
                 console.log("Kilometers field is hidden");
             }
@@ -417,439 +439,334 @@
     }); 
    
       
-       function handleFileUpload(event) {
-           const file = event.target.files[0]; // Get the selected file
-           console.log("entered")
-           const extractedAmountField = document.getElementById('extractedAmount');
-           const totalAmountField = document.getElementById('totalAmount');
-       
-           if (file) {
-               console.log("triggered")
-               const formData = new FormData();
-               formData.append('file', file); // Ensure this key matches the backend's key
-               console.log(formData)
-               // Display a "please wait" message while extracting the amount
-               extractedAmountField.textContent = 'We are Extracting your amount... Please wait.';
-       
-               // Send the file to the server via AJAX
-               fetch('/process-photo/', {
-                   method: 'POST',
-                   body: formData,
-                   headers: {
-                       'X-CSRFToken': getCookie('csrftoken'), // Include CSRF token
-                   },
-               })
-                   .then((response) => response.json())
-                   .then((data) => {
-                       if (data.success) {
-                           // Remove commas from the extracted amount
-                           const extractedAmount = data.amount.replace(/,/g, '');
-       
-                           // Display the extracted amount
-                           extractedAmountField.textContent = `Extracted Amount: ₹${extractedAmount}`;
-       
-                           // Ensure the extracted amount is numeric and set it in the total amount field
-                           totalAmountField.value = parseFloat(extractedAmount).toFixed(2);
-                       } else {
-                           // Display error message if extraction fails
-                           extractedAmountField.textContent = data.error || 'Failed to extract amount. Please try again.';
-                       }
-                   })
-                   .catch((error) => {
-                       console.error('Error:', error);
-                       extractedAmountField.textContent = 'Error processing the file. Please try again later.';
-                   });
-           }
-       }
-       
-       // Utility to get CSRF token
-       function getCookie(name) {
-           let cookieValue = null;
-           if (document.cookie && document.cookie !== '') {
-               const cookies = document.cookie.split(';');
-               for (let i = 0; i < cookies.length; i++) {
-                   const cookie = cookies[i].trim();
-                   if (cookie.substring(0, name.length + 1) === name + '=') {
-                       cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                       break;
-                   }
-               }
-           }
-           return cookieValue;
-       }
-     
-   
-       document.addEventListener("DOMContentLoaded", function () {
-           const form = document.getElementById("voucherForm");
-           let isSaveAsDraft = false; // Flag to track if Save as Draft was clicked
-       
-           // Add event listener to Save as Draft button
-           document.getElementById('saveDraftButton').addEventListener('click', function () {
-               isSaveAsDraft = true; // Set flag to true when Save as Draft is clicked
-               document.querySelector("input[name='draft_status']").value = 'true'; // Set hidden field to 'true'
-               form.submit(); // Submit the form after setting the flag
-           });
-       
-           // Submit button (non-draft) logic
-           form.addEventListener("submit", function (e) {
-               // If Save as Draft, do not prevent form submission (already handled by button click)
-               if (isSaveAsDraft) {
-                   return true; // Form will be submitted with 'true' value for save_as_draft
-               }
-       
-               // Prevent form submission if it's not Save as Draft
-               e.preventDefault();
-       
-               // Reset previous errors
-               document.querySelectorAll(".error-message").forEach(el => el.remove());
-       
-               // Validation flag
-               let isValid = true;
-       
-               // Define required fields and their validation logic
-               const fieldsToValidate = [
-                   { selector: "select[name='item_type']", message: "Please select an item type." },
-                   { selector: "input[name='item_name']", message: "Item name is required." },
-                   { selector: "select[name='transaction_option']", message: "Please select a payment category." },
-                   { selector: "input[name='bill_photo']", condition: () => document.getElementById("billPhotoContainer").style.display !== "none", message: "Please upload a bill photo." },
-                   { selector: "input[name='gst_photo']", condition: () => document.getElementById("gstPhotoContainer").style.display !== "none", message: "Please upload a GST photo." },
+    function handleFileUpload(event) {
+        const file = event.target.files[0]; // Get the selected file
+        console.log("entered")
+        const extractedAmountField = document.getElementById('extractedAmount');
+        const totalAmountField = document.getElementById('totalAmount');
+    
+        if (file) {
+            console.log("triggered")
+            const formData = new FormData();
+            formData.append('file', file); // Ensure this key matches the backend's key
+            console.log(formData)
+            extractedAmountField.textContent = 'We are Extracting your amount... Please wait.';
+    
+            // Send the file to the server via AJAX
+            fetch('/process-photo/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'), // Include CSRF token
+                },
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        const extractedAmount = data.amount.replace(/,/g, '');
+                        extractedAmountField.textContent = `Extracted Amount: ₹${extractedAmount}`;
+                        totalAmountField.value = parseFloat(extractedAmount).toFixed(2);
+                    } else {
+                        extractedAmountField.textContent = data.error || 'Failed to extract amount. Please try again.';
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    extractedAmountField.textContent = 'Error processing the file. Please try again later.';
+                });
+        }
+    }
+    
+    // Utility to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === name + '=') {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+  
 
-                   { selector: "select[name='transaction_category']", message: "Please select a transaction category." },
-                   { selector: "input[name='amount']", message: "Amount is required." },
-                   { selector: "select[name='payment_mode']", message: "Please select a payment mode." },
-                   { selector: "input[name='transaction_date']", message: "Transaction date is required." },
-               ];
-       
-               // Perform validation
-               fieldsToValidate.forEach(({ selector, condition, message }) => {
-                   const field = document.querySelector(selector);
-                   if (field && (!condition || condition()) && !field.value.trim()) {
-                       isValid = false;
-                       showError(field, message);
-                   }
-               });
-       
-               // Check if form is valid
-               if (isValid) {
-                   form.submit(); // Submit the form if valid
-               }
-           });
-       
-           function showError(field, message) {
-               const error = document.createElement("div");
-               error.className = "error-message text-danger mt-1";
-               error.innerText = message;
-               field.parentNode.appendChild(error);
-           }
-       
-           // Update visibility logic for conditional fields
-           
-   function toggleTransactionField() {
-       const transactionCategory = document.querySelector("select[name='transaction_category']").value;
-   
-       // Show/hide fields based on transaction category
-       document.getElementById("internalDropdown").style.display = transactionCategory === "internal" ? "block" : "none";
-       document.getElementById("externalInput").style.display = transactionCategory === "external" ? "block" : "none";
-   }
-   
-   // Attach event listeners
-   document.querySelector("select[name='transaction_option']").addEventListener("change", updateFormFields);
-   document.querySelector("select[name='transaction_category']").addEventListener("change", toggleTransactionField);
-       
-           function toggleTransactionField() {
-               const transactionCategory = document.querySelector("select[name='transaction_category']").value;
-               document.getElementById("internalDropdown").style.display = transactionCategory === "internal" ? "block" : "none";
-               document.getElementById("externalInput").style.display = transactionCategory === "external" ? "block" : "none";
-           }
-       
-           document.querySelector("select[name='transaction_option']").addEventListener("change", updateFormFields);
-           document.querySelector("select[name='transaction_category']").addEventListener("change", toggleTransactionField);
-       });
-   
-   
-       document.getElementById("tips_checkbox").addEventListener("change", function () {
-           const tipsField = document.getElementById("amount");
-           if (this.checked) {
-               tipsField.style.display = "block"; // Show the field
-               tipsField.required = true;        // Make it mandatory
-           } else {
-               tipsField.style.display = "none"; // Hide the field
-               tipsField.required = false;       // Remove mandatory status
-               tipsField.value = "";             // Clear the value
-           }
-       });
-       
-       
-       document.getElementById('tips_checkbox').addEventListener('change', function () {
-           var modal = new bootstrap.Modal(document.getElementById('cashVoucherModal'));
-           
-           if (this.checked) {
-               // Show the modal if the checkbox is checked
-               modal.show();
-           } else {
-               // Hide the modal if the checkbox is unchecked
-               modal.hide();
-           }
-       });
-       window.onload = function() {
-           toggleTransactionField();
-       };
-       function setDraftStatus(isDraft) {
-           document.getElementById('saveAsDraft').value = isDraft ? "true" : "false";
-       }
-       
-       
-   
-   // Function to toggle internal/external fields based on the transaction category
-   // Function to toggle internal/external fields based on the transaction category
-   function toggleTransactionField() {
-       var transactionCategory = document.getElementById('transactionCategory').value;
-       var internalDropdown = document.getElementById('internalDropdown');
-       var externalInput = document.getElementById('externalInput');
-       var borrowedAmountsContainer = document.getElementById('borrowed-amounts-container');
-       var addBorrowButton = document.getElementById('add-borrowed-entry');
-       {% comment %} var tipscheckbox = document.getElementById('tips'); {% endcomment %}
-       
-       // Show/hide internal options and external input fields
-       if (transactionCategory === 'internal') {
-           internalDropdown.style.display = 'block';
-           externalInput.style.display = 'none';
-           borrowedAmountsContainer.style.display = 'none';  // Hide borrowed fields for internal
-           addBorrowButton.style.display = 'none';  // Hide the 'Add Borrow' button for internal
-           {% comment %} tipscheckbox.style.display = 'none';  // Hide the 'Add Borrow' button for internal {% endcomment %}
-       } else if (transactionCategory === 'external') {
-           internalDropdown.style.display = 'none';
-           externalInput.style.display = 'block';
-           borrowedAmountsContainer.style.display = 'block';  // Show borrowed fields for external
-           addBorrowButton.style.display = 'block';  // Show the 'Add Borrow' button for external
-           {% comment %} tipscheckbox.style.display = 'block';  // Show the 'Add Borrow' button for external {% endcomment %}
-       } else {
-           internalDropdown.style.display = 'none';
-           externalInput.style.display = 'none';
-           borrowedAmountsContainer.style.display = 'none';  // Hide both if no category selected
-           addBorrowButton.style.display = 'none';  // Hide the 'Add Borrow' button if no category selected
-           {% comment %} tipscheckbox.style.display = 'none';  // Hide the 'Add Borrow' button if no category selected {% endcomment %}
-       }
-   }
-   
-   
-      
-   
-       // Edit the displayed details
-       function editForm() {
-           // Fill the form with the submitted data
-           document.querySelector('select[name="item_type"]').value = "{{ submitted_data.item_type }}";
-           document.querySelector('input[name="item_name"]').value = "{{ submitted_data.item_name }}";
-           document.querySelector('select[name="transaction_option"]').value = "{{ submitted_data.transaction_option }}";
-           document.querySelector('select[name="transaction_category"]').value = "{{ submitted_data.transaction_category }}";
-           document.querySelector('input[name="amount"]').value = "{{ submitted_data.amount }}";
-           document.querySelector('select[name="payment_mode"]').value = "{{ submitted_data.payment_mode }}";
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("voucherForm");
+        let isSaveAsDraft = false; // Flag to track if Save as Draft was clicked
+    
+        // Submit button (non-draft) logic
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+    
+            // Reset previous errors
+            document.querySelectorAll(".error-message").forEach(el => el.remove());
+    
+            // Validation flag
+            let isValid = true;
+    
+            // Define required fields and their validation logic
+            const fieldsToValidate = [
+                { selector: "select[name='item_type']", message: "Please select an item type." },
+                { selector: "input[name='item_name']", message: "Item name is required." },
+                { selector: "select[name='transaction_option']", message: "Please select a payment category." },
+                { selector: "input[name='bill_photo']", condition: () => document.getElementById("billPhotoContainer").style.display !== "none" && !document.querySelector("input[name='bill_photo']").disabled && !document.getElementById("removeBillPhoto")?.checked, message: "Please upload a bill photo." },
+                { selector: "input[name='gst_photo']", condition: () => document.getElementById("gstPhotoContainer").style.display !== "none" && !document.querySelector("input[name='gst_photo']").disabled && !document.getElementById("removeGSTPhoto")?.checked, message: "Please upload a GST photo." },
 
-   
-           if ("{{ submitted_data.transaction_category }}" === "internal") {
-               document.getElementById("internalDropdown").style.display = 'block';
-           } else if ("{{ submitted_data.transaction_category }}" === "external") {
-               document.getElementById("externalInput").style.display = 'block';
-           }
-   
-           // Hide the display of submitted details
+                { selector: "select[name='transaction_category']", message: "Please select a transaction category." },
+                { selector: "input[name='amount']", message: "Amount is required." },
+                { selector: "select[name='payment_mode']", message: "Please select a payment mode." },
+                { selector: "input[name='transaction_date']", message: "Transaction date is required." },
+            ];
+    
+            // Perform validation
+            fieldsToValidate.forEach(({ selector, condition, message }) => {
+                const field = document.querySelector(selector);
+                if (field && (!condition || condition()) && !field.value.trim() && !field.files?.length) {
+                    // Check if current file link exists, in which case a file is already present
+                    const parent = field.parentNode;
+                    const hasCurrentFile = parent.querySelector(".btn-link") !== null;
+                    if (!hasCurrentFile) {
+                        isValid = false;
+                        showError(field, message);
+                    }
+                }
+            });
+    
+            // Check if form is valid
+            if (isValid) {
+                form.submit(); // Submit the form if valid
+            }
+        });
+    
+        function showError(field, message) {
+            const error = document.createElement("div");
+            error.className = "error-message text-danger mt-1";
+            error.innerText = message;
+            field.parentNode.appendChild(error);
+        }
+    
+        // Update visibility logic for conditional fields
+        function toggleTransactionField() {
+            const transactionCategory = document.querySelector("select[name='transaction_category']").value;
+        
+            // Show/hide fields based on transaction category
+            document.getElementById("internalDropdown").style.display = transactionCategory === "internal" ? "block" : "none";
+            document.getElementById("externalInput").style.display = transactionCategory === "external" ? "block" : "none";
+        }
+        
+        // Attach event listeners
+        document.querySelector("select[name='transaction_option']").addEventListener("change", updateFormFields);
+        document.querySelector("select[name='transaction_category']").addEventListener("change", toggleTransactionField);
+    });
 
-           document.getElementById("submittedDetails").style.display = 'none';
-       }
-   
-   
-   
-       function showForm() {
 
-           document.getElementById("newVoucherButton").style.display = 'none';  // Hide the "New Voucher" button
-           document.getElementById("submittedDetails").style.display = 'none';  // Hide the submitted records
-       }
-   
-   
-      
-   
-       // Initialize form fields visibility based on item_type and transaction_option
-   // Initialize form fields based on default selections
-   
-   function initializeFormFields() {
-       const itemType = document.querySelector('[name="item_type"]').value;  // Get the selected item_type
-       const vehicleOptions = document.querySelectorAll('.vehicle-option'); // Get all vehicle options
-       const transactionOption = document.querySelector('[name="transaction_option"]').value;  // Get the selected transaction option
-   
-       // Initially hide all vehicle option elements
-       if (itemType === "conveyance") {
-    vehicleOptions.forEach(option => option.style.display = 'block');
-}
-   
-       // If item_type is 'conveyance', display the corresponding vehicle options
-       if (itemType === "conveyance") {
-           vehicleOptions.forEach(option => option.style.display = 'block');
-       }
-   
-       // Handle visibility for transaction option (e.g., vehicle type)
-       const isVehicleType = ["2_wheeler", "4_wheeler"].includes(transactionOption);
+    window.onload = function() {
+        toggleTransactionField();
+    };
+
+    // Function to toggle internal/external fields based on the transaction category
+    function toggleTransactionField() {
+        var transactionCategory = document.getElementById('transactionCategory').value;
+        var internalDropdown = document.getElementById('internalDropdown');
+        var externalInput = document.getElementById('externalInput');
+        var borrowedAmountsContainer = document.getElementById('borrowed-amounts-container');
+        var addBorrowButton = document.getElementById('add-borrowed-entry');
+        
+        // Show/hide internal options and external input fields
+        if (transactionCategory === 'internal') {
+            internalDropdown.style.display = 'block';
+            externalInput.style.display = 'none';
+            borrowedAmountsContainer.style.display = 'none';  // Hide borrowed fields for internal
+            addBorrowButton.style.display = 'none';  // Hide the 'Add Borrow' button for internal
+        } else if (transactionCategory === 'external') {
+            internalDropdown.style.display = 'none';
+            externalInput.style.display = 'block';
+            borrowedAmountsContainer.style.display = 'block';  // Show borrowed fields for external
+            addBorrowButton.style.display = 'block';  // Show the 'Add Borrow' button for external
+        } else {
+            internalDropdown.style.display = 'none';
+            externalInput.style.display = 'none';
+            borrowedAmountsContainer.style.display = 'none';  // Hide both if no category selected
+            addBorrowButton.style.display = 'none';  // Hide the 'Add Borrow' button if no category selected
+        }
+    }
+
+    // Initialize form fields based on default selections
+    function initializeFormFields() {
+        const itemType = document.querySelector('[name="item_type"]').value;  // Get the selected item_type
+        const vehicleOptions = document.querySelectorAll('.vehicle-option'); // Get all vehicle options
+        const transactionOption = document.querySelector('[name="transaction_option"]').value;  // Get the selected transaction option
+    
+        // Initially hide all vehicle option elements
+        if (itemType === "conveyance") {
+            vehicleOptions.forEach(option => option.style.display = 'block');
+        }
+    
+        // Handle visibility for transaction option (e.g., vehicle type)
+        const isVehicleType = ["2_wheeler", "4_wheeler"].includes(transactionOption);
         if (itemType === "conveyance" && isVehicleType) {
             document.getElementById("kilometers-field").style.display = 'block';
         } else {
             document.getElementById("kilometers-field").style.display = 'none';
         }
-   }
-   
-   // Update form fields when changes are made (e.g., item_type, transaction_option)
-   function updateFormFields() {
-       const transactionOption = document.querySelector('[name="transaction_option"]').value;
-       const itemType = document.querySelector('[name="item_type"]').value;
-       console.log("Item Type Selected:", itemType);  // Debugging log
-       
-       // Toggling visibility of vehicle-related options based on the item type (Conveyance)
-       const vehicleOptions = document.querySelectorAll('.vehicle-option');
-       
-       if (itemType === "conveyance") {
-           console.log("inside")
-           vehicleOptions.forEach(option => option.style.display = "block");
-       } else {
-           vehicleOptions.forEach(option => option.style.display = "none");
-       }
-       
-       // Additional toggling of fields based on the selected transaction option
-       const amountField = document.getElementById('totalAmount');
-       const kilometersInput = document.getElementById("kilometers");
-       const totalAmountField = document.getElementById("totalAmount");
+    }
+    
+    // Update form fields when changes are made (e.g., item_type, transaction_option)
+    function updateFormFields() {
+        const transactionOption = document.querySelector('[name="transaction_option"]').value;
+        const itemType = document.querySelector('[name="item_type"]').value;
+        console.log("Item Type Selected:", itemType);  // Debugging log
+        
+        // Toggling visibility of vehicle-related options based on the item type (Conveyance)
+        const vehicleOptions = document.querySelectorAll('.vehicle-option');
+        
+        if (itemType === "conveyance") {
+            console.log("inside")
+            vehicleOptions.forEach(option => option.style.display = "block");
+        } else {
+            vehicleOptions.forEach(option => option.style.display = "none");
+        }
+        
+        // Additional toggling of fields based on the selected transaction option
+        const amountField = document.getElementById('totalAmount');
+        const kilometersInput = document.getElementById("kilometers");
+        const totalAmountField = document.getElementById("totalAmount");
+        const kilometersField = document.getElementById("kilometers-field");
+        
+        // Toggle fields based on selected transaction option
+        document.getElementById('billPhotoContainer').style.display = transactionOption === 'bill' ? 'block' : 'none';
+        document.getElementById('gstPhotoContainer').style.display = transactionOption === 'gst' ? 'block' : 'none';
 
-       const kilometersField = document.getElementById("kilometers-field");
-       
-       // Toggle fields based on selected transaction option
-       document.getElementById('billPhotoContainer').style.display = transactionOption === 'bill' ? 'block' : 'none';
-       document.getElementById('gstPhotoContainer').style.display = transactionOption === 'gst' ? 'block' : 'none';
-
-       
-       // Check if the selected transactionOption is a vehicle type dynamically
-       const isVehicleType = ["2_wheeler", "4_wheeler"].includes(transactionOption);
+        // Check if the selected transactionOption is a vehicle type dynamically
+        const isVehicleType = ["2_wheeler", "4_wheeler"].includes(transactionOption);
         if (itemType === "conveyance" && isVehicleType) {
             kilometersField.style.display = 'block';
         } else {
             kilometersField.style.display = 'none';
         }
-       
-       // When kilometers input changes
-       kilometersInput.addEventListener("input", function () {
-           const kilometers = parseFloat(kilometersInput.value);
-           console.log("Kilometers Input Value:", kilometers);  // Debugging log
-           
-           // Check if kilometers is a valid number and not NaN
-           if (!isNaN(kilometers) && kilometers > 0) {
-               let pricePerKm = 0;
-       
-               // Fetch price per kilometer from Django backend if vehicle type is selected
-               if (isVehicleType) {
+        
+        // When kilometers input changes
+        kilometersInput.addEventListener("input", function () {
+            const kilometers = parseFloat(kilometersInput.value);
+            console.log("Kilometers Input Value:", kilometers);  // Debugging log
+            
+            // Check if kilometers is a valid number and not NaN
+            if (!isNaN(kilometers) && kilometers > 0) {
+                let pricePerKm = 0;
+        
+                // Fetch price per kilometer from Django backend if vehicle type is selected
+                if (isVehicleType) {
                     console.log("triggering second ajax")
-                   fetch(`/website/get_price_per_km/?vehicle_type=${transactionOption}`)
-                       .then(response => response.json())
-                       .then(data => {
-                           console.log("Price per km Data:", data);  // Debugging log
-                           
-                           if (data.price_per_km) {
-                               pricePerKm = data.price_per_km;
-                           } else {
-                               alert("Price per kilometer not found.");
-                           }
-       
-                           console.log("Selected Price Per Km:", pricePerKm);  // Debugging log
-       
-                           // Calculate the total amount
-                           const totalAmount = kilometers * pricePerKm;
-                           console.log("Total Amount:", totalAmount);  // Debugging log
-       
-                           // Update the total amount field with the calculated value
-                           totalAmountField.value = totalAmount.toFixed(2);
-                       })
-                       .catch(error => {
-                           console.error("Error fetching price per kilometer:", error);
-                           alert("Error fetching price 2.");
-                       });
-               } else {
-                   console.log("Invalid vehicle type selected:", transactionOption);  // Debugging log for invalid option
-               }
-           } else {
-               totalAmountField.value = ""; // Clear the total amount if kilometers is empty or invalid
-           }
-       });
-   }
-   
-   // Call initializeFormFields on page load to set up initial visibility
-   document.addEventListener("DOMContentLoaded", initializeFormFields);
-   
-   // Re-run the updateFormFields when the 'item_type' or 'transaction_option' changes
-   document.querySelector('[name="item_type"]').addEventListener('change', updateFormFields);
-   document.querySelector('[name="transaction_option"]').addEventListener('change', updateFormFields);
-   
-   // Add event listeners for form changes
-   function addEventListeners() {
-       document.querySelector('[name="item_type"]').addEventListener('change', updateFormFields);
-       document.querySelector('[name="transaction_option"]').addEventListener('change', updateFormFields);
-   }
-   
-   // Ensure the DOM is fully loaded before running the initialization
-   document.addEventListener("DOMContentLoaded", () => {
-       initializeFormFields();  // Initialize fields on page load
-       addEventListeners();  // Add event listeners for item type and transaction option changes
-   });
-   
-   // Call initializeFormFields on page load to set up initial visibility
-   document.addEventListener("DOMContentLoaded", initializeFormFields);
-   
-   // Re-run the updateFormFields when the 'item_type' or 'transaction_option' changes
-   document.querySelector('[name="item_type"]').addEventListener('change', updateFormFields);
-   document.querySelector('[name="transaction_option"]').addEventListener('change', updateFormFields);
-       // Event listener for the transaction option change
-       {% comment %} document.querySelector('[name="transaction_option"]').addEventListener('change', updateFormFields);
-       document.addEventListener("DOMContentLoaded", function () {
-           const container = document.getElementById("borrowed-amounts-container");
-           const addButton = document.getElementById("add-borrowed-entry");
-       
-           addButton.addEventListener("click", function () {
-               const newEntry = document.createElement("div");
-               newEntry.classList.add("borrowed-entry");
-               newEntry.innerHTML = `
-                   <div class="form-group">
-                       <label for="borrowed_amount">Borrowed Amount</label>
-                       <input type="number" step="0.01" name="borrowed_amounts[]" class="form-control" placeholder="Enter borrowed amount">
-                   </div>
-                   <div class="form-group">
-                       <label for="borrowed_from">Borrowed From</label>
-                       <select name="borrowed_froms[]" class="form-control">
-                           <option value="">Select User</option>
-                           {% for user in users %}
-                               <option value="{{ user.id }}">{{ user.first_name }}</option>
-                           {% endfor %}
-                       </select>
-                   </div>
-               `;
-               container.appendChild(newEntry);
-           });
-       }); {% endcomment %}
-       document.getElementById("add-borrowed-entry").addEventListener("click", function() {
-           const container = document.getElementById("borrowed-amounts-container");
-           const entryHTML = `
-               <div class="borrowed-entry">
-                   <div class="form-group">
-                       <label for="borrowed_amount">Borrowed Amount</label>
-                       <input type="number" step="0.01" name="borrowed_amounts[]" class="form-control" placeholder="Enter borrowed amount">
-                   </div>
-                   <div class="form-group">
-                       <label for="borrowed_from">Borrowed From</label>
-                       <select name="borrowed_froms[]" class="form-control">
-                           <option value="">Select User</option>
-                           {% for user in users %}
-                               <option value="{{ user.id }}">{{ user.first_name }}</option>
-                           {% endfor %}
-                       </select>
-                   </div>
-               </div>
-           `;
-           container.insertAdjacentHTML('beforeend', entryHTML);
-       });
-       
+                    fetch(`/website/get_price_per_km/?vehicle_type=${transactionOption}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Price per km Data:", data);  // Debugging log
+                            
+                            if (data.price_per_km) {
+                                pricePerKm = data.price_per_km;
+                            } else {
+                                alert("Price per kilometer not found.");
+                            }
+        
+                            console.log("Selected Price Per Km:", pricePerKm);  // Debugging log
+        
+                            // Calculate the total amount
+                            const totalAmount = kilometers * pricePerKm;
+                            console.log("Total Amount:", totalAmount);  // Debugging log
+        
+                            // Update the total amount field with the calculated value
+                            totalAmountField.value = totalAmount.toFixed(2);
+                        })
+                        .catch(error => {
+                            console.error("Error fetching price per kilometer:", error);
+                            alert("Error fetching price 2.");
+                        });
+                } else {
+                    console.log("Invalid vehicle type selected:", transactionOption);  // Debugging log for invalid option
+                }
+            } else {
+                totalAmountField.value = ""; // Clear the total amount if kilometers is empty or invalid
+            }
+        });
+    }
+    
+    // Call initializeFormFields on page load to set up initial visibility
+    document.addEventListener("DOMContentLoaded", initializeFormFields);
+    
+    // Re-run the updateFormFields when the 'item_type' or 'transaction_option' changes
+    document.querySelector('[name="item_type"]').addEventListener('change', updateFormFields);
+    document.querySelector('[name="transaction_option"]').addEventListener('change', updateFormFields);
+    
+    // Add event listeners for form changes
+    function addEventListeners() {
+        document.querySelector('[name="item_type"]').addEventListener('change', updateFormFields);
+        document.querySelector('[name="transaction_option"]').addEventListener('change', updateFormFields);
+    }
+    
+    // Ensure the DOM is fully loaded before running the initialization
+    document.addEventListener("DOMContentLoaded", () => {
+        initializeFormFields();  // Initialize fields on page load
+        addEventListeners();  // Add event listeners for item type and transaction option changes
+    });
+    
+    // Dynamic add borrowed entry click handler
+    document.getElementById("add-borrowed-entry").addEventListener("click", function() {
+        const container = document.getElementById("borrowed-amounts-container");
+        const entryHTML = `
+            <div class="borrowed-entry card border-secondary border-opacity-25 bg-light rounded-3 p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label fw-semibold text-dark mb-0">Borrowed Amount</label>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="this.closest('.borrowed-entry').remove();">
+                        <i class="bi bi-trash me-1"></i> Remove
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <input type="number" step="0.01" name="borrowed_amounts[]" class="form-control rounded-3 shadow-sm" placeholder="Enter borrowed amount">
+                </div>
+                <div class="mb-1">
+                    <label class="form-label fw-semibold text-dark">Borrowed From</label>
+                    <select name="borrowed_froms[]" class="form-select rounded-3 shadow-sm">
+                        <option value="">Select User</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.first_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', entryHTML);
+    });
+
+    // Smooth Page Transition
+    document.addEventListener("DOMContentLoaded", function() {
+        const container = document.getElementById("dashboard-container");
+        if (container) {
+            requestAnimationFrame(() => {
+                container.classList.add("visible");
+            });
+        }
+        
+        const transitionLinks = document.querySelectorAll(".transition-link");
+        transitionLinks.forEach(link => {
+            link.addEventListener("click", function(e) {
+                if (this.hasAttribute("data-bs-toggle")) return;
+
+                e.preventDefault();
+                const targetUrl = this.getAttribute("href");
+                if (container) {
+                    container.classList.remove("visible");
+                    container.classList.add("fade-out");
+                }
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 350);
+            });
+        });
+    });
 </script>
 
 {% endblock %}

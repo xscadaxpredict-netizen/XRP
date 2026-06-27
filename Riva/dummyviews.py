@@ -114,6 +114,9 @@ def enquiry_view(request):
 
 def add_data(request):
     if request.method == "POST":
+        from django.contrib import messages
+        from django.contrib.auth.models import User
+
         # Retrieve form data
         company_name = request.POST.get("companyname")
         customer_name = request.POST.get("customername")
@@ -129,46 +132,65 @@ def add_data(request):
         remarks = request.POST.get("remarks")
         files = request.FILES.getlist("attachment[]")
 
-        # Validate and fetch related objects
         try:
-            executive = Executive.objects.get(id=executive_id)
-        except Executive.DoesNotExist:
-            return HttpResponse("Invalid Executive selected", status=400)
+            # Validate and fetch related objects
+            try:
+                executive = Executive.objects.get(id=executive_id) if executive_id else None
+            except Executive.DoesNotExist:
+                messages.error(request, "Invalid Executive selected.")
+                raise ValueError("Invalid Executive")
 
-        try:
-            product = Products.objects.get(id=product_id)
-        except Products.DoesNotExist:
-            return HttpResponse("Invalid Product selected", status=400)
+            try:
+                product = Products.objects.get(id=product_id) if product_id else None
+            except Products.DoesNotExist:
+                messages.error(request, "Invalid Product selected.")
+                raise ValueError("Invalid Product")
 
-        # Create and save the enquiry record
-        enquiry = Enquiry.objects.create(
-            companyname=company_name,
-            customername=customer_name,
-            refrence=reference_name,
-            email=email,
-            contact=contact,
-            location=location,
-            status=status,
-            products=product,
-            subproduct=subproduct,
-            closuredate=closure_date,
-            executive=executive,
-            remarks=remarks,
-            created_by=request.user,  # Associate with the logged-in user
-        )
+            # Create and save the enquiry record
+            enquiry = Enquiry.objects.create(
+                companyname=company_name or "",
+                customername=customer_name or "",
+                refrence=reference_name or "",
+                email=email or None,
+                contact=contact or None,
+                location=location or "",
+                status=status or "",
+                products=product,
+                subproduct=subproduct or "",
+                closuredate=closure_date or None,
+                executive=executive,
+                remarks=remarks or "",
+                created_by=request.user,
+            )
 
-        for file in files:
-            file_upload = FileUploadModel.objects.create(file=file, name=file.name)
-            enquiry.files.add(file_upload)
+            for file in files:
+                file_upload = FileUploadModel.objects.create(file=file, name=file.name)
+                enquiry.files.add(file_upload)
 
-        enquiry.save()
+            enquiry.save()
 
-        # Add visibility for both the logged-in user and selected executive
-        enquiry.created_by = request.user  # Ensure the logged-in user is saved as creator
-        enquiry.executive = executive  # Ensure the selected executive is assigned
-        enquiry.save()
+            # Add visibility for both the logged-in user and selected executive
+            enquiry.created_by = request.user  # Ensure the logged-in user is saved as creator
+            enquiry.executive = executive  # Ensure the selected executive is assigned
+            enquiry.save()
 
-        return redirect("enquries")  # Redirect to enqhome page
+            messages.success(request, "Enquiry added successfully!")
+            return redirect("enquries")  # Redirect to enqhome page
+
+        except Exception as e:
+            if not messages.get_messages(request):
+                messages.error(request, f"An error occurred while saving the enquiry: {str(e)}")
+            
+            # Reload the newenquiry page with the lists and the POST data
+            users_list = User.objects.all()
+            products_list = Products.objects.all()
+            executive_list = Executive.objects.all()
+            return render(request, 'xp/newenquiry.html', {
+                'products': products_list,
+                'users': users_list,
+                'executive': executive_list,
+                'form_data': request.POST,
+            })
 
     return HttpResponse("Invalid request method", status=405)
 

@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-xl mt-4">
+  <!-- Page Header -->
+  <div class="page-header d-print-none mb-4">
+    <div class="row align-items-center">
+      <div class="col">
+        <h2 class="page-title text-primary fw-bold">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-users-group me-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+            <path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+            <path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1" />
+            <path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+            <path d="M17 10h2a2 2 0 0 1 2 2v1" />
+            <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+            <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
+          </svg>
+          Advance Groups Dashboard (Live)
+        </h2>
+        <div class="text-muted mt-1">Manage and close advance groups in real-time without reloading.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="row row-cards mb-4">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm border-0 border-start border-primary border-3 transition-hover">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="bg-primary text-white avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
+                </svg>
+              </span>
+            </div>
+            <div class="col">
+              <div class="font-weight-medium text-muted">Total Groups</div>
+              <div class="h2 mb-0 fw-bold" id="stat-total-groups">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm border-0 border-start border-success border-3 transition-hover">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="bg-success text-white avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 15l2 2l4 -4" /><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                </svg>
+              </span>
+            </div>
+            <div class="col">
+              <div class="font-weight-medium text-muted">Open Groups</div>
+              <div class="h2 mb-0 fw-bold text-success" id="stat-open-groups">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm border-0 border-start border-secondary border-3 transition-hover">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="bg-secondary text-white avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" />
+                </svg>
+              </span>
+            </div>
+            <div class="col">
+              <div class="font-weight-medium text-muted">Closed Groups</div>
+              <div class="h2 mb-0 fw-bold text-secondary" id="stat-closed-groups">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm border-0 border-start border-warning border-3 transition-hover">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="bg-warning text-white avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-currency-rupee" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                  <path d="M18 5h-11h3a4 4 0 0 1 0 8h-3l6 6" />
+                  <path d="M7 9l11 0" />
+                </svg>
+              </span>
+            </div>
+            <div class="col">
+              <div class="font-weight-medium text-muted">Total Advance</div>
+              <div class="h2 mb-0 fw-bold" id="stat-total-advance">₹0.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters and Actions Card -->
+  <div class="card shadow-sm mb-4 border-0">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <!-- Date Filters -->
+        <div class="col-md-3">
+          <label class="form-label fw-semibold text-secondary">Start Date</label>
+          <div class="input-icon">
+            <span class="input-icon-addon">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" />
+              </svg>
+            </span>
+            <input type="date" id="filter-start-date" class="form-control" placeholder="Select date">
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-semibold text-secondary">End Date</label>
+          <div class="input-icon">
+            <span class="input-icon-addon">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" />
+              </svg>
+            </span>
+            <input type="date" id="filter-end-date" class="form-control" placeholder="Select date">
+          </div>
+        </div>
+
+        <!-- User Dropdown Filter -->
+        <div class="col-md-3">
+          <label class="form-label fw-semibold text-secondary">Filter by User</label>
+          <select id="filter-user-select" class="form-select select2-user">
+            <option value="">-- All Users --</option>
+            {% for u in all_users %}
+              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Filter Actions & Bulk Close Button -->
+        <div class="col-md-3 d-flex gap-2">
+          <button type="button" id="btn-clear-filters" class="btn btn-outline-secondary flex-fill">
+            Clear
+          </button>
+          {% if request.user.is_staff or request.user.is_superuser %}
+            <button type="button" id="btn-bulk-close" class="btn btn-warning flex-fill" disabled>
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-lock-square-rounded me-1" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M12 3c7.2 0 9 1.8 9 9s-1.8 9 -9 9s-9 -1.8 -9 -9s1.8 -9 9 -9z" />
+                <path d="M8 11m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v3a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
+                <path d="M10 11v-2a2 2 0 1 1 4 0v2" />
+              </svg>
+              Close Selected
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h3 class="card-title text-secondary fw-semibold mb-0">Advance Groups</h3>
+      <span class="badge bg-primary text-white" id="badge-showing-count">Showing 0 groups</span>
+    </div>
+
+    <!-- Table Container -->
+    <div class="table-responsive" style="position: relative; min-height: 200px;">
+      <!-- Loader Overlay -->
+      <div id="table-loader" class="loader-overlay d-none">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+
+      <table class="table table-vcenter card-table table-hover table-striped mb-0" id="groups-table">
+        <thead class="table-light">
+          <tr>
+            <th class="w-1">
+              <input class="form-check-input" type="checkbox" id="select-all-groups">
+            </th>
+            <th>Group Name</th>
+            <th>Created At</th>
+            <th>Leader</th>
+            <th class="text-end">Total Advance</th>
+            <th class="text-end">Used Advance</th>
+            <th class="text-end">Remaining</th>
+            <th class="text-center">Status</th>
+            {% if request.user.is_staff or request.user.is_superuser %}
+              <th class="text-center">Action</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody id="groups-table-body">
+          <!-- Dynamically populated rows -->
+        </tbody>
+      </table>
+
+      <!-- Empty State -->
+      <div id="table-empty-state" class="text-center py-5 d-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon text-muted icon-lg mb-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M9 10l.01 0" /><path d="M15 10l.01 0" /><path d="M9.5 15a3.5 3.5 0 0 0 5 0" />
+        </svg>
+        <p class="text-muted mb-0">No advance groups found for the selected filters.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Premium Micro-animations & Styles */
+  .transition-hover {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .transition-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  }
+  
+  .loader-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.25s ease-in-out;
+  }
+  
+  .cursor-pointer {
+    cursor: pointer;
+  }
+  
+  .badge-status {
+    padding: 0.35em 0.6em;
+    font-size: 75%;
+    font-weight: 700;
+    border-radius: 4px;
+  }
+  
+  .fw-semibold {
+    font-weight: 600 !important;
+  }
+</style>
+
+{% csrf_token %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  $(document).ready(function () {
+    // Initialize Select2 if available
+    if ($.fn.select2) {
+      $('.select2-user').select2({
+        theme: 'bootstrap-5',
+        width: '100%'
+      });
+      // Handle change event for Select2
+      $('#filter-user-select').on('change', function () {
+        fetchGroups();
+      });
+    }
+
+    // CSRF token helper
+    function getCsrfToken() {
+      return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    const startInput = document.getElementById('filter-start-date');
+    const endInput = document.getElementById('filter-end-date');
+    const userSelect = document.getElementById('filter-user-select');
+    const clearBtn = document.getElementById('btn-clear-filters');
+    const bulkCloseBtn = document.getElementById('btn-bulk-close');
+    const selectAllCheckbox = document.getElementById('select-all-groups');
+    const tableBody = document.getElementById('groups-table-body');
+    const emptyState = document.getElementById('table-empty-state');
+    const loader = document.getElementById('table-loader');
+    const showingCount = document.getElementById('badge-showing-count');
+
+    // Stats elements
+    const statTotalGroups = document.getElementById('stat-total-groups');
+    const statOpenGroups = document.getElementById('stat-open-groups');
+    const statClosedGroups = document.getElementById('stat-closed-groups');
+    const statTotalAdvance = document.getElementById('stat-total-advance');
+
+    // Attach Event Listeners
+    startInput.addEventListener('change', fetchGroups);
+    endInput.addEventListener('change', fetchGroups);
+    if (!$.fn.select2) {
+      userSelect.addEventListener('change', fetchGroups);
+    }
+    clearBtn.addEventListener('click', clearFilters);
+    if (bulkCloseBtn) {
+      bulkCloseBtn.addEventListener('click', bulkClose);
+    }
+    selectAllCheckbox.addEventListener('change', toggleSelectAll);
+
+    // Initial Fetch
+    fetchGroups();
+
+    function clearFilters() {
+      startInput.value = '';
+      endInput.value = '';
+      if ($.fn.select2) {
+        $(userSelect).val('').trigger('change.select2'); // Update Select2 UI
+      } else {
+        userSelect.value = '';
+      }
+      fetchGroups(); // Always fetch fresh data after clearing
+    }
+
+    function toggleSelectAll() {
+      const checkBoxes = tableBody.querySelectorAll('.group-checkbox:not(:disabled)');
+      checkBoxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+      updateBulkButtonState();
+    }
+
+    function updateBulkButtonState() {
+      if (!bulkCloseBtn) return;
+      const checkedBoxes = tableBody.querySelectorAll('.group-checkbox:checked');
+      bulkCloseBtn.disabled = checkedBoxes.length === 0;
+    }
+
+    // Fetch advance groups via AJAX
+    function fetchGroups() {
+      loader.classList.remove('d-none');
+      
+      const start = startInput.value;
+      const end = endInput.value;
+      const user = userSelect.value;
+
+      let url = `/website/api/advance-groups-list/?start_date=${start}&end_date=${end}&user_id=${user}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          loader.classList.add('d-none');
+          if (data.success) {
+            renderTable(data.groups);
+            updateStats(data.groups);
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error loading groups',
+              text: data.error || 'Something went wrong.'
+            });
+          }
+        })
+        .catch(err => {
+          loader.classList.add('d-none');
+          console.error('Fetch error:', err);
+          Swal.fire({
+            icon: 'error',
+            title: 'Fetch Error',
+            text: 'Could not communicate with server.'
+          });
+        });
+    }
+
+    // Render group rows dynamically
+    function renderTable(groups) {
+      tableBody.innerHTML = '';
+      selectAllCheckbox.checked = false;
+      updateBulkButtonState();
+
+      if (groups.length === 0) {
+        emptyState.classList.remove('d-none');
+        showingCount.textContent = 'Showing 0 groups';
+        return;
+      }
+
+      emptyState.classList.add('d-none');
+      showingCount.textContent = `Showing ${groups.length} group${groups.length > 1 ? 's' : ''}`;
+
+      groups.forEach(g => {
+        const tr = document.createElement('tr');
+        tr.id = `group-row-${g.id}`;
+        
+        // Checkbox column
+        const tdCheck = document.createElement('td');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'form-check-input group-checkbox';
+        cb.value = g.id;
+        cb.disabled = g.is_closed;
+        cb.addEventListener('change', updateBulkButtonState);
+        tdCheck.appendChild(cb);
+        tr.appendChild(tdCheck);
+
+        // Group name
+        const tdName = document.createElement('td');
+        tdName.className = 'fw-semibold';
+        tdName.textContent = g.name;
+        tr.appendChild(tdName);
+
+        // Created At
+        const tdDate = document.createElement('td');
+        tdDate.textContent = g.created_at;
+        tr.appendChild(tdDate);
+
+        // Leader
+        const tdLeader = document.createElement('td');
+        tdLeader.textContent = g.leader;
+        tr.appendChild(tdLeader);
+
+        // Total Advance
+        const tdTotal = document.createElement('td');
+        tdTotal.className = 'text-end font-monospace';
+        tdTotal.textContent = `₹${g.total_advance.toFixed(2)}`;
+        tr.appendChild(tdTotal);
+
+        // Used Advance
+        const tdUsed = document.createElement('td');
+        tdUsed.className = 'text-end font-monospace text-secondary';
+        tdUsed.textContent = `₹${g.used_advance.toFixed(2)}`;
+        tr.appendChild(tdUsed);
+
+        // Remaining
+        const tdRemaining = document.createElement('td');
+        tdRemaining.className = 'text-end font-monospace';
+        
+        let remainingVal = g.total_advance - g.used_advance;
+        if (remainingVal < 0) {
+          tdRemaining.className += ' text-danger fw-bold';
+          tdRemaining.textContent = `-₹${Math.abs(remainingVal).toFixed(2)}`;
+        } else {
+          tdRemaining.className += ' text-success';
+          tdRemaining.textContent = `₹${remainingVal.toFixed(2)}`;
+        }
+        tr.appendChild(tdRemaining);
+
+        // Status Badge
+        const tdStatus = document.createElement('td');
+        tdStatus.className = 'text-center';
+        const badge = document.createElement('span');
+        if (g.is_closed) {
+          badge.className = 'badge bg-secondary text-white';
+          badge.textContent = 'Closed';
+        } else {
+          badge.className = 'badge bg-success text-white';
+          badge.textContent = 'Open';
+        }
+        tdStatus.appendChild(badge);
+        tr.appendChild(tdStatus);
+
+        // Action Buttons
+        {% if request.user.is_staff or request.user.is_superuser %}
+          const tdAction = document.createElement('td');
+          tdAction.className = 'text-center';
+          if (!g.is_closed) {
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'btn btn-outline-warning btn-sm btn-close-single';
+            closeBtn.type = 'button';
+            closeBtn.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-lock-open me-1" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
+                <path d="M12 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                <path d="M8 11v-5a4 4 0 0 1 8 0" />
+              </svg> Close
+            `;
+            closeBtn.addEventListener('click', () => closeSingleGroup(g.id, g.name));
+            tdAction.appendChild(closeBtn);
+          } else {
+            tdAction.textContent = '-';
+          }
+          tr.appendChild(tdAction);
+        {% endif %}
+
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // Update statistics counters at top
+    function updateStats(groups) {
+      statTotalGroups.textContent = groups.length;
+      
+      const openCount = groups.filter(g => !g.is_closed).length;
+      statOpenGroups.textContent = openCount;
+      statClosedGroups.textContent = groups.length - openCount;
+
+      const totalAdvanceVal = groups.reduce((sum, g) => sum + g.total_advance, 0);
+      statTotalAdvance.textContent = `₹${totalAdvanceVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    // Close a single group via AJAX
+    function closeSingleGroup(groupId, groupName) {
+      Swal.fire({
+        title: 'Close Group?',
+        text: `Are you sure you want to close the group "${groupName}"?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f59f00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, close it!',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          sendCloseRequest([groupId]);
+        }
+      });
+    }
+
+    // Close multiple selected groups via AJAX
+    function bulkClose() {
+      const checkedBoxes = tableBody.querySelectorAll('.group-checkbox:checked');
+      const groupIds = Array.from(checkedBoxes).map(cb => cb.value);
+      if (groupIds.length === 0) return;
+
+      Swal.fire({
+        title: 'Close Selected Groups?',
+        text: `Are you sure you want to close ${groupIds.length} selected group(s)?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f59f00',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, close them!',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          sendCloseRequest(groupIds);
+        }
+      });
+    }
+
+    // Send the POST request to close group(s)
+    function sendCloseRequest(groupIds) {
+      loader.classList.remove('d-none');
+      const csrfToken = getCsrfToken();
+
+      fetch('/website/api/close-groups-ajax/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ group_ids: groupIds })
+      })
+      .then(response => response.json())
+      .then(data => {
+        loader.classList.add('d-none');
+        if (data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Closed Successfully',
+            text: data.message,
+            timer: 2000,
+            showConfirmButton: false
+          });
+          // Refresh groups to show updated state without reload
+          fetchGroups();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Action Failed',
+            text: data.error || 'Failed to close group(s).'
+          });
+        }
+      })
+      .catch(err => {
+        loader.classList.add('d-none');
+        console.error('Close error:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Communications with server failed.'
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -1,109 +1,187 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container-fluid">
-    <h2 class="mb-4 mt-4 text-center">Pay Now - {{ selected_user.username }}</h2>
 
-    <div class="card">
-        <div class="card-body">
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+<style>
+    .dashboard-transition-container {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    }
+    .dashboard-transition-container.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .dashboard-transition-container.fade-out {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    
+    .clean-card {
+        border-radius: 12px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.025);
+    }
+</style>
+
+<div class="container-fluid py-4 px-4 dashboard-transition-container" id="dashboard-container" style="background-color: #f8fafc; min-height: 100vh;">
+    <!-- Back Link -->
+    <div class="mb-3">
+        <a href="javascript:history.back()" class="text-decoration-none text-muted small transition-link">
+            <i class="bi bi-arrow-left me-1"></i> Back to Payables List
+        </a>
+    </div>
+
+    <!-- Page Header -->
+    <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="h3 fw-bold text-slate-800 mb-1"><i class="bi bi-wallet2 me-2 text-secondary"></i>Pay Now</h1>
+            <p class="mb-0 text-muted small">Record transaction details and submit payment confirmation for {{ selected_user.first_name|default:selected_user.username }}.</p>
+        </div>
+    </div>
+
+    <!-- Main Payment Card -->
+    <div class="card clean-card mb-4">
+        <div class="card-header bg-transparent border-bottom border-light py-3">
+            <h3 class="fw-bold text-dark mb-0 fs-5">
+                <i class="bi bi-check-circle-fill me-2 text-success"></i>Payment Processing
+            </h3>
+        </div>
+        <div class="card-body p-4">
             <form id="paymentForm" method="post" action="{% url 'process_payment' %}" enctype="multipart/form-data">
                 {% csrf_token %}
+                
+                <!-- Hidden inputs to preserve logic state -->
                 <input type="hidden" name="user_id" value="{{ selected_user.id }}">
                 <input type="hidden" name="total_amount_to_be_paid" value="{{ total_amount_to_be_paid }}">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th class="col-12 col-md-2">Transaction ID</th>
-                                <th class="col-12 col-md-2">User(Pay To)</th>
-                                <th class="col-12 col-md-2">Total Amount</th>
-                                <th class="col-12 col-md-2">From</th>
-                                <th class="col-12 col-md-2">To</th>
-                                <th class="col-12 col-md-2">Remark</th>
-                                <th class="col-12 col-md-2">Screenshot (Upload Proof)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <!-- Transaction ID -->
-                                <td class="col-12 col-md-2">
-                                    <input type="text" id="transactionId" name="transaction_id" class="form-control" value="{{ transaction_id }}" required readonly>
-                                </td>
-                                
-                                <!-- Selected User -->
-                                <td class="col-12 col-md-2">
-                                    <input type="text" name="selected_user" class="form-control" value="{{ selected_user.username }}" required readonly>
-                                </td>
-                            
-                                <!-- Amount -->
-                                <td class="col-12 col-md-2">
-                                    <input type="number" name="amount" class="form-control" value="{{ final_amount_to_pay }}" required readonly>
-                                </td>
-                            
-                                <!-- From Date -->
-                                <td class="col-12 col-md-2">
-                                    <input type="date" name="from_date" class="form-control" value="{{ from_date }}" readonly>
-                                </td>
-                            
-                                <!-- To Date -->
-                                <td class="col-12 col-md-2">
-                                    <input type="date" name="to_date" class="form-control" value="{{ to_date }}" readonly>
-                                </td>
-                                <td class="col-12 col-md-2">
-                                    <input type="text"
-                                           name="remarks"
-                                           class="form-control"
-                                           placeholder="Optional remarks"
-                                           required>
-                                </td>
+                <input type="hidden" name="zone_id" value="{{ zone_id }}">
+                <input type="hidden" name="close_groups" value="{{ close_groups }}">
 
+                <div class="row g-3">
+                    <!-- Left Column: Transaction Details (Read-only) -->
+                    <div class="col-md-6 col-12 border-end border-light pr-md-4">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-info-circle me-1"></i>Transaction Info</h6>
+                        
+                        <!-- Transaction ID -->
+                        <div class="mb-3">
+                            <label for="transactionId" class="form-label fw-semibold text-secondary small mb-1">Transaction ID</label>
+                            <input type="text" id="transactionId" name="transaction_id" class="form-control bg-light"
+                                value="{{ transaction_id }}" required readonly>
+                        </div>
 
-                            
-                                <!-- Screenshot -->
-                                <td class="col-12 col-md-3">
-                                    <input type="file" name="screenshot" class="form-control" required>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        <!-- User (Pay To) -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary small mb-1">User (Pay To)</label>
+                            <input type="text" name="selected_user" class="form-control bg-light"
+                                value="{{ selected_user.first_name|default:selected_user.username }}" required readonly>
+                        </div>
+
+                        <!-- Total Amount -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-secondary small mb-1">Total Amount (₹)</label>
+                            <input type="number" name="amount" class="form-control bg-light fw-bold text-success"
+                                value="{{ final_amount_to_pay }}" required readonly>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold text-secondary small mb-1">From Date</label>
+                                <input type="date" name="from_date" class="form-control bg-light" value="{{ from_date }}" readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold text-secondary small mb-1">To Date</label>
+                                <input type="date" name="to_date" class="form-control bg-light" value="{{ to_date }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Submission Details -->
+                    <div class="col-md-6 col-12 pl-md-4">
+                        <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-file-earmark-check me-1"></i>Verification Proof</h6>
+
+                        <!-- Remarks -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark small mb-1">Remarks <span class="text-danger">*</span></label>
+                            <textarea name="remarks" class="form-control rounded-3" rows="3" placeholder="Enter transaction remarks or payment reference details..." required></textarea>
+                        </div>
+
+                        <!-- Screenshot Upload -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark small mb-1">Screenshot / Upload Proof <span class="text-danger">*</span></label>
+                            <input type="file" name="screenshot" class="form-control rounded-3" required>
+                            <small class="form-text text-muted">Please upload transaction receipt or screenshot confirmation.</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="d-flex flex-wrap justify-content-between mt-3">
-                    <button type="button" id="submitButton" class="btn btn-success me-2 mb-2">Submit Payment</button>
-                    <a href="javascript:history.back()" class="btn btn-primary mb-2">Back</a>
+
+                <!-- Footer / Action Buttons -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-4 pt-3 border-top">
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm rounded-pill px-4 shadow-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Cancel
+                    </a>
+                    <button type="button" id="submitButton" class="btn btn-success btn-sm rounded-pill px-4 shadow-sm fw-semibold"
+                        style="background-color: #10b981; border: none; padding-top: 7px; padding-bottom: 7px;">
+                        <i class="bi bi-check-circle me-1.5"></i>Submit Payment
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- JavaScript to handle confirmation -->
-<style>
-    @media (max-width: 767px) {
-        td {
-            width: 100%;  /* Ensure the column takes up the entire width */
-        }
-    
-        /* Adjust the form controls to take full width on mobile */
-        .form-control {
-            width: 100%;
-            font-size: 14px;  /* Optional: reduce font size for better visibility on smaller screens */
-            padding: 10px;    /* Optional: adjust padding if needed */
-        }
-    }
-</style>
-
 <script>
     document.getElementById('submitButton').addEventListener('click', function () {
+        const btn = this;
+        
+        // Form validity check first
+        const form = document.getElementById('paymentForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
         // Get the transaction ID from the input field
         const transactionId = document.getElementById('transactionId').value;
 
         // Show confirmation popup
         const confirmation = confirm(`Are you sure you want to submit the payment with Transaction ID: ${transactionId}?`);
 
-        // If confirmed, submit the form
+        // If confirmed, disable the button and submit the form
         if (confirmation) {
-            document.getElementById('paymentForm').submit();
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+            form.submit();
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const container = document.getElementById("dashboard-container");
+        if (container) {
+            container.classList.add("visible");
         }
     });
 </script>
+
+{% if messages %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    {% for message in messages %}
+        Swal.fire({
+            icon: "{% if 'error' in message.tags %}error{% elif 'warning' in message.tags %}warning{% elif 'info' in message.tags %}info{% else %}success{% endif %}",
+            title: "{{ message|escapejs }}",
+            position: "center",
+            timer: 4000,
+            showConfirmButton: true,
+            confirmButtonText: "OK"
+        });
+    {% endfor %}
+});
+</script>
+{% endif %}
 {% endblock %}

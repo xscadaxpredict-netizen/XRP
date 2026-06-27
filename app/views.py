@@ -9,8 +9,18 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from app.models import ModuleVisibility
 from django.db.models import Prefetch
+from django.contrib.auth.views import LoginView
 
-    
+class CustomLoginView(LoginView):
+    def form_valid(self, form):
+        remember_me = self.request.POST.get('remember_me')
+        if remember_me:
+            # Set session to expire in 2 weeks
+            self.request.session.set_expiry(1209600)
+        else:
+            # Set session to expire when browser closes
+            self.request.session.set_expiry(0)
+        return super().form_valid(form)
 
 def HOME(request):
     return render(request ,'apage/HOME.html')

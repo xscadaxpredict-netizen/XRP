@@ -67,6 +67,8 @@ urlpatterns = [
     path('export-cash-vouchers/', views.export_cash_vouchers, name='export_cash_vouchers'),
 
     path('payable/', views.payable, name='payable'),
+    path('payable/add-adjustment/', views.add_adjustment, name='add_payable_adjustment'),
+    path('payable/get-user-credit-notes/', views.get_user_credit_notes, name='get_user_credit_notes'),
     path('pay_now/<int:user_id>/', views.pay_now, name='pay_now'),
     path('process_payment/', views.process_payment, name='process_payment'),
     # Add a success page for when the payment is processed
@@ -118,6 +120,9 @@ urlpatterns = [
     path("directpay/", views.directpay_form, name="directpay_form"),
     path("directpay/preview/", views.directpay_preview, name="directpay_preview"),
     path("directpay/<int:dp_id>/edit/", views.edit_directpay_form, name="directpay_form_edit"),
+    path("directpay/<int:dp_id>/request-delete/", views.directpay_request_delete, name="directpay_request_delete"),
+    path("directpay/<int:dp_id>/reject-delete/", views.directpay_reject_delete, name="directpay_reject_delete"),
+    path("directpay/<int:dp_id>/delete/", views.directpay_delete, name="directpay_delete"),
 
     path("payments/update/<int:id>/", views.update_payment, name="update_payment"),
     path("delete-advance-log/<int:log_id>/", views.delete_advance_log, name="delete_advance_log"),
@@ -142,7 +147,13 @@ urlpatterns = [
 
 
 
-    
+    # path('mappls_search/', views.mappls_search, name='mappls_search'),
+    # path('mappls_place_details/', views.mappls_place_details, name='mappls_place_details'),
+    path('toggle-transaction-date-restriction/', views.toggle_transaction_date_restriction, name='toggle_transaction_date_restriction'),
+    path('advance-groups-ajax/', views.advance_groups_ajax, name='advance_groups_ajax'),
+    path('api/advance-groups-list/', views.api_advance_groups_list, name='api_advance_groups_list'),
+    path('api/close-groups-ajax/', views.api_close_groups_ajax, name='api_close_groups_ajax'),
+    path('update-holidays/', views.update_holidays, name='update_holidays'),
 ]
 
 # Serve media files in development

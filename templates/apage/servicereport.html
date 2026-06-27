@@ -994,22 +994,22 @@
         </div>
         <script>
             document.addEventListener("DOMContentLoaded", () => {
-                        // 🔒 Prevent browser back showing submitted form const navEntry = performance.getEntriesByType("navigation")[0];
-            window.addEventListener("pageshow", function (event) {
-                
-                const navEntries = performance.getEntriesByType("navigation");
-                const navEntry = navEntries && navEntries.length ? navEntries[0] : null;
-                const isBackForward =
-                    event.persisted ||
-                    (navEntry && navEntry.type === "back_forward");
+                // 🔒 Prevent browser back showing submitted form const navEntry = performance.getEntriesByType("navigation")[0];
+                window.addEventListener("pageshow", function (event) {
 
-                if (isBackForward) {
-                    // If no draft exists, user should not stay on this page
-                    if (!localStorage.getItem("draft_report_id")) {
-                        window.location.replace("{% url 'servicereport' %}");
+                    const navEntries = performance.getEntriesByType("navigation");
+                    const navEntry = navEntries && navEntries.length ? navEntries[0] : null;
+                    const isBackForward =
+                        event.persisted ||
+                        (navEntry && navEntry.type === "back_forward");
+
+                    if (isBackForward) {
+                        // If no draft exists, user should not stay on this page
+                        if (!localStorage.getItem("draft_report_id")) {
+                            window.location.replace("{% url 'servicereport' %}");
+                        }
                     }
-                }
-            });
+                });
                 const form = document.getElementById("my-form");
                 let draftReportId = localStorage.getItem("draft_report_id") || null;
 
@@ -1051,6 +1051,10 @@
                                     fetch(`/get-sites/?zone_id=${data.zone}`)
                                         .then(res => res.json())
                                         .then(sites => {
+                                            if (!Array.isArray(sites)) {
+                                                console.error("Expected an array of sites, but got:", sites);
+                                                return;
+                                            }
                                             const siteDropdown = document.getElementById("select-site");
                                             siteDropdown.innerHTML = '<option value="" disabled>Select Site</option>';
 
@@ -1240,7 +1244,7 @@
                 }
 
                 // Heartbeat auto-save every 30 seconds
-                const autoSaveDraftInterval = setInterval(() => autoSaveDraft(false), 30000);
+                const autoSaveDraftInterval = setInterval(() => autoSaveDraft(false), 10000);
 
                 // ✅ Save immediately on Exit / Tab Close / Backgrounding
                 window.addEventListener("pagehide", () => autoSaveDraft(true));
@@ -1429,6 +1433,10 @@
                         fetch(`/get-sites/?zone_id=${zoneId}`)
                             .then(res => res.json())
                             .then(data => {
+                                if (!Array.isArray(data)) {
+                                    console.error("Expected an array of sites, but got:", data);
+                                    return;
+                                }
                                 data.forEach(site => {
                                     const opt = document.createElement("option");
                                     opt.value = site.id;
@@ -1513,6 +1521,10 @@
                         const input = document.getElementById(`${canvasId}Data`);
                         if (input) {
                             input.value = canvas.toDataURL();
+                            // ✅ Save immediately when signature is done
+                            if (typeof autoSaveDraft === "function") {
+                                autoSaveDraft(false);
+                            }
                         }
                     }
 
@@ -1562,6 +1574,24 @@
                         }
                     });
                 }
+            });
+        </script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                // Auto-check Taken Status when Quantity > 0
+                const quantityInputs = document.querySelectorAll('input[name^="quantity_"]');
+                quantityInputs.forEach(input => {
+                    input.addEventListener('input', function () {
+                        const quantity = parseInt(this.value, 10);
+                        if (!isNaN(quantity) && quantity > 0) {
+                            const toolId = this.name.split('_')[1];
+                            const takenCheckbox = document.querySelector(`input[name="taken_status_${toolId}"]`);
+                            if (takenCheckbox) {
+                                takenCheckbox.checked = true;
+                            }
+                        }
+                    });
+                });
             });
         </script>
         <script>

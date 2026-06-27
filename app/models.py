@@ -180,6 +180,7 @@ class UserProfile(models.Model):
     date_of_birth = models.DateField(default="2000-01-01")
     division = models.ForeignKey(Division, on_delete=models.SET_NULL, null=True, blank=True, default=None)
     target= models.ForeignKey(Target, on_delete=models.SET_NULL, null=True, blank=True)
+    is_xpredict = models.BooleanField(default=False)
     profile_picture = models.ImageField(upload_to="profile_pics/", default="profile_pics/default.jpg")
 
 

@@ -1,120 +1,144 @@
 from datetime import date, datetime
 from django.db.models import Sum, Q
 from django.db.models.functions import TruncMonth
-from website.models import CashVoucher, Expense  # Adjust the import paths
+from django.contrib.auth.models import User
+from website.models import Expense, AdvanceGroup, AdvanceAssignment
+from decimal import Decimal
 from django.db import models
 
 def dashboard_data(request):
-    if not request.user.is_authenticated:  # Avoid running for anonymous users
+    if not request.user.is_authenticated:
         return {}
 
     user = request.user
-
-    # Get date filters from request
     from_date = request.GET.get('from_date')
     to_date = request.GET.get('to_date')
+    selected_user_id = request.GET.get('user_id')
 
     # Default to the current month if no filters are provided
     if not from_date or not to_date:
         today = date.today()
-        first_day = today.replace(day=1)
-        from_date = first_day
+        from_date = today.replace(day=1)
         to_date = today
-
-    # Convert to date objects if they are strings
-    if isinstance(from_date, str):
-        from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
-    if isinstance(to_date, str):
-        to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
-
-    # Filter vouchers and expenses based on user role and date range
-    if user.is_staff:
-        vouchers = CashVoucher.objects.filter(date__range=(from_date, to_date))
-        expenses = Expense.objects.filter(date__range=(from_date, to_date))
     else:
-        vouchers = CashVoucher.objects.filter(created_by=user, date__range=(from_date, to_date))
-        expenses = Expense.objects.filter(created_by=user, date__range=(from_date, to_date))
+        try:
+            from_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+            to_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+        except ValueError:
+            today = date.today()
+            from_date = today.replace(day=1)
+            to_date = today
 
-    # Calculate totals
-    total_claiming_amount = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
-    total_claiming_amount_cv = vouchers.aggregate(Sum('amount'))['amount__sum'] or 0
+    # Base filtering parameters
+    filter_kwargs = {
+        'transaction_date__range': (from_date, to_date),
+        'is_draft': False
+    }
+    adv_filter_kwargs = {
+        'created_at__date__range': (from_date, to_date)
+    }
 
-    # Calculate totals for the monthly report
-    vouchers_by_month = vouchers.annotate(
-        month=TruncMonth('date')
-    ).values('month').annotate(
-        total_claimed=Sum('amount'),
-        total_paid=Sum('amount', filter=Q(status='paid'))
+    # Handle User Filtering (Staff vs User)
+    users = None
+    if user.is_staff or user.is_superuser:
+        users = User.objects.filter(is_active=True).order_by('first_name')
+        if selected_user_id:
+            try:
+                target_user = User.objects.get(id=selected_user_id)
+                filter_kwargs['created_by'] = target_user
+                assigned_group_ids = AdvanceAssignment.objects.filter(user=target_user).values_list('group_id', flat=True)
+                advance_groups = AdvanceGroup.objects.filter(id__in=assigned_group_ids, **adv_filter_kwargs)
+            except (User.DoesNotExist, ValueError):
+                advance_groups = AdvanceGroup.objects.filter(**adv_filter_kwargs)
+        else:
+            advance_groups = AdvanceGroup.objects.filter(**adv_filter_kwargs)
+    else:
+        filter_kwargs['created_by'] = user
+        assigned_group_ids = AdvanceAssignment.objects.filter(user=user).values_list('group_id', flat=True)
+        advance_groups = AdvanceGroup.objects.filter(id__in=assigned_group_ids, **adv_filter_kwargs)
+
+    expenses = Expense.objects.filter(**filter_kwargs)
+
+    # Calculate Core Metrics (Expenses)
+    total_claimed = expenses.aggregate(Sum('amount'))['amount__sum'] or 0
+    approved_amount = expenses.filter(is_approved=True, is_rejected=False).aggregate(Sum('amount'))['amount__sum'] or 0
+    pending_amount = expenses.filter(is_approved=False, is_rejected=False).aggregate(Sum('amount'))['amount__sum'] or 0
+    rejected_amount = expenses.filter(is_rejected=True).aggregate(Sum('amount'))['amount__sum'] or 0
+    paid_amount = expenses.filter(status='paid').aggregate(Sum('amount'))['amount__sum'] or 0
+
+    # Calculate Advance Metrics
+    total_advance_assigned = advance_groups.aggregate(Sum('total_advance'))['total_advance__sum'] or 0
+    total_advance_used = advance_groups.aggregate(Sum('used_advance'))['used_advance__sum'] or 0
+    
+    adv_metrics = advance_groups.aggregate(
+        remaining=Sum('remaining_balance', filter=Q(remaining_balance__gt=0)),
+        overdue=Sum('remaining_balance', filter=Q(remaining_balance__lt=0))
+    )
+    total_advance_remaining = adv_metrics['remaining'] or 0
+    total_advance_overdue = abs(adv_metrics['overdue'] or 0)
+
+    # Trend Chart (Month-wise) using transaction_date
+    trends = expenses.annotate(month=TruncMonth('transaction_date')).values('month').annotate(
+        claimed=Sum('amount'),
+        paid=Sum('amount', filter=Q(status='paid'))
     ).order_by('month')
 
-    months_list = []
-    claimed_amounts = []
-    paid_amounts = []
+    months_list = [t['month'].strftime('%b %Y') for t in trends]
+    claimed_amounts = [float(t['claimed'] or 0) for t in trends]
+    paid_amounts = [float(t['paid'] or 0) for t in trends]
 
-    for voucher in vouchers_by_month:
-        months_list.append(voucher['month'].strftime('%b %Y'))
-        claimed_amounts.append(voucher['total_claimed'])
-        paid_amounts.append(voucher['total_paid'])
-       
-    item_type_counts = Expense.objects.values('item_type').annotate(count=models.Count('item_type'))
-
-    item_type_totals = {
-        'Fright/Transportation': Expense.objects.filter(item_type='Fright/Transportation').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Fuel and Oil': Expense.objects.filter(item_type='Fuel and Oil').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Food/Grocery': Expense.objects.filter(item_type='Food/Grocery').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Others': Expense.objects.filter(item_type='others').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Vendor': Expense.objects.filter(item_type= 'vendor').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Reimbursement': Expense.objects.filter(item_type= 'reimbursement').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Site_services': Expense.objects.filter(item_type= 'site_services').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Advances': Expense.objects.filter(item_type= 'advances').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Travelling': Expense.objects.filter(item_type= 'travelling').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Electricity_bill': Expense.objects.filter(item_type= 'electricity_bill').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Internet_bill': Expense.objects.filter(item_type= 'internet_bill').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Postage_telegram': Expense.objects.filter(item_type= 'postage_telegram').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Machine_repair': Expense.objects.filter(item_type= 'machine_repair').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Conveyance': Expense.objects.filter(item_type= 'conveyance').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Stationary_printing': Expense.objects.filter(item_type= 'stationary_printing').aggregate(Sum('amount'))['amount__sum'] or 0,
-        'Hospitality': Expense.objects.filter(item_type= 'hospitality').aggregate(Sum('amount'))['amount__sum'] or 0,
-        
-       
-    }
-
-    # Create a dictionary of counts
+    # Item Type Statistics
+    item_types_qs = expenses.values('item_type').annotate(
+        count=models.Count('id'),
+        total_amount=Sum('amount')
+    )
+    
     item_type_data = {
-        'fright_transportation': 0,
-        'fuel_oil': 0,
-        'food_grocery': 0,
-        'others': 0,
-        'vendor': 0,
-        'reimbursement': 0,
-        'site_services': 0,
-        'advances': 0,
-        'travelling': 0,
-        'electricity_bill': 0,
-        'internet_bill': 0,
-        'postage_telegram': 0,
-        'machine_repair': 0,
-        'conveyance': 0,
-        'stationary_printing': 0,
-        'hospitality': 0,
+        'fright_transportation': {'count': 0, 'total_amount': 0},
+        'fuel_oil': {'count': 0, 'total_amount': 0},
+        'food_grocery': {'count': 0, 'total_amount': 0},
+        'others': {'count': 0, 'total_amount': 0},
+        'vendor': {'count': 0, 'total_amount': 0},
+        'reimbursement': {'count': 0, 'total_amount': 0},
+        'site_services': {'count': 0, 'total_amount': 0},
+        'advances': {'count': 0, 'total_amount': 0},
+        'travelling': {'count': 0, 'total_amount': 0},
+        'electricity_bill': {'count': 0, 'total_amount': 0},
+        'internet_bill': {'count': 0, 'total_amount': 0},
+        'postage_telegram': {'count': 0, 'total_amount': 0},
+        'machine_repair': {'count': 0, 'total_amount': 0},
+        'conveyance': {'count': 0, 'total_amount': 0},
+        'stationary_printing': {'count': 0, 'total_amount': 0},
+        'hospitality': {'count': 0, 'total_amount': 0},
     }
 
-    # Fill item_type_data with counts
-    for entry in item_type_counts:
-        item_type_data[entry['item_type']] = entry['count']
+    for entry in item_types_qs:
+        itype = entry['item_type']
+        if itype in item_type_data:
+            item_type_data[itype] = {
+                'count': entry['count'],
+                'total_amount': float(entry['total_amount'] or 0)
+            }
 
-    # Return the context
     return {
         'dashboard_data': {
             'from_date': from_date,
             'to_date': to_date,
-            'total_claiming_amount': total_claiming_amount,
-            'total_claiming_amount_cv': total_claiming_amount_cv,
+            'total_claimed': total_claimed,
+            'approved_amount': approved_amount,
+            'pending_amount': pending_amount,
+            'rejected_amount': rejected_amount,
+            'paid_amount': paid_amount,
+            'total_advance_assigned': total_advance_assigned,
+            'total_advance_used': total_advance_used,
+            'total_advance_remaining': total_advance_remaining,
+            'total_advance_overdue': total_advance_overdue,
             'months_list': months_list,
             'claimed_amounts': claimed_amounts,
             'paid_amounts': paid_amounts,
             'item_type_data': item_type_data,
-            'item_type_totals': item_type_totals,
+            'selected_user_id': selected_user_id,
+            'users': users,
         }
     }
 

@@ -245,9 +245,11 @@
                                                 <select class="form-select" id="select-zone" name="zone"
                                                     onchange="updateSites()">
                                                     {% for zone in zones %}
-                                                    <option value="{{ zone.id }}" {% if service_report.zone and service_report.zone.id == zone.id %}selected{% endif %}>
-                                                        {{ zone.name }}
-                                                    </option>
+                                                    {% if service_report.zone.id == zone.id %}
+                                                    <option value="{{ zone.id }}" selected>{{ zone.name }}</option>
+                                                    {% else %}
+                                                    <option value="{{ zone.id }}">{{ zone.name }}</option>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 </select>
                                             </td>
@@ -257,9 +259,11 @@
                                             <td>
                                                 <select class="form-select" id="select-site" name="site" required>
                                                     {% for site in sites %}
-                                                    <option value="{{ site.id }}" {% if service_report.site and service_report.site.id == site.id %}selected{% endif %}>
-                                                        {{ site.name }}
-                                                    </option>
+                                                    {% if service_report.site.id == site.id %}
+                                                    <option value="{{ site.id }}" selected>{{ site.name }}</option>
+                                                    {% else %}
+                                                    <option value="{{ site.id }}">{{ site.name }}</option>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 </select>
                                             </td>
@@ -323,7 +327,11 @@
                                                 <select id="state" name="state" class="form-select">
                                                     <option value="">Select State</option>
                                                     {% for state in states %}
-                                                    <option value="{{ state.id }}" {% if service_report.state and service_report.state.id == state.id %}selected{% endif %}>{{ state.name }}</option>
+                                                    {% if service_report.state.id == state.id %}
+                                                    <option value="{{ state.id }}" selected>{{ state.name }}</option>
+                                                    {% else %}
+                                                    <option value="{{ state.id }}">{{ state.name }}</option>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 </select>
                                             </td>
@@ -363,9 +371,27 @@
                                         {% for item in electronic_items %}
                                         <tr>
                                             <td>{{ item.item.name }}</td>
-                                            <td><input type="checkbox" name="checked_eitems_{{ item.id }}" {% if item.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="repair_eitems_{{ item.id }}" {% if item.repair %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="replacement_eitems_{{ item.id }}" {% if item.replacement %}checked{% endif %}></td>
+                                            <td>
+                                                {% if item.checked %}
+                                                <input type="checkbox" name="checked_eitems_{{ item.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="checked_eitems_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.repair %}
+                                                <input type="checkbox" name="repair_eitems_{{ item.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="repair_eitems_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.replacement %}
+                                                <input type="checkbox" name="replacement_eitems_{{ item.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="replacement_eitems_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control" name="remark_eitems_{{ item.id }}"
                                                     placeholder="Remark">{{ item.remark }}</textarea></td>
                                         </tr>
@@ -394,9 +420,28 @@
                                         {% for panel in electronic_panels %}
                                         <tr>
                                             <td>{{ panel.panel.name }}</td>
-                                            <td><input type="checkbox" name="checked_epanels_{{ panel.id }}" {% if panel.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="repair_epanels_{{ panel.id }}" {% if panel.repair %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="replacement_epanels_{{ panel.id }}" {% if panel.replacement %}checked{% endif %}></td>
+                                            <td>
+                                                {% if panel.checked %}
+                                                <input type="checkbox" name="checked_epanels_{{ panel.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="checked_epanels_{{ panel.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if panel.repair %}
+                                                <input type="checkbox" name="repair_epanels_{{ panel.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="repair_epanels_{{ panel.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if panel.replacement %}
+                                                <input type="checkbox" name="replacement_epanels_{{ panel.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="replacement_epanels_{{ panel.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control" name="remark_epanels_{{ panel.id }}"
                                                     placeholder="Remark">{{ panel.remark }}</textarea></td>
                                         </tr>
@@ -426,9 +471,28 @@
                                         {% for item in chemical_items %}
                                         <tr>
                                             <td>{{ item.item.name }}</td>
-                                            <td><input type="checkbox" name="checked_chemical_{{ item.id }}" {% if item.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="repair_chemical_{{ item.id }}" {% if item.repair %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="replacement_chemical_{{ item.id }}" {% if item.replacement %}checked{% endif %}></td>
+                                            <td>
+                                                {% if item.checked %}
+                                                <input type="checkbox" name="checked_chemical_{{ item.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="checked_chemical_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.repair %}
+                                                <input type="checkbox" name="repair_chemical_{{ item.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="repair_chemical_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.replacement %}
+                                                <input type="checkbox" name="replacement_chemical_{{ item.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="replacement_chemical_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control" name="remark_chemical_{{ item.id }}"
                                                     placeholder="Remark">{{ item.remark }}</textarea></td>
                                         </tr>
@@ -458,9 +522,27 @@
                                         {% for pump in pumps %}
                                         <tr>
                                             <td>{{ pump.pump.name }}</td>
-                                            <td><input type="checkbox" name="checked_pump_{{ pump.id }}" {% if pump.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="repair_pump_{{ pump.id }}" {% if pump.repair %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="replacement_pump_{{ pump.id }}" {% if pump.replacement %}checked{% endif %}></td>
+                                            <td>
+                                                {% if pump.checked %}
+                                                <input type="checkbox" name="checked_pump_{{ pump.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="checked_pump_{{ pump.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if pump.repair %}
+                                                <input type="checkbox" name="repair_pump_{{ pump.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="repair_pump_{{ pump.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if pump.replacement %}
+                                                <input type="checkbox" name="replacement_pump_{{ pump.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" name="replacement_pump_{{ pump.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control" name="remark_pump_{{ pump.id }}" rows="2"
                                                     placeholder="Remark">{{ pump.remark }}</textarea></td>
                                         </tr>
@@ -490,9 +572,30 @@
                                         {% for item in miscellaneous_items %}
                                         <tr>
                                             <td>{{ item.item.name }}</td>
-                                            <td><input type="checkbox" name="checked_miscellaneous_{{ item.id }}" {% if item.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="repair_miscellaneous_{{ item.id }}" {% if item.repair %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="replacement_miscellaneous_{{ item.id }}" {% if item.replacement %}checked{% endif %}></td>
+                                            <td>
+                                                {% if item.checked %}
+                                                <input type="checkbox" name="checked_miscellaneous_{{ item.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="checked_miscellaneous_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.repair %}
+                                                <input type="checkbox" name="repair_miscellaneous_{{ item.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="repair_miscellaneous_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if item.replacement %}
+                                                <input type="checkbox" name="replacement_miscellaneous_{{ item.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="replacement_miscellaneous_{{ item.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control" name="remark_miscellaneous_{{ item.id }}"
                                                     rows="2" placeholder="Remark">{{ item.remark }}</textarea></td>
                                         </tr>
@@ -522,10 +625,30 @@
                                         {% for parameter in wastewater_parameters %}
                                         <tr>
                                             <td>{{ parameter.parameter.name }}</td>
-                                            <td><input type="checkbox" name="checked_wastewater_{{ parameter.id }}" {% if parameter.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="repair_wastewater_{{ parameter.id }}" {% if parameter.repair %}checked{% endif %}></td>
-                                            <td><input type="checkbox" name="replacement_wastewater_{{ parameter.id }}"
-                                                    {% if parameter.replacement %}checked{% endif %}></td>
+                                            <td>
+                                                {% if parameter.checked %}
+                                                <input type="checkbox" name="checked_wastewater_{{ parameter.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="checked_wastewater_{{ parameter.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if parameter.repair %}
+                                                <input type="checkbox" name="repair_wastewater_{{ parameter.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="repair_wastewater_{{ parameter.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if parameter.replacement %}
+                                                <input type="checkbox" name="replacement_wastewater_{{ parameter.id }}"
+                                                    checked>
+                                                {% else %}
+                                                <input type="checkbox" name="replacement_wastewater_{{ parameter.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control"
                                                     name="remark_wastewater_{{ parameter.id }}" rows="2"
                                                     placeholder="Remark">{{ parameter.remark }}</textarea></td>
@@ -562,12 +685,33 @@
                                                     value="{{ run.run_time|time:'H:i' }}"></td>
                                             <td><input type="time" class="form-control" name="end_time_{{ run.id }}"
                                                     value="{{ run.end_time|time:'H:i' }}"></td>
-                                            <td><input type="checkbox" class="form-check-input"
-                                                    name="checked_run_{{ run.id }}" {% if run.checked %}checked{% endif %}></td>
-                                            <td><input type="checkbox" class="form-check-input"
-                                                    name="pass_run_{{ run.id }}" {% if run.pass_status %}checked{% endif %}></td>
-                                            <td><input type="checkbox" class="form-check-input"
-                                                    name="fail_run_{{ run.id }}" {% if run.fail_status %}checked{% endif %}></td>
+                                            <td>
+                                                {% if run.checked %}
+                                                <input type="checkbox" class="form-check-input"
+                                                    name="checked_run_{{ run.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" class="form-check-input"
+                                                    name="checked_run_{{ run.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if run.pass_status %}
+                                                <input type="checkbox" class="form-check-input"
+                                                    name="pass_run_{{ run.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" class="form-check-input"
+                                                    name="pass_run_{{ run.id }}">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if run.fail_status %}
+                                                <input type="checkbox" class="form-check-input"
+                                                    name="fail_run_{{ run.id }}" checked>
+                                                {% else %}
+                                                <input type="checkbox" class="form-check-input"
+                                                    name="fail_run_{{ run.id }}">
+                                                {% endif %}
+                                            </td>
                                             <td><textarea class="form-control" name="remark_run_{{ run.id }}" rows="2"
                                                     placeholder="Remark">{{ run.remark }}</textarea></td>
                                         </tr>
@@ -632,18 +776,54 @@
                                     <tbody>
                                         {% for tool in tools %}
                                         <tr>
-                                            <td>{{ tool.tool.name }}</td>
-                                            <td><input type="number" name="quantity_{{ tool.id }}" class="form-control"
-                                                    value="{{ tool.quantity }}" placeholder="Qty"></td>
-                                            <td><input type="text" name="remark_tools_{{ tool.id }}"
-                                                    class="form-control" value="{{ tool.remark }}" placeholder="Remark">
+                                            <td style="min-width: 150px;">{{ tool.tool.name }}</td>
+                                            <td style="min-width: 100px;"><input type="number"
+                                                    name="quantity_{{ tool.tool.id }}" class="form-control tool-qty"
+                                                    data-tool-id="{{ tool.tool.id }}"
+                                                    value="{% if tool.quantity %}{{ tool.quantity }}{% endif %}"
+                                                    placeholder="Qty" style="min-width: 80px;"></td>
+                                            <td style="min-width: 150px;"><input type="text"
+                                                    name="remark_tools_{{ tool.tool.id }}" class="form-control"
+                                                    value="{% if tool.remark %}{{ tool.remark }}{% endif %}"
+                                                    placeholder="Remark">
                                             </td>
-                                            <td><input type="checkbox" name="taken_status_{{ tool.id }}" {% if tool.taken_status %}checked{% endif %}></td>
+                                            <td class="text-center" style="min-width: 60px;">
+                                                {% if tool.taken_status %}
+                                                <input type="checkbox" name="taken_status_{{ tool.tool.id }}"
+                                                    class="form-check-input tool-taken tool-taken-{{ tool.tool.id }}"
+                                                    checked style="transform: scale(1.5);">
+                                                {% else %}
+                                                <input type="checkbox" name="taken_status_{{ tool.tool.id }}"
+                                                    class="form-check-input tool-taken tool-taken-{{ tool.tool.id }}"
+                                                    style="transform: scale(1.5);">
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function () {
+                                    // Tool quantity auto-check "taken" status
+                                    const qtyInputs = document.querySelectorAll('.tool-qty');
+                                    qtyInputs.forEach(input => {
+                                        input.addEventListener('input', function () {
+                                            const toolId = this.getAttribute('data-tool-id');
+                                            const checkbox = document.querySelector(`.tool-taken-${toolId}`);
+                                            if (checkbox) {
+                                                if (parseInt(this.value) > 0) {
+                                                    checkbox.checked = true;
+                                                } else if (!this.value || parseInt(this.value) === 0) {
+                                                    checkbox.checked = false;
+                                                }
+                                                // Trigger change event to ensure autoSaveDraft catches the checkbox change
+                                                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                                            }
+                                        });
+                                    });
+                                });
+                            </script>
                         </div>
                     </div>
 
@@ -654,7 +834,8 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered" id="remarks-table">
                                     <tbody>
-                                        {% if service_report.other_remarks %} {% with remarks=service_report.other_remarks|split:", " %}
+                                        {% if service_report.other_remarks %}
+                                        {% with remarks=service_report.other_remarks|split:", " %}
                                         {% for remark in remarks %}
                                         <tr>
                                             <td>{{ forloop.counter }}</td>
@@ -692,7 +873,8 @@
                             <div class="table-responsive">
                                 <table class="table table-bordered" id="spares-table">
                                     <tbody>
-                                        {% if service_report.spares_details %} {% with spares=service_report.spares_details|split:", " %}
+                                        {% if service_report.spares_details %}
+                                        {% with spares=service_report.spares_details|split:", " %}
                                         {% for spare in spares %}
                                         <tr>
                                             <td>{{ forloop.counter }}</td>
@@ -1187,7 +1369,7 @@
                             if (xhr.status >= 200 && xhr.status < 400) {
                                 if (statusText) statusText.innerText = "Report Updated!";
                                 if (progressBar) progressBar.style.width = "100%";
-                                setTimeout(() => window.location.href = "{% url 'generalreportsnew' %}", 800);
+                                setTimeout(() => window.location.href = "{% url 'servicereport' %}", 800);
                             } else {
                                 alert("Error saving report. Status: " + xhr.status);
                                 resetSubmit();
@@ -1220,6 +1402,10 @@
                     fetch(`/get-sites/?zone_id=${zoneId}`)
                         .then(res => res.json())
                         .then(data => {
+                            if (!Array.isArray(data)) {
+                                console.error("Expected an array of sites, but got:", data);
+                                return;
+                            }
                             siteDropdown.innerHTML = '<option value="" disabled>Select Site</option>';
                             data.forEach(site => {
                                 const opt = document.createElement("option");

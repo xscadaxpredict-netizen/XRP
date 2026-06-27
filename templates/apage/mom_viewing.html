@@ -46,6 +46,7 @@
                   <th>Date</th>
                   <th>Location</th>
                   <th>Meeting Chair</th>
+                  <th>Created By</th>
                   <th>Attachments</th>
                   <th>Details</th>
                 </tr>
@@ -58,6 +59,7 @@
                   <td>{{ mom.date }}</td>
                   <td>{{ mom.location }}</td>
                   <td>{{ mom.meeting_chair }}</td>
+                  <td>{{ mom.created_by.username }}</td>
                   <td>
                     {% if mom.attachments.all %}
                     <ul class="list-unstyled">

@@ -589,3 +589,73 @@ class GeneratorReport(models.Model):
     def __str__(self):
         return f"Generator Report - {self.date} ({self.start_time} - {self.end_time or 'Ongoing'})"
 
+
+class SiteAMC(models.Model):
+    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name='amc_details')
+    has_amc = models.BooleanField(default=False)
+    amc_start_date = models.DateField(null=True, blank=True)
+    amc_end_date = models.DateField(null=True, blank=True)
+    proof_file = models.FileField(upload_to='amc_proofs/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AMC for {self.site.name}"
+
+class Bike(models.Model):
+    registration_number = models.CharField(max_length=50, unique=True)
+    model_name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f"{self.registration_number} - {self.model_name}"
+
+class BikeMaintenance(models.Model):
+    bike = models.ForeignKey(Bike, on_delete=models.CASCADE, related_name='maintenances')
+    date = models.DateField(auto_now_add=True)
+    oil_change_date = models.DateField(null=True, blank=True)
+    current_mileage = models.IntegerField(help_text="Current odometer reading")
+    
+    # Previous Service Data
+    last_oil_change_or_service_date = models.DateField(null=True, blank=True)
+    last_oil_change_km = models.IntegerField(null=True, blank=True)
+    
+    # Routine Checks
+    brakes_ok = models.BooleanField(default=True)
+    tires_ok = models.BooleanField(default=True)
+    lights_ok = models.BooleanField(default=True)
+    
+    issues_faced = models.TextField(blank=True, null=True)
+    tagged_users = models.ManyToManyField(User, blank=True, related_name='tagged_bike_issues')
+    reported_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reported_bike_issues')
+
+    def __str__(self):
+        return f"Maintenance for {self.bike.registration_number} on {self.date}"
+
+class BikeMaintenancePhoto(models.Model):
+    maintenance = models.ForeignKey(BikeMaintenance, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='bike_maintenance_photos/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Photo for {self.maintenance}"
+
+
+class Service(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ServiceExpiry(models.Model):
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='expiries')
+    expiry_date = models.DateField()
+    email = models.EmailField(help_text="Email of the respective person to notify")
+    notified = models.BooleanField(default=False)
+    last_notified_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.service.name} expiring on {self.expiry_date} (Notify: {self.email})"

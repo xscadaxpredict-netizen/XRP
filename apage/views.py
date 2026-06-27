@@ -1,8 +1,13 @@
 from pyexpat.errors import messages
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseForbidden
-from weasyprint import HTML  # WeasyPrint to generate PDF
+from xhtml2pdf import pisa
 from django.shortcuts import render, redirect ,get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 
@@ -11,6 +16,38 @@ from reportlab.pdfgen import canvas
 from django.http import HttpResponse
 
 from app.models import ModuleVisibility
+import os
+
+def link_callback(uri, rel):
+    """
+    Convert HTML images/links to local system paths for xhtml2pdf.
+    """
+    from django.conf import settings
+    
+    # Handle media files
+    if settings.MEDIA_URL and uri.startswith(settings.MEDIA_URL):
+        path = os.path.join(settings.MEDIA_ROOT, uri.replace(settings.MEDIA_URL, "", 1))
+    # Handle static files
+    elif settings.STATIC_URL and uri.startswith(settings.STATIC_URL):
+        path = os.path.join(settings.STATIC_ROOT, uri.replace(settings.STATIC_URL, "", 1))
+        # If static files aren't collected, search in static dirs
+        if not os.path.exists(path) and hasattr(settings, 'STATICFILES_DIRS'):
+            for static_dir in settings.STATICFILES_DIRS:
+                potential_path = os.path.join(static_dir, uri.replace(settings.STATIC_URL, "", 1))
+                if os.path.exists(potential_path):
+                    path = potential_path
+                    break
+    else:
+        # If the URI is already a local file path starting with file://
+        if uri.startswith('file://'):
+            path = uri.replace('file://', '', 1)
+        else:
+            return uri
+
+    # Make sure that file exists
+    if not os.path.exists(path):
+        return uri
+    return path
 
 
 def base(request):
@@ -204,7 +241,7 @@ def edit_maintenance_checklist(request, id):
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
-from weasyprint import HTML
+# # from weasyprint import HTML
 from .models import MaintenanceChecklist
 
 def pdf_maintenance_checklist(request, checklist_id):
@@ -214,12 +251,13 @@ def pdf_maintenance_checklist(request, checklist_id):
     # Render the HTML template for the checklist
     html_content = render_to_string('apage/pdf_maintenance_checklist.html', {'checklist': checklist})
 
-    # Convert HTML to PDF using WeasyPrint
-    pdf = HTML(string=html_content).write_pdf()
-
     # Return the PDF response as a downloadable file
-    response = HttpResponse(pdf, content_type='application/pdf')
+    response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=maintenance_checklist_{checklist.id}.pdf'
+
+    pisa_status = pisa.CreatePDF(html_content, dest=response, link_callback=link_callback)
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF', status=500)
     return response
 
 
@@ -268,40 +306,43 @@ def mom(request):
 
 from django.shortcuts import render, redirect
 from .models import MOM, Attachment
+from django.core.exceptions import ValidationError
+
 @login_required
 def mom_new(request):
     if request.method == 'POST':
         # Create the meeting instance from POST data
         meeting = MOM(
-            topic=request.POST['topic'],
-            organize=request.POST['organize'],
-            meeting_chair=request.POST['meeting_chair'],
-            location=request.POST['location'],
-            date=request.POST['mdate'],
-            start_time=request.POST['start_time'],
-            end_time=request.POST['end_time'],
-            duration=request.POST['duration'],
+            topic=request.POST.get('topic', ''),
+            organize=request.POST.get('organize', ''),
+            meeting_chair=request.POST.get('meeting_chair', ''),
+            location=request.POST.get('location', ''),
+            date=request.POST.get('mdate'),
+            start_time=request.POST.get('start_time'),
+            end_time=request.POST.get('end_time'),
+            duration=request.POST.get('duration', ''),
             updated_by=request.user.username,  # Set logged-in user as the updater
-            meeting_conclusion=request.POST['meeting_conclusion'],
-            summary_of_discussion=request.POST['summary_of_discussion'],
+            meeting_conclusion=request.POST.get('meeting_conclusion', ''),
+            summary_of_discussion=request.POST.get('summary_of_discussion', ''),
             attendees=request.POST.getlist('attendees[]'),
             apologies=request.POST.getlist('apologies[]'),
             agenda=request.POST.getlist('agenda[]'),
             created_by=request.user
         )
 
-        # Save the meeting instance to the database
+        try:
+            meeting.full_clean()
+            meeting.save()
+            
+            # Save the uploaded files (attachments)
+            for attachment_file in request.FILES.getlist('attachment[]'):
+                attachment = Attachment(file=attachment_file, meeting=meeting)
+                attachment.save()
 
-        meeting.save()
-        meeting.full_clean()
-
-        # Save the uploaded files (attachments)
-        for attachment_file in request.FILES.getlist('attachment[]'):
-            attachment = Attachment(file=attachment_file, meeting=meeting)
-            attachment.save()
-
-        # Redirect to the mom_viewing page with the newly created meeting's ID
-        return redirect('mom')
+            # Redirect to the mom_viewing page with the newly created meeting's ID
+            return redirect('mom')
+        except ValidationError as e:
+            return render(request, 'apage/mom.html', {'error': e.message_dict})
 
     # If the request is not POST, render the form page
     return render(request, 'apage/mom.html')
@@ -323,31 +364,34 @@ def mom_edit(request, mom_id):
     print(f"dr,{mom.duration}")
     if request.method == 'POST':
         # Update the meeting instance with the new data from POST
-        mom.topic = request.POST['topic']
-        mom.organize = request.POST['organize']
-        mom.meeting_chair = request.POST['meeting_chair']
-        mom.location = request.POST['location']
-        mom.date = request.POST['mdate']
-        mom.start_time = request.POST['start_time']
-        mom.end_time = request.POST['end_time']
-        mom.duration = request.POST['duration']
+        mom.topic = request.POST.get('topic', '')
+        mom.organize = request.POST.get('organize', '')
+        mom.meeting_chair = request.POST.get('meeting_chair', '')
+        mom.location = request.POST.get('location', '')
+        mom.date = request.POST.get('mdate')
+        mom.start_time = request.POST.get('start_time')
+        mom.end_time = request.POST.get('end_time')
+        mom.duration = request.POST.get('duration', '')
         mom.updated_by = request.user.username  # Set the logged-in user as the updater
-        mom.meeting_conclusion = request.POST['meeting_conclusion']
-        mom.summary_of_discussion = request.POST['summary_of_discussion']
+        mom.meeting_conclusion = request.POST.get('meeting_conclusion', '')
+        mom.summary_of_discussion = request.POST.get('summary_of_discussion', '')
         mom.attendees = request.POST.getlist('attendees[]')
         mom.apologies = request.POST.getlist('apologies[]')
         mom.agenda = request.POST.getlist('agenda[]')
 
-        # Save the updated meeting instance
-        mom.save()
+        try:
+            mom.full_clean()
+            mom.save()
 
-        # Handle file attachments
-        for attachment_file in request.FILES.getlist('attachment[]'):
-            attachment = Attachment(file=attachment_file, meeting=mom)
-            attachment.save()
+            # Handle file attachments
+            for attachment_file in request.FILES.getlist('attachment[]'):
+                attachment = Attachment(file=attachment_file, meeting=mom)
+                attachment.save()
 
-        # Redirect to the MOM detail page after saving the changes
-        return redirect('mom_detail', mom_id=mom.id)
+            # Redirect to the MOM detail page after saving the changes
+            return redirect('mom_detail', mom_id=mom.id)
+        except ValidationError as e:
+            return render(request, 'apage/edit_mom.html', {'mom': mom, 'error': e.message_dict})
 
     # If the request is not POST, display the edit form with existing data
     return render(request, 'apage/edit_mom.html', {'mom': mom})
@@ -356,7 +400,7 @@ def mom_edit(request, mom_id):
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
-from weasyprint import HTML
+# # from weasyprint import HTML
 
 def pdf_mom(request, mom_id):
     # Fetch the MOM record by ID
@@ -365,12 +409,13 @@ def pdf_mom(request, mom_id):
     # Render the HTML content to be converted to PDF
     html_content = render_to_string('apage/pdf_mom.html', {'mom': mom})
 
-    # Convert HTML to PDF using WeasyPrint
-    pdf = HTML(string=html_content).write_pdf()
-
     # Return the PDF response as a downloadable file
-    response = HttpResponse(pdf, content_type='application/pdf')
+    response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=mom_{mom.id}.pdf'
+
+    pisa_status = pisa.CreatePDF(html_content, dest=response, link_callback=link_callback)
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF', status=500)
     return response
 
 
@@ -510,34 +555,232 @@ def edit_general_report(request, report_id):
 
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse
-from weasyprint import HTML
+# # from weasyprint import HTML
 
 
 def generate_report_pdf(request, report_id):
     # Fetch the report based on its ID
     report = get_object_or_404(GeneralReport, pk=report_id)
 
-    # Create the HTML content to be converted to PDF
-    html_content = render(request, 'apage/pdf_generalreport.html', {'report': report})
-
-    # Convert HTML to PDF using WeasyPrint
-    pdf = HTML(string=html_content.content.decode('utf-8')).write_pdf()
+    # Render the HTML content to be converted to PDF
+    html_content = render_to_string('apage/pdf_generalreport.html', {'report': report})
 
     # Return the PDF response as a downloadable file
-    response = HttpResponse(pdf, content_type='application/pdf')
+    response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=general_report_{report.id}.pdf'
+
+    pisa_status = pisa.CreatePDF(html_content, dest=response, link_callback=link_callback)
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF', status=500)
     return response
 
 
 # ------------servicereport--------------------
+
+@csrf_exempt
+def service_reports_api(request):
+    """
+    Dedicated JSON API endpoint for the Flutter app to fetch service reports.
+    Authenticates via the 'Authorization: Token ...' header.
+    """
+    if request.method != 'GET':
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    user = get_user_from_request(request)
+    if user.is_anonymous:
+        return JsonResponse({"status": "error", "message": "Authentication required. Please provide a valid Token."}, status=401)
+
+    # Exactly mimic the website's role checking
+    is_admin = user.groups.filter(name='Admin').exists() or user.is_staff or user.is_superuser
+
+    if is_admin:
+        service_reports = ServiceReport.objects.filter(is_draft=False)
+    else:
+        service_reports = ServiceReport.objects.filter(created_by=user, is_draft=False)
+
+    groups = [g.name for g in user.groups.all()]
+    # 🐛 DEBUG: Comprehensive diagnostic check
+    total_count = ServiceReport.objects.count()
+    draft_count = ServiceReport.objects.filter(is_draft=True).count()
+    final_count = ServiceReport.objects.filter(is_draft=False).count()
+    user_final_count = ServiceReport.objects.filter(created_by=user, is_draft=False).count()
+    
+    print(f"--- API DIAGNOSTIC for {user.username} ---")
+    print(f"Admin: {is_admin}")
+    print(f"Total ServiceReport objects in DB: {total_count}")
+    print(f"Drafts (is_draft=True): {draft_count}")
+    print(f"Finalized (is_draft=False): {final_count}")
+    print(f"Finalized & Created By this user: {user_final_count}")
+    print(f"Returning {service_reports.count()} reports based on logic.")
+    print(f"----------------------------------------")
+
+    service_reports = service_reports.order_by('-date_of_visit')
+    reports_data = []
+    for report in service_reports:
+        try:
+            # Fetch related items
+            electronic_items = []
+            for s in ElectronicItemStatus.objects.filter(report=report):
+                electronic_items.append({
+                    'status_id': s.id,
+                    'item_id': s.item.id if s.item else '',
+                    'item_name': s.item.name if s.item else '',
+                    'checked': s.checked,
+                    'repair': s.repair,
+                    'replacement': s.replacement,
+                    'remark': s.remark
+                })
+
+            panel_items = []
+            for s in ElectronicPanelStatus.objects.filter(report=report):
+                panel_items.append({
+                    'status_id': s.id,
+                    'item_id': s.panel.id if s.panel else '',
+                    'item_name': s.panel.name if s.panel else '',
+                    'checked': s.checked,
+                    'repair': s.repair,
+                    'replacement': s.replacement,
+                    'remark': s.remark
+                })
+
+            chemical_items = []
+            for s in ChemicalItemStatus.objects.filter(report=report):
+                chemical_items.append({
+                    'status_id': s.id,
+                    'item_id': s.item.id if s.item else '',
+                    'item_name': s.item.name if s.item else '',
+                    'checked': s.checked,
+                    'repair': s.repair,
+                    'replacement': s.replacement,
+                    'remark': s.remark
+                })
+
+            pump_items = []
+            for s in PumpStatus.objects.filter(report=report):
+                pump_items.append({
+                    'status_id': s.id,
+                    'item_id': s.pump.id if s.pump else '',
+                    'item_name': s.pump.name if s.pump else '',
+                    'checked': s.checked,
+                    'repair': s.repair,
+                    'replacement': s.replacement,
+                    'remark': s.remark
+                })
+
+            misc_items = []
+            for s in MiscellaneousItemStatus.objects.filter(report=report):
+                misc_items.append({
+                    'status_id': s.id,
+                    'item_id': s.item.id if s.item else '',
+                    'item_name': s.item.name if s.item else '',
+                    'checked': s.checked,
+                    'repair': s.repair,
+                    'replacement': s.replacement,
+                    'remark': s.remark
+                })
+
+            wastewater_items = []
+            for s in WastewaterParameterStatus.objects.filter(report=report):
+                wastewater_items.append({
+                    'status_id': s.id,
+                    'item_id': s.parameter.id if s.parameter else '',
+                    'item_name': s.parameter.name if s.parameter else '',
+                    'checked': s.checked,
+                    'repair': s.repair,
+                    'replacement': s.replacement,
+                    'remark': s.remark
+                })
+
+            run_cycles = []
+            for s in MachineRunTime.objects.filter(service_report=report):
+                run_cycles.append({
+                    'id': s.id,
+                    'run_time': str(s.run_time) if s.run_time else '',
+                    'end_time': str(s.end_time) if s.end_time else '',
+                    'checked': s.checked,
+                    'pass_run': s.pass_status,
+                    'fail_run': s.fail_status,
+                    'remark': s.remark
+                })
+
+            tool_kits = []
+            for s in ToolStatus.objects.filter(service_report=report):
+                tool_kits.append({
+                    'status_id': s.id,
+                    'item_id': s.tool.id if s.tool else '',
+                    'item_name': s.tool.name if s.tool else '',
+                    'quantity': s.quantity,
+                    'remark': s.remark,
+                    'taken_status': s.taken_status
+                })
+
+            attachments = []
+            for a in ServiceReportAttachment.objects.filter(service_report=report):
+                attachments.append({
+                    'id': a.id,
+                    'file_url': a.file.url if a.file else '',
+                    'name': a.file.name if a.file else ''
+                })
+
+            reports_data.append({
+                'id': report.id,
+                'service_name': getattr(report, 'service_name', ''),
+                'date_of_visit': str(report.date_of_visit) if getattr(report, 'date_of_visit', None) else '',
+                'zone': report.zone.id if (hasattr(report, 'zone') and report.zone) else '',
+                'zone_name': report.zone.name if (hasattr(report, 'zone') and report.zone) else '',
+                'site': report.site.id if (hasattr(report, 'site') and report.site) else '',
+                'site_name': report.site.name if (hasattr(report, 'site') and report.site) else '',
+                'phone_no': getattr(report, 'phone_no', ''),
+                'reason_of_visit': getattr(report, 'reason_of_visit', ''),
+                'in_time': str(report.in_time) if getattr(report, 'in_time', None) else '',
+                'out_time': str(report.out_time) if getattr(report, 'out_time', None) else '',
+                'customer_name': getattr(report, 'customer_name', ''),
+                'contact_number': getattr(report, 'contact_number', ''),
+                'location': getattr(report, 'location', ''),
+                'state': report.state.name if (hasattr(report, 'state') and report.state) else '',
+                'state_id': report.state.id if (hasattr(report, 'state') and report.state) else '',
+                'date_of_complaint': str(report.date_of_complaint) if getattr(report, 'date_of_complaint', None) else '',
+                'status_of_call': getattr(report, 'status_of_call', ''),
+                'status': getattr(report, 'status', 'pending'),
+                'rejection_reason': getattr(report, 'rejection_reason', ''),
+                'service_person_name': getattr(report, 'service_person_name', ''),
+                'client_name': getattr(report, 'client_name', ''),
+                'service_person_signature': getattr(report, 'service_person_signature', ''),
+                'client_signature': getattr(report, 'client_signature', ''),
+                'created_at': report.created_date.isoformat() if getattr(report, 'created_date', None) else '',
+                'other_remarks': getattr(report, 'other_remarks', ''),
+                'spares_details': getattr(report, 'spares_details', ''),
+                # Related items
+                'electronic_items': electronic_items,
+                'panel_items': panel_items,
+                'chemical_items': chemical_items,
+                'pump_items': pump_items,
+                'misc_items': misc_items,
+                'wastewater_items': wastewater_items,
+                'run_cycles': run_cycles,
+                'tool_kits': tool_kits,
+                'attachments': attachments,
+            })
+        except Exception as e:
+            print(f"Error serializing report {report.id}: {e}")
+            continue
+
+    return JsonResponse({"status": "success", "is_admin": is_admin, "reports": reports_data})
+
+
 
 from django.shortcuts import render, redirect
 from .models import ServiceReport, ElectronicItem, ElectronicItemStatus, ElectronicPanel ,ElectronicPanelStatus ,WastewaterParameterStatus
 from .models import ChemicalItem ,ChemicalItemStatus ,Pump ,PumpStatus ,MiscellaneousItem ,MiscellaneousItemStatus ,WastewaterParameter
 from .models import MachineRunTime ,Tool ,ToolStatus ,State
 from django.contrib.auth.decorators import login_required
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist  # Import the exception
+from django.http import JsonResponse
 
 
 def safe_get_or_create(model, **kwargs):
@@ -549,6 +792,8 @@ def safe_get_or_create(model, **kwargs):
 
     # If none exists, create one
     return model.objects.create(**kwargs), True
+
+
 
 @login_required
 def servicereport(request):
@@ -603,7 +848,37 @@ from app.models import Zone
 from website.models import Notification
 from datetime import timedelta
 
+from django.views.decorators.csrf import csrf_exempt
+
+def get_user_from_request(request):
+    """Manually checks for a DRF Token in the Authorization header to authenticate requests from the Flutter app."""
+    if not request.user.is_anonymous:
+        return request.user
+
+    auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION')
+    if auth_header and auth_header.startswith('Token '):
+        token_key = auth_header.split(' ')[1]
+        try:
+            from rest_framework.authtoken.models import Token
+            token = Token.objects.get(key=token_key)
+            print(f"DEBUG: Manually authenticated user: {token.user.username}")
+            return token.user
+        except Exception as e:
+            print("Token validation error:", e)
+            print(f"DEBUG: Token validation failure for {token_key[:10]}...: {e}")
+            pass
+    return request.user
+
+@csrf_exempt
 def service_report_new(request):
+    user = get_user_from_request(request)
+    if user.is_anonymous:
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
+        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
+        if is_api:
+            return JsonResponse({"status": "error", "message": "Authentication required. Please login again."}, status=401)
+        return redirect('login')
+
     tools = Tool.objects.all()
     state_name = request.POST.get("state")
     state_instance = State.objects.get(name=state_name) if state_name else None
@@ -613,6 +888,8 @@ def service_report_new(request):
 
 
     if request.method == 'POST':
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
+        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
         print("post data :",request.POST)
         # Static fields from the form (using .get() with default values to avoid errors)
         service_name = request.POST.get('service_name', '')
@@ -643,12 +920,22 @@ def service_report_new(request):
             site = Site.objects.get(id=site_id) if site_id else None
         except ObjectDoesNotExist:
             messages.error(request, 'Invalid Zone or Site selected.')
+            if is_api:
+                return JsonResponse({"status": "error", "message": "Invalid Zone or Site selected."}, status=400)
             return redirect('service_report_new')
         
 
 
+        # Manually authenticate user for API calls
+        user = get_user_from_request(request)
+        if user.is_anonymous:
+            if is_api:
+                return JsonResponse({"status": "error", "message": "Authentication required. Please login again."}, status=401)
+            return redirect('login') # Or wherever unauthenticated web users go
+
+
         service_report = ServiceReport.objects.filter(
-            created_by=request.user,
+            created_by=user,
             site=site,
             date_of_visit=date_of_visit,
             is_draft=True
@@ -697,13 +984,13 @@ def service_report_new(request):
                 service_person_name=service_person_name,
                 client_signature=client_signature,
                 client_name=client_name,
-                created_by=request.user,
+                created_by=user,
                 is_draft=False,
             )
 
         # 🔒 Duplicate prevention BEFORE photo processing
         existing_report = ServiceReport.objects.filter(
-            created_by=request.user,
+            created_by=user,
             date_of_visit=date_of_visit,
             site=site,
             is_draft=False
@@ -711,20 +998,17 @@ def service_report_new(request):
 
         if existing_report:
             messages.warning(request, "A service report for this site and date already exists.")
+            if is_api:
+                return JsonResponse({"status": "error", "message": "A service report for this site and date already exists."}, status=400)
             return redirect('servicereport')
 
-        # Handle multiple files from both fields
-        for file in request.FILES.getlist('attachment_1'):
-            ServiceReportAttachment.objects.create(
-                service_report=service_report,
-                file=file
-            )
-
-        for file in request.FILES.getlist('attachment_2'):
-            ServiceReportAttachment.objects.create(
-                service_report=service_report,
-                file=file
-            )
+        # Handle multiple files from both fields (Standardized keys)
+        for field in ['attachment_1', 'attachment_2', 'attachments1', 'attachments2']:
+            for file in request.FILES.getlist(field):
+                ServiceReportAttachment.objects.create(
+                    service_report=service_report,
+                    file=file
+                )
 
         electronic_panels = ElectronicPanel.objects.all()
         electronic_items = ElectronicItem.objects.all()
@@ -921,7 +1205,7 @@ def service_report_new(request):
             quantity = request.POST.get(f'quantity_{tool.id}')
             remark = request.POST.get(f'remark_tools_{tool.id}')
             taken_status = request.POST.get(f'taken_status_{tool.id}') == 'on'
-            print(f"Tool {tool.name}: {quantity}, {remark}, {taken_status}")
+            print(f"Tool {tool.name}: {quantity}, {remark}")
             
             # Only create the record if quantity is provided
             if quantity:
@@ -935,13 +1219,24 @@ def service_report_new(request):
                     }
                 )
 
-        return redirect('servicereport')
+        # Redundant attachment blocks removed (moved to unified block above)
 
-
-            # if request.method == 'POST':
-            #     state = request.POST.get('state')
-        # Redirect or give feedback after saving
-        # return redirect('servicereport')  # Or any other success response
+        if is_api:
+            attachments = []
+            for a in ServiceReportAttachment.objects.filter(service_report=service_report):
+                attachments.append({
+                    'id': a.id,
+                    'file_url': a.file.url if a.file else '',
+                    'name': a.file.name if a.file else ''
+                })
+            return JsonResponse({
+                "status": "success", 
+                "report_id": service_report.id,
+                "attachments": attachments
+            })
+        
+        messages.success(request, "Service report saved successfully.")
+        return redirect('servicereport')  # Web success fallback
 
     else:
         # If the request is GET, fetch all items and panels for the form
@@ -1363,10 +1658,28 @@ def reject_service_report(request, pk):
     
     return HttpResponseForbidden("Invalid method.")
 
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def get_sites(request):
+
+    fetch_type = request.GET.get('fetch')
     zone_id = request.GET.get('zone_id')
-    sites = Site.objects.filter(zone_id=zone_id).values('id', 'name')
-    return JsonResponse(list(sites), safe=False)
+
+    if fetch_type == 'states':
+        states = State.objects.all().values('id', 'name')
+        return JsonResponse(list(states), safe=False)
+
+    if zone_id:
+        try:
+            sites = Site.objects.filter(zone_id=int(zone_id)).values('id', 'name')
+            return JsonResponse(list(sites), safe=False)
+        except (ValueError, TypeError):
+            return JsonResponse([], safe=False)
+    
+    # If no zone_id is provided, fetch and return all zones
+    zones = Zone.objects.all().values('id', 'name')
+    return JsonResponse(list(zones), safe=False)
 
 
 
@@ -1423,10 +1736,18 @@ from .models import (
     WastewaterParameter, WastewaterParameterStatus,
     MachineRunTime, Tool, ToolStatus
 )
-
+@csrf_exempt
 def edit_service_report(request, report_id):
+    user = get_user_from_request(request)
+    if user.is_anonymous:
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
+        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
+        if is_api:
+            return JsonResponse({"status": "error", "message": "Authentication required."}, status=401)
+        return redirect('login')
+
     service_report = get_object_or_404(ServiceReport, id=report_id)
-    service_report.edited_by = request.user
+    service_report.edited_by = user
 
     existing_attachments = ServiceReportAttachment.objects.filter(service_report=service_report)
     zones = Zone.objects.all()
@@ -1472,6 +1793,8 @@ def edit_service_report(request, report_id):
     machine_runs = MachineRunTime.objects.filter(service_report=service_report)
 
     if request.method == 'POST':
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
+        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
         # Service Report basic fields
         service_report.service_name = request.POST.get('service_name') or service_report.service_name
         service_report.date_of_visit = request.POST.get('date_of_visit')
@@ -1498,9 +1821,13 @@ def edit_service_report(request, report_id):
         # Handle State
         state_id = request.POST.get('state')
         if state_id:
-            state_obj = State.objects.filter(id=state_id).first()
+            state_obj = State.objects.filter(name=state_id).first()
             if state_obj:
                 service_report.state = state_obj
+            if not state_obj and str(state_id).isdigit():
+                state_obj = State.objects.filter(id=state_id).first()
+                if state_obj:
+                    service_report.state = state_obj
 
         # Handle Remarks
         remarks = [v.strip() for k, v in request.POST.items() if k.startswith('remark_orm_') and v.strip()]
@@ -1589,6 +1916,21 @@ def edit_service_report(request, report_id):
         service_report.rejection_reason = None
         service_report.is_draft = False
         service_report.save()
+
+        if is_api:
+            attachments = []
+            for a in ServiceReportAttachment.objects.filter(service_report=service_report):
+                attachments.append({
+                    'id': a.id,
+                    'file_url': a.file.url if a.file else '',
+                    'name': a.file.name if a.file else ''
+                })
+            return JsonResponse({
+                "status": "success", 
+                "report_id": service_report.id,
+                "attachments": attachments
+            })
+
         return redirect('servicereport')
 
     return render(request, 'apage/edit_service_report.html', {
@@ -1607,11 +1949,10 @@ def edit_service_report(request, report_id):
         'existing_attachments': existing_attachments,
     })
 
-
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from weasyprint import HTML
+# from weasyprint import HTML
 from .models import (
     ServiceReport,
     ElectronicItemStatus,
@@ -1641,20 +1982,21 @@ def service_report_pdf(request, pk):
     wastewater_parameter_statuses = WastewaterParameterStatus.objects.filter(report=service_report)
     machine_run_times = MachineRunTime.objects.filter(service_report=service_report)
     tool_statuses = ToolStatus.objects.filter(service_report=service_report)
+    import base64
     attachments = ServiceReportAttachment.objects.filter(service_report=service_report)
 
-    # Create a web-accessible URL for each attachment
     for attachment in attachments:
-        file_path = attachment.file.path
-        if not os.path.exists(file_path):
-            print(f"❌ File does not exist: {file_path}")
-        else:
-            print(f"✅ Image file exists: {file_path}")
-
-        attachment.web_url = f'file://{file_path}'
-
-
-
+        try:
+            if os.path.exists(attachment.file.path):
+                with open(attachment.file.path, 'rb') as f:
+                    b64_data = base64.b64encode(f.read()).decode('utf-8')
+                    ext = attachment.file.path.split('.')[-1].lower()
+                    mime_type = "image/png" if ext == "png" else "image/jpeg"
+                    attachment.local_url = f"data:{mime_type};base64,{b64_data}"
+            else:
+                attachment.local_url = ""
+        except Exception as e:
+            attachment.local_url = ""
 
     context = {
         'service_report': service_report,
@@ -1671,12 +2013,15 @@ def service_report_pdf(request, pk):
 
     html_string = render_to_string('apage/pdf_servicereport.html', context)
 
-    # Use MEDIA_ROOT or base directory as base_url so embedded URLs are resolved
-    pdf_file = HTML(string=html_string, base_url="/").write_pdf()
-
-
-    response = HttpResponse(pdf_file, content_type='application/pdf')
+    # Create a PDF response using weasyprint
+    response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="service_report_{pk}.pdf"'
+
+    from weasyprint import HTML
+    html = HTML(string=html_string, base_url=request.build_absolute_uri())
+    pdf = html.write_pdf()
+    response.write(pdf)
+
     return response
 
 
@@ -1718,20 +2063,37 @@ def servireport_edithistory(request, report_id):
 
     return render(request, 'apage/edithistory_servicereport.html', context)
 
-@login_required
+@csrf_exempt
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def update_service_report_status(request, pk, action):
     service_report = get_object_or_404(ServiceReport, pk=pk)
+    
+    # Ensure only admins can approve/reject
+    user = request.user
+    is_admin = user.groups.filter(name='Admin').exists() or user.is_staff or user.is_superuser
+    if not is_admin:
+        return JsonResponse({"status": "error", "message": "Permission denied. Admins only."}, status=403)
 
-    # Ensure the action is valid
     if action == 'approve':
-        service_report.approve()  # Calls the approve method from the model to update status
+        service_report.approve()
+        return JsonResponse({"status": "success", "message": "Report approved successfully."})
     elif action == 'reject':
-        service_report.reject()  # Calls the reject method from the model to update status
-    else:
-        return HttpResponseForbidden("Invalid action.")  # If action is not approve or reject
+        # Try to get reason from JSON body or POST data
+        try:
+            data = json.loads(request.body)
+            reason = data.get('reason', '')
+        except:
+            reason = request.POST.get('reason', '')
 
-    # Redirect to the service report list or any other relevant page after action
-    return redirect('servicereport')  # Adjust URL as per your project’s structure
+        if not reason:
+            return JsonResponse({"status": "error", "message": "Rejection reason is required."}, status=400)
+
+        service_report.reject(reason)
+        return JsonResponse({"status": "success", "message": "Report rejected successfully."})
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid action."}, status=400)
 
 
 from django.shortcuts import render, get_object_or_404, redirect
@@ -2079,3 +2441,169 @@ def generator_report(request):
         'apage/GeneratorReports_viewing.html',
         {'reports': reports}
     )
+
+
+from django.http import HttpResponseForbidden
+from .models import SiteAMC, Site
+
+@login_required
+def site_amc_management(request):
+    sites = Site.objects.all().order_by('name')
+    amcs = SiteAMC.objects.select_related('site').all()
+    
+    if request.method == 'POST':
+        has_profile = hasattr(request.user, 'userprofile')
+        is_xpredict = has_profile and request.user.userprofile.is_xpredict
+        if not (request.user.is_staff or request.user.is_superuser or is_xpredict):
+             return HttpResponseForbidden("You do not have permission to manage AMCs.")
+             
+        site_id = request.POST.get('site_id')
+        has_amc = request.POST.get('has_amc') == 'on'
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        proof_file = request.FILES.get('proof_file')
+        
+        site = get_object_or_404(Site, id=site_id)
+        
+        amc, created = SiteAMC.objects.get_or_create(site=site)
+        amc.has_amc = has_amc
+        if has_amc:
+            amc.amc_start_date = start_date if start_date else None
+            amc.amc_end_date = end_date if end_date else None
+            if proof_file:
+                amc.proof_file = proof_file
+        else:
+            amc.amc_start_date = None
+            amc.amc_end_date = None
+
+        amc.save()
+        return redirect('site_amc_management')
+
+    return render(request, 'apage/site_amc.html', {
+        'sites': sites,
+        'amcs': amcs,
+    })
+
+
+from .models import Bike, BikeMaintenance
+from .forms import BikeMaintenanceForm
+from website.models import Notification
+
+@login_required
+def bike_maintenance_viewing(request):
+    maintenances = BikeMaintenance.objects.all().order_by('-date')
+    return render(request, 'apage/bike_maintenance_viewing.html', {'maintenances': maintenances})
+
+@login_required
+def bike_maintenance_create(request):
+    from .models import BikeMaintenancePhoto
+    if request.method == 'POST':
+        form = BikeMaintenanceForm(request.POST, request.FILES)
+        if form.is_valid():
+            maintenance = form.save(commit=False)
+            maintenance.reported_by = request.user
+            maintenance.save()
+            form.save_m2m() # Save tagged users
+            
+            # Save uploaded photos
+            photos = request.FILES.getlist('photos')
+            for photo in photos:
+                BikeMaintenancePhoto.objects.create(maintenance=maintenance, image=photo)
+            
+            # Create notifications for tagged users
+            tagged_users = form.cleaned_data.get('tagged_users')
+            if tagged_users:
+                bike_reg = maintenance.bike.registration_number
+                for user in tagged_users:
+                    if user != request.user: # Don't notify the reporter themselves
+                        Notification.objects.create(
+                            user=user,
+                            title=f"Tagged in Bike Maintenance Issue",
+                            message=f"{request.user.username} tagged you in a maintenance report for bike {bike_reg}. Issues: {maintenance.issues_faced}"
+                        )
+                        
+            return redirect('bike_maintenance_viewing')
+    else:
+        form = BikeMaintenanceForm()
+        
+    import json
+    latest_data = {}
+    for bike in Bike.objects.all():
+        last_m = bike.maintenances.order_by('-date').first()
+        if last_m:
+            latest_data[bike.id] = {
+                'last_oil_change_or_service_date': last_m.date.strftime('%Y-%m-%d') if last_m.date else '',
+                'last_oil_change_km': last_m.current_mileage
+            }
+        else:
+            latest_data[bike.id] = {'last_oil_change_or_service_date': '', 'last_oil_change_km': ''}
+            
+    return render(request, 'apage/bike_maintenance.html', {
+        'form': form, 
+        'latest_data_json': json.dumps(latest_data)
+    })
+
+
+@login_required
+def service_expiry_management(request):
+    from .models import Service, ServiceExpiry
+    from datetime import datetime
+    services = Service.objects.all().order_by('name')
+    expiries = ServiceExpiry.objects.select_related('service').all().order_by('expiry_date')
+    
+    edit_obj = None
+    edit_id = request.GET.get('edit')
+    if edit_id:
+        edit_obj = get_object_or_404(ServiceExpiry, id=edit_id)
+
+    if request.method == 'POST':
+        service_name = request.POST.get('service_name')
+        expiry_date_str = request.POST.get('expiry_date')
+        email = request.POST.get('email')
+        expiry_id = request.POST.get('expiry_id') # For editing
+
+        if not service_name or not expiry_date_str or not email:
+            messages.error(request, "All fields are required.")
+            return redirect('service_expiry_management')
+
+        service, created = Service.objects.get_or_create(name=service_name.strip())
+        
+        try:
+            expiry_date = datetime.strptime(expiry_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.error(request, "Invalid date format.")
+            return redirect('service_expiry_management')
+
+        if expiry_id:
+            expiry = get_object_or_404(ServiceExpiry, id=expiry_id)
+            expiry.service = service
+            expiry.expiry_date = expiry_date
+            expiry.email = email.strip()
+            expiry.notified = False  # Reset notification status on edit
+            expiry.save()
+            messages.success(request, "Service expiry updated successfully!")
+        else:
+            ServiceExpiry.objects.create(
+                service=service,
+                expiry_date=expiry_date,
+                email=email.strip(),
+                notified=False
+            )
+            messages.success(request, "Service expiry added successfully!")
+
+        return redirect('service_expiry_management')
+
+    return render(request, 'apage/service_expiry.html', {
+        'services': services,
+        'expiries': expiries,
+        'edit_obj': edit_obj,
+    })
+
+
+@login_required
+def delete_service_expiry(request, expiry_id):
+    from .models import ServiceExpiry
+    expiry = get_object_or_404(ServiceExpiry, id=expiry_id)
+    expiry.delete()
+    messages.success(request, "Service expiry deleted successfully!")
+    return redirect('service_expiry_management')

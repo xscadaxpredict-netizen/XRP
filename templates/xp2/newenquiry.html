@@ -2,278 +2,221 @@
 {% load static %}
 
 {% block content %}
-{% comment %} <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta14/dist/js/tabler.min.js"></script> {% endcomment %}
-<div class="page-header d-print-none">
-  <div class="container-fluid">
-    <div class="row g-2 align-items-center">
-      <div class="col"><br>
-        <h2 class="page-title">New Enquiry</h2>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- Page body -->
-<div class="page-body">
-  <div class="container-fluid">
-    <form action="{% url 'add_data' %}" method="post" class="card" enctype="multipart/form-data">
-      {% csrf_token %}
-      <div class="card-header">
-        <h4 class="card-title">New Enquiry</h4>
-      </div>
-      <div class="card-body">
-        <div class="row g-4">
-          <!-- Left Half -->
-          <div class="col-lg-6">
-            <div class="mb-3">
-              <label class="form-label"><span class="red-asterisk">*</span> Company Name</label><style>.red-asterisk {
-                color: red;
-            }</style>
-              <input type="text" class="form-control" name="companyname" placeholder="Company name">
-            </div>
-            <div class="mb-3">
-              <label class="form-label"><span class="red-asterisk">*</span> Client Contact Name</label>
-              <input type="text" class="form-control" name="customername" placeholder="enter name">
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Refrence</label>
-                <input type="text" class="form-control" name="refrencename" placeholder="">
-              </div>
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              <input type="email" class="form-control" name="email" placeholder="example@gmail.com">
-            </div>
-            <div class="mb-3">
-              <label class="form-label"> Client Contact Number</label>
-              <input type="text" class="form-control" name="contact" placeholder="Contact number">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Location</label>
-              <input type="text" class="form-control" name="location" placeholder="location">
-              {% comment %} <div class="input-group">
-                <input id="editldcorploc" placeholder="Enter your address" onFocus="geolocate2()" type="text" class="form-control" name="crp_location">
-                <button type="button" class="input-group-text" onclick="getLocation2()">
-                  <i class="fa fa-crosshairs"></i>
-                </button> {% endcomment %}
-              
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Status</label>
-              <select class="form-select" name="status">
-                <option value="1">HOT</option>
-                <option value="2">WARM</option>
-                <option value="3">COLD</option>
-              </select>
-            </div>
-          </div>
+<!-- Include Bootstrap Icons CDN to guarantee icons load -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-          <!-- Right Half -->
-          <div class="col-lg-6">
-            <div class="mb-3">
-                <label class="form-label" for="products-name">Product Name</label>
-                <select class="form-select" id="products-name" name="products" >
-                    {% for product in products %}
-                        <option value="{{ product.id }}">{{ product.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Sub Product</label>
-              <input type="text" class="form-control" name="subproduct" placeholder="subproduct name">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Enquiry Date</label>
-              <input type="date" class="form-control" name="closuredate" placeholder="dd/mm/yyyy">
-            </div>
-            <div class="mb-3">
-                <label class="form-label" for="executive-name">Executive</label>
-                <select class="form-select" id="executive-name" name="executive_name">
-                  <option value="" selected disabled>Select Executive</option>
-                  {% for exe in executive %}
-                    <option value="{{ exe.id }}">{{ exe.name }}</option>
-                  {% endfor %}
-                </select>
-                
-            </div>
-           
-              {% csrf_token %}
-              <!-- Other form fields... -->
-            
-              <div class="row" id="attachment-section">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label" for="attachment">Attachment</label>
-                  <input type="file" class="form-control" name="attachment[]" multiple>
-                </div>
-                <div class="col-md-6 mb-3 d-flex align-items-end">
-                  <button type="button" class="btn btn-outline-primary" id="add-attachment-btn">Add More</button>
-                </div>
-              </div>
-            
-             
-            <div class="mb-3">
-              <label class="form-label">Remarks <span class="form-label-description">0/100</span></label>
-              <textarea class="form-control" name="remarks" rows="6" placeholder="Content.."></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="card-footer text-end">
-        <a class="btn btn-link"  href="{% url 'enquries' %}">Cancel</a>
-        <button type="submit" class="btn btn-primary ms-auto">Add data</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-{% comment %} <script src="js/front.js"></script>
-    <script>
-function getLocation() {
-	  if (navigator.geolocation) {
-	    navigator.geolocation.getCurrentPosition(showPosition);
-	  } else {
-	    x.innerHTML = "Geolocation is not supported by this browser.";
-	  }
-	}
-
-function showPosition(position) {
-
-	 var geocoder;
-	 geocoder = new google.maps.Geocoder();
-
-  a = "Latitude: " + position.coords.latitude +
-  "<br>Longitude: " + position.coords.longitude;
-
-
-  var latlng = new google.maps.LatLng(position.coords.latitude,  position.coords.longitude);
-  var geocoder = geocoder = new google.maps.Geocoder();
-  geocoder.geocode({ 'latLng': latlng }, function (results, status) {
-      if (status == google.maps.GeocoderStatus.OK) {
-          if (results[1]) {
-            /*   alert("Location: " + results[1].formatted_address);  */
-        	  $("#autocomplete").val( results[1].formatted_address );
-          }
-      }
-  });
-
-
-
-}
-function getLocation2() {
-	  if (navigator.geolocation) {
-	    navigator.geolocation.getCurrentPosition(showPosition2);
-	  } else {
-	    x.innerHTML = "Geolocation is not supported by this browser.";
-	  }
-	}
-
-function showPosition2(position) {
-
-	 var geocoder;
-	 geocoder = new google.maps.Geocoder();
-
-a = "Latitude: " + position.coords.latitude +
-"<br>Longitude: " + position.coords.longitude;
-
-
-var latlng = new google.maps.LatLng(position.coords.latitude,  position.coords.longitude);
-var geocoder = geocoder = new google.maps.Geocoder();
-geocoder.geocode({ 'latLng': latlng }, function (results, status) {
-    if (status == google.maps.GeocoderStatus.OK) {
-        if (results[1]) {
-          /*   alert("Location: " + results[1].formatted_address);  */
-      	  $("#editldcorploc").val( results[1].formatted_address );
-        }
+<style>
+    .dashboard-transition-container {
+        opacity: 0;
+        transform: translateY(15px);
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
-});
+    .dashboard-transition-container.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .dashboard-transition-container.fade-out {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    .red-asterisk {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
 
+<div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
+    <!-- Django Messages Alert -->
+    {% if messages %}
+        <div class="row">
+            <div class="col-12">
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% else %}info{% endif %} alert-dismissible fade show rounded-3 shadow-sm mb-4" role="alert">
+                        {% if message.tags == 'error' %}
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% elif message.tags == 'success' %}
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                        {% endif %}
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h1 class="h2 fw-bold text-dark mb-0">New Enquiry</h1>
+    </div>
 
-}
-</script>
-    <script type="text/javascript">
+    <!-- Page body -->
+    <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
+        <form action="{% url 'add_data' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <h3 class="fw-bold text-dark mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Enquiry Information</h3>
+            </div>
+            
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <!-- Left Half -->
+                    <div class="col-lg-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark"><span class="red-asterisk">*</span> Company Name</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="companyname" placeholder="Company name" value="{{ form_data.companyname }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark"><span class="red-asterisk">*</span> Client Contact Name</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="customername" placeholder="Enter contact name" value="{{ form_data.customername }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Reference</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="refrencename" placeholder="Reference source" value="{{ form_data.refrencename }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Email</label>
+                            <input type="email" class="form-control rounded-3 shadow-sm" name="email" placeholder="example@gmail.com" value="{{ form_data.email }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Client Contact Number</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="contact" placeholder="Contact number" value="{{ form_data.contact }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Location</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="location" placeholder="Location" value="{{ form_data.location }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Status</label>
+                            <select class="form-select rounded-3 shadow-sm" name="status">
+                                <option value="1" {% if not form_data.status or form_data.status == "1" %}selected{% endif %}>HOT</option>
+                                <option value="2" {% if form_data.status == "2" %}selected{% endif %}>WARM</option>
+                                <option value="3" {% if form_data.status == "3" %}selected{% endif %}>COLD</option>
+                            </select>
+                        </div>
+                    </div>
 
- var gps_id;
- initAutoComplete();
- function initialize() {
-   gps_id = new google.maps.places.Autocomplete(
-       /** @type {HTMLInputElement} */(document.getElementById('autocomplete')),
-       { types: ['establishment'] });
-   google.maps.event.addListener(gps_id, 'place_changed', function() {
-   });
-   gps_id2 = new google.maps.places.Autocomplete(
-         /** @type {HTMLInputElement} */(document.getElementById('editldcorploc')),
-         { types: ['establishment'] });
-     google.maps.event.addListener(gps_id, 'place_changed', function() {
-     });
- }
- $("#autocomplete").focus(function () { geolocate(); });
- $("#editldcorploc").focus(function () { geolocate2(); });
+                    <!-- Right Half -->
+                    <div class="col-lg-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark" for="products-name">Product Name</label>
+                            <select class="form-select rounded-3 shadow-sm" id="products-name" name="products">
+                                {% for product in products %}
+                                    <option value="{{ product.id }}" {% if form_data.products == product.id|stringformat:"s" %}selected{% endif %}>{{ product.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Sub Product</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="subproduct" placeholder="Subproduct name" value="{{ form_data.subproduct }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Enquiry Date</label>
+                            <input type="date" class="form-control rounded-3 shadow-sm" name="closuredate" value="{{ form_data.closuredate }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark" for="executive-name">Executive</label>
+                            <select class="form-select rounded-3 shadow-sm" id="executive-name" name="executive_name" required>
+                                <option value="" {% if not form_data.executive_name %}selected{% endif %} disabled>Select Executive</option>
+                                {% for exe in executive %}
+                                    <option value="{{ exe.id }}" {% if form_data.executive_name == exe.id|stringformat:"s" %}selected{% endif %}>{{ exe.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                     
+                        <div class="row align-items-end" id="attachment-section">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold text-dark" for="attachment">Attachment</label>
+                                <input type="file" class="form-control rounded-3 shadow-sm" name="attachment[]" multiple>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <button type="button" class="btn btn-outline-primary rounded-pill shadow-sm" id="add-attachment-btn">
+                                    <i class="bi bi-paperclip me-1"></i> Add More
+                                </button>
+                            </div>
+                        </div>
+                      
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Remarks</label>
+                            <textarea class="form-control rounded-3 shadow-sm" name="remarks" rows="5" placeholder="Add any details or special requests...">{{ form_data.remarks }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-transparent border-top-0 p-4 d-flex justify-content-end gap-2">
+                <a class="btn btn-outline-secondary px-4 rounded-pill transition-link" href="{% url 'enquries' %}">Cancel</a>
+                <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                    <i class="bi bi-check-lg me-1"></i> Save Enquiry
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-ZpmaXyrta_wO6VpqlfFy9n4Uz-_PynI&libraries=places&region=IN&callback=initialize" async defer>
-</script> {% endcomment %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // Page transition
+    const container = document.getElementById("dashboard-container");
+    if (container) {
+        requestAnimationFrame(() => {
+            container.classList.add("visible");
+        });
+    }
+    
+    const transitionLinks = document.querySelectorAll(".transition-link");
+    transitionLinks.forEach(link => {
+        link.addEventListener("click", function(e) {
+            e.preventDefault();
+            const targetUrl = this.getAttribute("href");
+            if (container) {
+                container.classList.remove("visible");
+                container.classList.add("fade-out");
+            }
+            setTimeout(() => {
+                window.location.href = targetUrl;
+            }, 350);
+        });
+    });
+
+    // Attachment Section JS
     const attachmentSection = document.getElementById("attachment-section");
     const addAttachmentBtn = document.getElementById("add-attachment-btn");
   
     addAttachmentBtn.addEventListener("click", function () {
-      // Create a new row for the attachment input and remove button
-      const newRow = document.createElement("div");
-      newRow.classList.add("row", "mt-2");
-  
-      // Create the column for the file input
-      const inputCol = document.createElement("div");
-      inputCol.classList.add("col-md-6", "mb-3");
-  
-      // Create the file input element
-      const newInput = document.createElement("input");
-      newInput.type = "file";
-      newInput.name = "attachment[]";
-      newInput.classList.add("form-control");
-  
-      // Append the input to the input column
-      inputCol.appendChild(newInput);
-  
-      // Create the column for the remove button
-      const buttonCol = document.createElement("div");
-      buttonCol.classList.add("col-md-6", "mb-3", "d-flex", "align-items-center");
-  
-      // Create the remove button
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.classList.add("btn", "btn-outline-danger", "ms-2");
-      removeBtn.textContent = "Remove";
-  
-      // Add event listener to remove the row
-      removeBtn.addEventListener("click", function () {
-        attachmentSection.removeChild(newRow);
-      });
-  
-      // Append the remove button to the button column
-      buttonCol.appendChild(removeBtn);
-  
-      // Append the columns to the new row
-      newRow.appendChild(inputCol);
-      newRow.appendChild(buttonCol);
-  
-      // Append the new row to the attachment section
-      attachmentSection.appendChild(newRow);
+        const newRow = document.createElement("div");
+        newRow.classList.add("row", "mt-2", "align-items-center");
+    
+        const inputCol = document.createElement("div");
+        inputCol.classList.add("col-md-6", "mb-2");
+    
+        const newInput = document.createElement("input");
+        newInput.type = "file";
+        newInput.name = "attachment[]";
+        newInput.classList.add("form-control", "rounded-3");
+    
+        inputCol.appendChild(newInput);
+    
+        const buttonCol = document.createElement("div");
+        buttonCol.classList.add("col-md-6", "mb-2", "d-flex", "align-items-center");
+    
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.classList.add("btn", "btn-outline-danger", "rounded-pill", "btn-sm");
+        removeBtn.innerHTML = "<i class='bi bi-trash me-1'></i> Remove";
+    
+        removeBtn.addEventListener("click", function () {
+            attachmentSection.removeChild(newRow);
+        });
+    
+        buttonCol.appendChild(removeBtn);
+        newRow.appendChild(inputCol);
+        newRow.appendChild(buttonCol);
+        attachmentSection.appendChild(newRow);
     });
-  });
-</script>
-<script>
-  document.getElementById("add-attachment-btn").addEventListener("click", function() {
-    const attachmentSection = document.getElementById("attachment-section");
-    const newInput = document.createElement("div");
-    newInput.classList.add("col-md-6", "mb-3");
-    newInput.innerHTML = `
-        <label class="form-label" for="attachment">Attachment</label>
-        <input type="file" class="form-control" name="attachment[]">
-    `;
-    attachmentSection.appendChild(newInput);
 });
 </script>
-{% endblock content %} 
-
-
+{% endblock content %}

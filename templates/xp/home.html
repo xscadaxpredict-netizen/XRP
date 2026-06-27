@@ -1,311 +1,522 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div class="container-fluid mt-4 pb-5" style="background: #f8fafc; min-height: 100vh;">
+    
+    <!-- Birthday Celebration Banner -->
+    {% if todays_birthdays %}
+    <div class="alert alert-primary border-0 text-center mb-4 shadow-sm p-4 rounded-4 position-relative overflow-hidden"
+        style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(244, 63, 94, 0.08) 100%); border: 1px solid rgba(239, 68, 68, 0.15) !important; animation: popIn 0.6s ease-out;">
+        
+        {% if self_birthday %}
+        <span class="fs-2 mb-1 d-block">🎉</span>
+        <h3 class="font-weight-bold text-danger mb-1" style="font-size: 1.5rem;">Happy Birthday, {{ request.user.first_name|default:request.user.username }}! 🎂</h3>
+        <p class="text-muted small mb-0">Wishing you a wonderful day filled with joy, success, and accomplishments! ❤️</p>
+        {% else %}
+        <span class="fs-2 mb-1 d-block">🎂</span>
+        <h3 class="font-weight-bold text-danger mb-1" style="font-size: 1.5rem;">Team Birthday Today!</h3>
+        <p class="text-muted small mb-0">
+            Let's wish <strong>{% for u in todays_birthdays %}{{ u.first_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong> a very Happy Birthday! 🎈
+        </p>
+        {% endif %}
+    </div>
 
-<style>
-    .notifications-wrapper {
-        max-width: 600px;
-        margin: 50px auto;
-        padding: 20px;
-    }
-
-    .notification-carousel {
-        position: relative;
-        overflow: hidden;
-        height: 180px;
-        border-radius: 8px;
-        border-left: 5px solid #1976d2;
-
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        padding: 20px;
-    }
-
-    .notification-slide {
-        display: none;
-        animation: fadeIn 0.5s ease-in-out;
-    }
-
-    .notification-slide.active {
-        display: block;
-    }
-
-    .notification-title {
-        font-weight: bold;
-        color: #1976d2;
-        font-size: 18px;
-        margin-bottom: 5px;
-    }
-
-    .notification-message {
-        font-size: 15px;
-        margin-bottom: 10px;
-    }
-
-    .notification-timestamp {
-        font-size: 12px;
-        color: #777;
-        text-align: right;
-    }
-
-    .nav-buttons {
-        text-align: center;
-        margin-top: 10px;
-    }
-
-    .nav-buttons button {
-        background: #1976d2;
-        color: #fff;
-        border: none;
-        padding: 6px 14px;
-        margin: 0 5px;
-        border-radius: 4px;
-        font-size: 14px;
-        cursor: pointer;
-    }
-
-    .nav-buttons button:hover {
-        background: #145a9e;
-    }
-
-    @keyframes fadeIn {
-        from {opacity: 0;}
-        to {opacity: 1;}
-    }
-
-    .empty-message {
-        text-align: center;
-        color: #999;
-        padding: 30px;
-    }
-
-    .site-visits-wrapper {
-        max-width: 1000px;
-        margin: 50px auto;
-        padding: 20px;
-    }
-
-    .site-visits-wrapper table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-    }
-
-    .site-visits-wrapper th, .site-visits-wrapper td {
-        padding: 10px;
-        border: 1px solid #ddd;
-    }
-
-    .site-visits-wrapper th {
-        background-color: #f1f1f1;
-        font-weight: bold;
-    }
-
-    .pending-cell {
-        color: #b30000;
-        font-weight: bold;
-    }
-</style>
-{% if todays_birthdays %}
-<div class="alert alert-primary text-center mb-4 shadow-lg birthday-banner"
-     style="font-size: 20px; font-weight: bold; animation: popIn 0.6s;">
-
-    {% if self_birthday %}
-        <!-- 🎉 If the logged-in user's own birthday -->
-        🎉 <strong>Happy Birthday {{ request.user.first_name }}!</strong> 🎂
-        <div style="font-size: 15px; margin-top: 5px;">
-            Wishing you joy, success, and a wonderful year ahead!
-        </div>
-
-    {% else %}
-        <!-- 🎂 If someone ELSE has birthday today -->
-         <strong>
-            It’s 
-            {% for u in todays_birthdays %}
-                {{ u.first_name }}{% if not forloop.last %} & {% endif %}
-            {% endfor %}
-            {% if todays_birthdays|length > 1 %}’s{% else %}’s{% endif %}
-            Birthday Today!
-        </strong> 🎉
-
-        <div style="font-size: 15px; margin-top: 5px;">
-            Don’t forget to wish {% for u in todays_birthdays %}
-                {{ u.first_name }}{% if not forloop.last %} and {% endif %}
-            {% endfor %}!
-        </div>
-
+    <style>
+        @keyframes popIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
     {% endif %}
-</div>
 
-<style>
-@keyframes popIn {
-    from { transform: scale(0.5); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-}
-</style>
-{% endif %}
-
-<div class="notifications-wrapper">
-    <h3 class="text-center mb-4"> This Week's Notifications</h3>
-
-    {% if notifications %}
-        <div class="notification-carousel" id="notification-carousel">
-            {% for notification in notifications %}
-            <div class="notification-slide{% if forloop.first %} active{% endif %}">
-                <div class="notification-title">
-                    {% if request.user.is_superuser or request.user.is_staff %}
-                        {{ notification.user.username }} —
-                    {% endif %}
-                    {{ notification.title }}
+    <!-- Welcome Header (Blue Gradient Card) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 text-white position-relative overflow-hidden" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
+                <!-- Decorative shapes -->
+                <div style="position: absolute; right: -30px; top: -30px; width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,0.08); pointer-events: none;"></div>
+                <div style="position: absolute; left: -20px; bottom: -20px; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.05); pointer-events: none;"></div>
+                
+                <div class="card-body p-4 d-flex align-items-center justify-content-between position-relative" style="z-index: 2;">
+                    <div>
+                        <h2 class="font-weight-bold text-white mb-1" style="font-size: 1.8rem; letter-spacing: -0.02em;">
+                            Hello, {{ request.user.first_name|default:request.user.username }}! 👋
+                        </h2>
+                        <p class="text-white-50 mb-0 small">Welcome back to your Xpredict dashboard. Here is your overview for today.</p>
+                    </div>
+                    <div class="d-none d-md-block text-end">
+                        <span class="text-white-50 d-block small" id="current-day-name">Today</span>
+                        <span class="font-weight-bold text-white" id="current-date-display" style="font-size: 1.1rem;">-</span>
+                    </div>
                 </div>
-                <div class="notification-message">{{ notification.message }}</div>
-                <div class="notification-timestamp">{{ notification.created_at|date:"d M Y, h:i A" }}</div>
             </div>
-            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <div class="row g-4">
+        
+        <!-- Left Column: Site Visit Summary -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="card-title font-weight-bold mb-1" style="font-size: 1.25rem;">📋 Site Visit Summary</h3>
+                        <p class="text-muted small mb-0">Track compliance and pending maintenance reviews</p>
+                    </div>
+                    <span class="badge bg-light text-dark px-3 py-2 rounded-pill font-weight-bold border">15 Day Cycle</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="border-collapse: separate; border-spacing: 0 8px;">
+                            <thead>
+                                <tr class="text-muted small font-weight-bold" style="border-bottom: 2px solid #f1f5f9;">
+                                    <th class="border-0 pb-3" style="width: 40%;">Site Name</th>
+                                    <th class="border-0 pb-3">Last Visit</th>
+                                    <th class="border-0 pb-3">Next Visit Due</th>
+                                    <th class="border-0 pb-3 text-end" style="width: 20%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in visit_data %}
+                                <tr class="shadow-sm-hover" style="background-color: #fcfdfe; border-radius: 12px; margin-bottom: 8px;">
+                                    <td class="font-weight-bold text-dark border-0 py-3 rounded-start" style="padding-left: 1rem;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="p-2 rounded-3 bg-light text-primary" style="font-size: 1.1rem;"><i class="bi bi-building"></i></div>
+                                            <span>{{ row.site.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted border-0 py-3">{{ row.last_visit|date:"d M Y" }}</td>
+                                    <td class="text-muted border-0 py-3">{{ row.next_visit|date:"d M Y" }}</td>
+                                    <td class="border-0 py-3 text-end rounded-end" style="padding-right: 1rem;">
+                                        {% if row.is_due %}
+                                        <span class="badge bg-danger-lt px-3 py-2 rounded-pill font-weight-bold" style="font-size: 0.75rem;"><i class="bi bi-exclamation-triangle me-1"></i> Pending</span>
+                                        {% else %}
+                                        <span class="badge bg-success-lt px-3 py-2 rounded-pill font-weight-bold" style="font-size: 0.75rem;"><i class="bi bi-check-circle me-1"></i> Up-to-date</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-5">
+                                        <div class="fs-1 mb-2"><i class="bi bi-folder-x text-muted opacity-50"></i></div>
+                                        <span>No site visit records found.</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="nav-buttons">
-            <button onclick="prevSlide()">◀ Prev</button>
-            <button onclick="nextSlide()">Next ▶</button>
+        <!-- Right Column: Notifications Feed -->
+        <div class="col-lg-4">
+            <!-- Notifications Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="card-title font-weight-bold mb-1" style="font-size: 1.25rem;">🔔 Weekly Notifications</h3>
+                        <p class="text-muted small mb-0">Recent system actions and logs</p>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    {% if notifications %}
+                    <div class="notification-carousel-container" style="position: relative; min-height: 220px;">
+                        {% for notification in notifications %}
+                        <div class="notification-slide-card card border shadow-sm p-4 rounded-4 mb-3 position-relative transition-all" 
+                             style="display: none; border-left: 4px solid var(--primary) !important; background-color: #fcfdfe;">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge bg-primary-lt px-2 py-1 rounded-pill small font-weight-bold" style="font-size: 0.7rem;">
+                                    {% if request.user.is_superuser or request.user.is_staff %}
+                                    {{ notification.user.username }}
+                                    {% else %}
+                                    Log
+                                    {% endif %}
+                                </span>
+                                <span class="text-muted small" style="font-size: 0.7rem;">{{ notification.created_at|date:"d M, h:i A" }}</span>
+                            </div>
+                            <h4 class="font-weight-bold text-dark mb-2" style="font-size: 1.05rem; letter-spacing: -0.01em;">{{ notification.title }}</h4>
+                            <p class="text-muted small mb-0 leading-relaxed">{{ notification.message }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Carousel Controls -->
+                    <div class="d-flex align-items-center justify-content-center gap-3 mt-3">
+                        <button onclick="prevSlide()" class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; padding: 0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                            </svg>
+                        </button>
+                        <span class="text-muted small font-weight-bold" id="carouselCounter">1 of 1</span>
+                        <button onclick="nextSlide()" class="btn btn-outline-primary btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; padding: 0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-5 d-flex flex-column justify-content-center align-items-center">
+                        <div class="fs-1 mb-2">🔕</div>
+                        <p class="small mb-0">No notifications logged this week.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Holiday Calendar Card -->
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="card-title font-weight-bold mb-1" style="font-size: 1.25rem;">📅 Holiday Calendar ({{ current_year }})</h3>
+                        <p class="text-muted small mb-0">Official holidays list for the year</p>
+                    </div>
+                    {% if request.user.is_superuser %}
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#holidayModal" style="font-size: 0.75rem;">
+                        Update
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body p-4 pt-2">
+                    <div class="holiday-list" style="max-height: 350px; overflow-y: auto;">
+                        {% for holiday in holidays %}
+                        <div class="d-flex align-items-center gap-3 py-2 border-bottom {% if holiday.date < today %}opacity-50{% endif %}" style="border-color: #f1f5f9 !important;">
+                            <div class="text-center rounded-3 p-2 bg-light text-primary font-weight-bold" style="min-width: 55px; line-height: 1.2;">
+                                <span class="d-block small text-uppercase" style="font-size: 0.65rem;">{{ holiday.date|date:"M" }}</span>
+                                <span class="fs-4 d-block">{{ holiday.date|date:"d" }}</span>
+                            </div>
+                            <div>
+                                <span class="font-weight-bold text-dark d-block" style="font-size: 0.95rem;">{{ holiday.name }}</span>
+                                <span class="text-muted small" style="font-size: 0.75rem;">{{ holiday.date|date:"l" }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-4">
+                            <span class="fs-3 d-block mb-1">🏖️</span>
+                            <span class="small">No holidays listed for {{ current_year }}.</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
-    {% else %}
-        <p class="empty-message"> No notifications this week.</p>
-    {% endif %}
-</div>
-
-<!-- 📊 Site Visit Tracker -->
-<div class="site-visits-wrapper container mt-4">
-    <h3 class="text-center mb-4">📋 Site Visit Summary</h3>
-
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped align-middle">
-            <thead class="table-primary">
-                <tr>
-                    <th>Site</th>
-                    <th>Last Visit</th>
-                    <th>Next Visit Due</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in visit_data %}
-                <tr>
-                    <td>{{ row.site.name }}</td>
-                    <td>{{ row.last_visit|date:"d M Y" }}</td>
-                    <td>{{ row.next_visit|date:"d M Y" }}</td>
-                    <td>
-                        {% if row.is_due %}
-                            <span class="badge bg-danger text-white">Pending</span>
-                        {% else %}
-                            <span class="badge bg-success">Up-to-date</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center text-muted">No site visit data found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        
     </div>
 </div>
 
+<style>
+    /* Styling adjustments */
+    .shadow-sm-hover {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .shadow-sm-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.04) !important;
+    }
+    .bg-danger-lt {
+        background-color: rgba(239, 68, 68, 0.1) !important;
+        color: #ef4444 !important;
+    }
+    .bg-success-lt {
+        background-color: rgba(16, 185, 129, 0.1) !important;
+        color: #10b981 !important;
+    }
+    .notification-slide-card {
+        animation: fadeIn 0.4s ease-out;
+    }
+    .notification-slide-card.active {
+        display: block !important;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<!-- Carousel Control Script -->
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    let slides = document.querySelectorAll('.notification-slide');
-    let currentIndex = 0;
+    document.addEventListener("DOMContentLoaded", function () {
+        let slides = document.querySelectorAll('.notification-slide-card');
+        let counter = document.getElementById('carouselCounter');
+        let currentIndex = 0;
 
-    function showSlide(index) {
-        slides.forEach(slide => slide.classList.remove('active'));
-        slides[index].classList.add('active');
-    }
+        function showSlide(index) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            if (slides.length > 0) {
+                slides[index].classList.add('active');
+                if (counter) {
+                    counter.textContent = `${index + 1} of ${slides.length}`;
+                }
+            }
+        }
 
-    window.nextSlide = function () {
-        currentIndex = (currentIndex + 1) % slides.length;
+        window.nextSlide = function () {
+            if (slides.length > 0) {
+                currentIndex = (currentIndex + 1) % slides.length;
+                showSlide(currentIndex);
+            }
+        }
+
+        window.prevSlide = function () {
+            if (slides.length > 0) {
+                currentIndex = (currentIndex - 1 + slides.length) % slides.length;
+                showSlide(currentIndex);
+            }
+        }
+
+        // Initialize carousel display
         showSlide(currentIndex);
-    }
 
-    window.prevSlide = function () {
-        currentIndex = (currentIndex - 1 + slides.length) % slides.length;
-        showSlide(currentIndex);
-    }
-
-    // Optional: auto-scroll every 7 seconds
-    setInterval(() => {
-        nextSlide();
-    }, 7000);
-});
+        // Optional: auto-scroll every 7 seconds
+        if (slides.length > 1) {
+            setInterval(() => {
+                nextSlide();
+            }, 7000);
+        }
+    });
 </script>
+
 {% if show_birthday_popup %}
 <!-- Confetti Script -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
 
-    // 🎉 Confetti blast
-    for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
-            confetti({
-                particleCount: 200,
-                spread: 120,
-                origin: { y: 0.6 }
-            });
-        }, i * 500);
-    }
+        // 🎉 Confetti blast
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                confetti({
+                    particleCount: 200,
+                    spread: 120,
+                    origin: { y: 0.6 }
+                });
+            }, i * 500);
+        }
 
-    // 🎂 Popup for self Birthday
-    {% if self_birthday %}
-    Swal.fire({
-        title: "🎉 Happy Birthday {{ request.user.first_name }}! 🎂",
-        html: `
+        // 🎂 Popup for self Birthday
+        {% if self_birthday %}
+        Swal.fire({
+            title: "🎉 Happy Birthday {{ request.user.first_name|default:request.user.username }}! 🎂",
+            html: `
             <p style="font-size:16px;">
                 Wishing you a year filled with joy, growth, and success!
             </p>
         `,
-        icon: "success",
-        confirmButtonText: "Thank you! ❤️",
-    });
-    {% endif %}
+            icon: "success",
+            confirmButtonText: "Thank you! ❤️",
+        });
+        {% endif %}
 
-    // 🎈 Popup for others Birthday
-    {% if others_birthdays %}
-    Swal.fire({
-        title: "🎂 Team Birthday Today!",
-        html: `
-            <p><strong>{% for u in others_birthdays %}{{ u.first_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong> celebrates their birthday today! 🎉</p>
+        // 🎈 Popup for others Birthday
+        {% if others_birthdays %}
+        Swal.fire({
+            title: "🎂 Team Birthday Today!",
+            html: `
+            <p><strong>{% for u in others_birthdays %}{{ u.first_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong> celebrates their birthday today! 🎉</p>
             <p style="font-size:15px;">Don't forget to wish them!</p>
         `,
-        icon: "info",
-        confirmButtonText: "Got it 🎈",
+            icon: "info",
+            confirmButtonText: "Got it 🎈",
+        });
+        {% endif %}
+
     });
-    {% endif %}
-
-});
 </script>
-<script>
-    fetch("api/mobile-session/", { credentials: "include" })
-      .then(r => r.json())
-      .then(d => {
-        if (window.AndroidToken) {
-          window.AndroidToken.postMessage(d.token);
-        }
-      });
-    </script>
-
-
 {% endif %}
 
+<!-- Mobile Integration Sessions Sync -->
 <script>
     fetch("/website/api/mobile-session/", { credentials: "include" })
       .then(r => r.json())
       .then(d => {
-        console.log("MOBILE TOKEN =", d.token);
+        // ❌ DO NOT send empty token
+        if (!d.token) {
+          console.warn("Mobile token not ready yet");
+          return;
+        }
+
+        console.log("SENDING MOBILE TOKEN =", d.token);
+
         if (window.Mobile) {
-          window.Mobile.postMessage(d.token);
+          window.Mobile.postMessage(
+            JSON.stringify({
+              type: "MOBILE_TOKEN",
+              token: d.token
+            })
+          );
         }
       });
-    </script>
+</script>
+
+<!-- Dynamic Header Date Script -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const dateDisplay = document.getElementById("current-date-display");
+        const dayNameDisplay = document.getElementById("current-day-name");
+        if (dateDisplay && dayNameDisplay) {
+            const now = new Date();
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            
+            dayNameDisplay.textContent = days[now.getDay()];
+            dateDisplay.textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+        }
+    });
+</script>
+
+{% if request.user.is_superuser %}
+<!-- Holiday Management Modal -->
+<div class="modal fade" id="holidayModal" tabindex="-1" aria-labelledby="holidayModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background: #ffffff;">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title font-weight-bold fs-3 text-dark" id="holidayModalLabel">📅 Update Holiday Calendar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">Update the list of holidays. When you save, all current holidays will be replaced with this list.</p>
+                <form id="holidayForm">
+                    <div id="holiday-rows-container" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                        <!-- Dynamic rows populated by JS -->
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill mt-3 px-3" onclick="addHolidayRow()">
+                        + Add Holiday
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveHolidayCalendar()">Save Calendar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SweetAlert2 Script if not loaded -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Holiday Management Script -->
+<script>
+    const existingHolidays = [];
+    {% for holiday in holidays %}
+    existingHolidays.push({
+        name: "{{ holiday.name|escapejs }}",
+        date: "{{ holiday.date|date:'Y-m-d' }}"
+    });
+    {% endfor %}
     
-    
+    // De-duplicate loaded items from template tags
+    const uniqueHolidays = [];
+    const seenHolidays = new Set();
+    existingHolidays.forEach(h => {
+        if (h.name && h.date) {
+            const key = h.name + '|' + h.date;
+            if (!seenHolidays.has(key)) {
+                seenHolidays.add(key);
+                uniqueHolidays.push(h);
+            }
+        }
+    });
+
+    function populateHolidayRows() {
+        const container = document.getElementById('holiday-rows-container');
+        container.innerHTML = '';
+        if (uniqueHolidays.length === 0) {
+            addHolidayRow();
+        } else {
+            uniqueHolidays.forEach(h => {
+                addHolidayRow(h.name, h.date);
+            });
+        }
+    }
+
+    function addHolidayRow(name = '', date = '') {
+        const container = document.getElementById('holiday-rows-container');
+        const rowId = 'row-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        const rowHtml = `
+            <div class="row g-2 mb-2 align-items-center holiday-row" id="${rowId}">
+                <div class="col-7">
+                    <input type="text" class="form-control holiday-name" placeholder="Holiday Name" value="${name}" required>
+                </div>
+                <div class="col-4">
+                    <input type="date" class="form-control holiday-date" value="${date}" required>
+                </div>
+                <div class="col-1 text-end">
+                    <button type="button" class="btn btn-link text-danger p-0" onclick="document.getElementById('${rowId}').remove()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    function saveHolidayCalendar() {
+        const rows = document.querySelectorAll('.holiday-row');
+        const holidays = [];
+        
+        for (let row of rows) {
+            const nameInput = row.querySelector('.holiday-name');
+            const dateInput = row.querySelector('.holiday-date');
+            
+            if (nameInput.value.trim() && dateInput.value) {
+                holidays.push({
+                    name: nameInput.value.trim(),
+                    date: dateInput.value
+                });
+            }
+        }
+        
+        fetch("{% url 'update_holidays' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ holidays: holidays })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    title: "Success!",
+                    text: "Holiday calendar updated successfully.",
+                    icon: "success",
+                    confirmButtonText: "OK"
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    title: "Error",
+                    text: data.error || "Failed to save holidays.",
+                    icon: "error"
+                });
+            }
+        })
+        .catch(err => {
+            Swal.fire({
+                title: "Error",
+                text: "An error occurred while updating the calendar.",
+                icon: "error"
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const modalEl = document.getElementById('holidayModal');
+        if (modalEl) {
+            modalEl.addEventListener('show.bs.modal', populateHolidayRows);
+        }
+    });
+</script>
+{% endif %}
+
 {% endblock %}
