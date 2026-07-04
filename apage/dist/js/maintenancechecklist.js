@@ -8,7 +8,8 @@
     // Add event listener for the 'input' event on the visit-date field
     visitDateInput.addEventListener("input", function () {
         if (!visitDateInput.value) return;
-        const selectedDate = new Date(visitDateInput.value + "T00:00:00"); // Convert selected date to Date object
+        const parts = visitDateInput.value.split('-');
+        const selectedDate = new Date(parts[0], parts[1] - 1, parts[2]); // Convert selected date to Date object
         const today = new Date(); // Get today's date
         today.setHours(0, 0, 0, 0);  // Set today's time to 00:00:00 for comparison
 
