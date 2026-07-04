@@ -81,7 +81,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const dateError = document.getElementById('date-error');
     if (dateInput && dateError) {
       dateInput.addEventListener('change', function() {
-        const selectedDate = new Date(this.value);
+        if (!this.value) return;
+        const selectedDate = new Date(this.value + 'T00:00:00');
         const today = new Date();
         today.setHours(0,0,0,0);
         if (selectedDate > today) {
