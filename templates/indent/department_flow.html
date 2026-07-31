@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-center my-4">Department Tree</h2>
+
+<div class="tree-wrap">
+  <ul class="tree">
+    {% for dept in dept_data %}
+      {% if not dept.parent %}
+        {% include "indent/department_node_vertical.html" with dept=dept %}
+      {% endif %}
+    {% endfor %}
+  </ul>
+</div>
+
+<style>
+/* Layout */
+.tree-wrap { display:flex; justify-content:center; padding:20px 10px; } /* center tree [2] */
+.tree, .tree ul { position:relative; padding:20px 0 0 0; display:flex; justify-content:center; gap:24px; } /* nested ULs as rows [2][6] */
+.tree li { list-style:none; text-align:center; position:relative; padding:24px 12px 0; } /* nodes are positioned containers [2] */
+
+/* Connector: vertical from parent to its children group */
+.tree ul::before {
+  content:"";
+  position:absolute;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  border-left:2px solid #0d6efd;
+  height:20px;
+} /* vertical line from parent center to sibling bar [2][6] */
+
+/* Connector: horizontal between siblings */
+.tree li { --h:20px; } /* line height variable [6] */
+.tree li::before, .tree li::after {
+  content:"";
+  position:absolute;
+  top:0;
+  width:50%;
+  border-top:2px solid #0d6efd;
+  height:0;
+}
+.tree li::before { left:0; }  /* left half of bar [2] */
+.tree li::after  { right:0; } /* right half of bar [2] */
+
+/* Remove extra horizontal line ends for first/last siblings */
+.tree li:first-child::before { border-top:none; }
+.tree li:last-child::after   { border-top:none; } /* clean ends [4] */
+
+/* Node box (anchor is the node) */
+.tree a.node {
+  display:inline-block;
+  padding:6px 18px;
+  border:2px solid #0d6efd;
+  color:#0d6efd;
+  text-decoration:none;
+  font-weight:600;
+  border-radius:14px;
+  background:#fff;
+  position:relative;
+}
+.tree a.node:hover,
+.tree a.node:focus-visible {
+  background:#0d6efd;
+  color:#fff;
+}
+
+/* Root styling (bigger pill) */
+.tree .root > a.node {
+  font-size:1.15rem;
+  padding:10px 24px;
+  border-width:3px;
+  border-radius:20px;
+}
+
+/* Accessibility: make the whole node area clickable while preserving inner links if added later */
+.tree li { position:relative; }
+.tree a.node.stretched::after {
+  content:"";
+  position:absolute; inset:0;
+} /* block-link overlay technique [11][14] */
+
+/* Responsive spacing */
+@media (max-width: 640px){
+  .tree, .tree ul { gap:14px; }
+  .tree a.node { padding:6px 12px; }
+}
+</style>
+
+{% endblock %}

@@ -5,6 +5,9 @@ from .fcm_utils import get_access_token
 
 def send_push_fcm(user, title, body):
     access_token = get_access_token()
+    if not access_token:
+        print("❌ Could not generate access token. Skipping FCM push.")
+        return
     print("🔥 ACCESS TOKEN GENERATED")
 
     # Load project ID from service account file

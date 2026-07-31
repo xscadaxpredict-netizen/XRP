@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block content %}
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+<div class="container-xl my-4">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="card-title mb-0">
+        <i class="ti ti-clipboard-check me-2"></i> QC Check for Order #{{ production_order.order_number }}
+      </h3>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Production Order</label>
+          {{ form.production_order|add_class:"form-select" }}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Result</label>
+          {{ form.passed|add_class:"form-select" }}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Remarks</label>
+          {{ form.remarks|add_class:"form-control" }}
+        </div>
+
+        <button type="submit" class="btn btn-success">
+          <i class="ti ti-device-floppy me-1"></i> Save QC Result
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

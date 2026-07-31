@@ -27,20 +27,45 @@
         <div class="col-md-6 text-right">
           <p><strong>Quotations</strong></p>
           <p><strong>Click to Preview the Quotation:</strong></p>
-          {% if quotation_type == 'amc' %}
-              <a href="{% url 'amc_preview' quotation_no=quotation_number %}" class="btn btn-primary btn-sm">{{ quotation_number }}</a>
-          {% elif quotation_type == 'commercial' %}
-              <a href="{% url 'preview_quotation' quotation_no=quotation_number %}" class="btn btn-primary btn-sm">{{ quotation_number }}</a>
-          {% elif quotation_type == 'proposal' %}
-              <a href="{% url 'proposal_preview' quotation_no=quotation_number %}" class="btn btn-primary btn-sm">{{ quotation_number }}</a>
-          {% endif %}
+          {% for cq in quotations %}
+              {% if cq.quotation|slice:":9" == "EL-HID-CM" %}
+                  <a href="{% url 'preview_quotation' quotation_no=cq.quotation %}" class="btn btn-primary btn-sm mb-1">{{ cq.quotation }}</a>
+              {% elif cq.quotation|slice:":12" == "EL-HID-AMCPR" %}
+                  <a href="{% url 'amc_preview' quotation_no=cq.quotation %}" class="btn btn-primary btn-sm mb-1">{{ cq.quotation }}</a>
+              {% elif cq.quotation|slice:":9" == "EL-HID-PR" %}
+                  <a href="{% url 'proposal_preview' quotation_no=cq.quotation %}" class="btn btn-primary btn-sm mb-1">{{ cq.quotation }}</a>
+              {% else %}
+                  {% for uq in enquiry.uploaded_quotes.all %}
+                      {% if uq.quotation_no == cq.quotation %}
+                          <a href="{{ uq.file.url }}" target="_blank" class="btn btn-primary btn-sm mb-1">{{ cq.quotation }}</a>
+                      {% endif %}
+                  {% endfor %}
+              {% endif %}
+          {% endfor %}
           
 
         </div>
-      </div>
+        <!-- Purchase Orders (POs) Section -->
+        <hr>
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h4><strong>Purchase Orders (POs):</strong></h4>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    {% for uq in enquiry.uploaded_quotes.all %}
+                        {% if uq.quote_type == 'Purchase Order (PO)' or uq.quote_type == 'Purchase Order' or uq.quote_type == 'PO' %}
+                            <a class="btn btn-outline-info btn-sm btn-custom-pill rounded-pill shadow-sm" href="{{ uq.file.url }}" target="_blank">
+                                <i class="bi bi-file-earmark-text me-1"></i> View PO Document
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not enquiry.uploaded_quotes.all %}
+                        <p class="text-muted mb-0">No Purchase Orders attached to this Enquiry.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
   </div>
-  
 
         {% comment %} <!-- Quotation Details -->
         <div class="col-md-6">

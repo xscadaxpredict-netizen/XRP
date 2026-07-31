@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header d-print-none mb-3 mt-3">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">Machine Kit (BOM)</div>
+                <h2 class="page-title">
+                    {{ kit.name }}
+                </h2>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+                <a href="{% url 'machine_kits_list' %}" class="btn btn-outline-secondary">Back to Kits</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                {{ message }}
+                <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="row row-cards mb-3">
+            <div class="col-sm-6 col-lg-3">
+                <a class="card card-link card-link-pop text-primary" href="javascript:void(0)" onclick="showDept('ALL')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="subheader">Complete BOM</div>
+                        </div>
+                        <div class="h1 mb-2">View All</div>
+                        <div class="d-flex mb-1" style="font-size: 0.8rem;">
+                            <div class="text-success me-3"><i class="ti ti-check"></i> {{ total_stats.in_stock }} in stock</div>
+                            <div class="text-danger"><i class="ti ti-shopping-cart"></i> {{ total_stats.need_purchase }} needed</div>
+                        </div>
+                        <div class="text-muted" style="font-size: 0.8rem;">Cost: <strong>₹{{ total_stats.cost|floatformat:2 }}</strong></div>
+                    </div>
+                </a>
+            </div>
+            {% for dept, data in grouped_shortages.items %}
+            <div class="col-sm-6 col-lg-3">
+                <a class="card card-link card-link-pop" href="javascript:void(0)" onclick="showDept('{{ dept|slugify }}')">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="subheader">Department</div>
+                        </div>
+                        <div class="h1 mb-2">{{ dept }}</div>
+                        <div class="d-flex mb-1" style="font-size: 0.8rem;">
+                            <div class="text-success me-3"><i class="ti ti-check"></i> {{ data.stats.in_stock }} in stock</div>
+                            <div class="text-danger"><i class="ti ti-shopping-cart"></i> {{ data.stats.need_purchase }} needed</div>
+                        </div>
+                        <div class="text-muted" style="font-size: 0.8rem;">Cost: <strong>₹{{ data.stats.cost|floatformat:2 }}</strong></div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Bill of Materials</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-vcenter card-table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Item Name</th>
+                            <th>Vendor</th>
+                            <th class="text-center">Req Qty</th>
+                            <th class="text-center">In Stock</th>
+                            <th class="text-center">Shortage</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dept, data in grouped_shortages.items %}
+                        <tr class="dept-header dept-{{ dept|slugify }}">
+                            <td colspan="7" class="bg-light fw-bold text-uppercase border-bottom-0"><i class="ti ti-folder"></i> Department: {{ dept }}</td>
+                        </tr>
+                        {% for row in data.items %}
+                        <tr class="dept-row dept-{{ dept|slugify }}">
+                            <td class="text-muted ps-4">{{ row.component.category_name }}</td>
+                            <td class="fw-bold">{{ row.component.stock_item.product_name }} <br><small class="text-muted">{{ row.component.remarks }}</small></td>
+                            <td>
+                                {% if row.vendor_stock %}
+                                    {{ row.vendor_stock.vendor.name }} <br><small class="text-success">₹{{ row.vendor_stock.price }}</small>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ row.req_qty|floatformat:2 }} {{ row.component.uom }}</td>
+                            <td class="text-center">{{ row.in_stock|floatformat:2 }}</td>
+                            <td class="text-center">
+                                {% if row.shortage > 0 %}
+                                    <strong class="text-danger">{{ row.shortage|floatformat:2 }}</strong>
+                                {% else %}
+                                    <span class="text-success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.shortage > 0 %}
+                                    <span class="badge bg-red-lt">Needs Procurement</span>
+                                {% else %}
+                                    <span class="badge bg-green-lt">In Stock</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No components found in this kit.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDept(deptSlug) {
+    const allRows = document.querySelectorAll('.dept-row, .dept-header');
+    allRows.forEach(row => {
+        if (deptSlug === 'ALL') {
+            row.style.display = '';
+        } else {
+            if (row.classList.contains('dept-' + deptSlug)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    });
+}
+</script>
+{% endblock content %}

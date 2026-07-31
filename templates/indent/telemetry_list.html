@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header d-flex justify-content-between">
+  <h2 class="page-title">Telemetry Records ({{ production_order.order_no }})</h2>
+</div>
+
+<div class="card my-3">
+  <div class="table-responsive">
+    <table class="table card-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Value</th>
+          <th>Expected</th>
+          <th>Status</th>
+          <th>Recorded At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in records %}
+          <tr>
+            <td>{{ t.parameter }}</td>
+            <td>{{ t.value }}</td>
+            <td>{{ t.expected_value }}</td>
+            <td>
+              {% if t.value == t.expected_value %}
+                <span class="badge bg-success">OK</span>
+              {% else %}
+                <span class="badge bg-danger">Issue</span>
+              {% endif %}
+            </td>
+            <td>{{ t.recorded_at|date:"d/m/Y H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center">No telemetry yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

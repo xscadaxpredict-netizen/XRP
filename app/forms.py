@@ -14,7 +14,7 @@ class ModuleVisibilityForm(forms.ModelForm):
 
     enabled_modules = forms.ModelMultipleChoiceField(
         queryset=CoreModule.objects.all(),
-        widget=forms.CheckboxSelectMultiple,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input cursor-pointer'}),
         required=False
     )
 

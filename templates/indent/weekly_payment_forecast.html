@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-xl my-4">
+    <div class="page-header d-print-none mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="page-pretitle">Accounts & Financials</div>
+                <h2 class="page-title">Weekly Payment Outlook</h2>
+                <div class="text-muted mt-1 small">Liabilities due from <span class="fw-bold">{{ start_date|date:"d M" }}</span> to <span class="fw-bold">{{ end_date|date:"d M, Y" }}</span></div>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+                <button onclick="window.print()" class="btn btn-outline-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17 17h2a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-14a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h2" /><path d="M17 9v-4a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v4" /><path d="M7 13m0 2a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2z" /></svg>
+                    Print Outlook
+                </button>
+                <a href="{% url 'vendor_payments_board' %}" class="btn btn-primary d-none d-sm-inline-block ms-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11l-4 4l4 4m-4 -4h11a4 4 0 0 0 0 -8h-1" /></svg>
+                    Back to Payments
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cards mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card card-sm shadow-sm border-0 bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <span class="bg-white-lt text-white avatar shadow-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.7 8a3 3 0 1 0 -2.7 -2" /><path d="M12 8a3 3 0 1 0 -4 0" /><path d="M20.4 2a3 3 0 1 0 -3 5" /><path d="M12 12a3 3 0 1 0 -4 0" /><path d="M3 20c0 -2.2 1.8 -4 4 -4s4 1.8 4 4" /><path d="M13 20c0 -2.2 1.8 -4 4 -4s4 1.8 4 4" /><path d="M12 12c.3 -1.1 1.5 -1.7 2.6 -1.4" /></svg>
+                            </span>
+                        </div>
+                        <div class="col">
+                            <div class="font-weight-medium">7-Day Total Requirement</div>
+                            <div class="h2 mb-0">₹{{ total_weekly_requirement|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card card-sm shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <span class="bg-azure-lt text-azure avatar shadow-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2z" /><path d="M13 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M8 7l4 0" /><path d="M8 11l4 0" /><path d="M8 15l4 0" /></svg>
+                            </span>
+                        </div>
+                        <div class="col">
+                            <div class="text-muted">Vendors to Settle</div>
+                            <div class="h2 mb-0">{{ forecast|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-light">
+            <h3 class="card-title">Vendor-wise Liability Breakdown</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-vcenter table-hover card-table">
+                <thead>
+                    <tr>
+                        <th>Vendor Name</th>
+                        <th class="text-center">Pending POs</th>
+                        <th class="text-end">Amount Due (This Week)</th>
+                        <th class="text-end d-print-none">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in forecast %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ item.vendor__name }}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-azure-lt">{{ item.po_count }} Orders</span>
+                        </td>
+                        <td class="text-end fw-bold text-azure">
+                            ₹{{ item.total_due|floatformat:2 }}
+                        </td>
+                        <td class="text-end d-print-none">
+                            <a href="{% url 'vendor_po_payment_checkout' item.vendor__id %}" class="btn btn-sm btn-primary">
+                                Process Payment
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5">
+                            <div class="empty">
+                                <p class="empty-title">Clean Slate!</p>
+                                <p class="empty-subtitle text-muted">No payments are due within the next 7 days.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="mt-4 p-3 bg-light rounded d-none d-print-block">
+        <div class="row">
+            <div class="col-6">
+                <div class="small text-muted">Generated By</div>
+                <div class="fw-bold">{{ request.user.get_full_name|default:request.user.username }}</div>
+            </div>
+            <div class="col-6 text-end">
+                <div class="small text-muted">Print Date</div>
+                <div class="fw-bold">{% now "d M Y, h:i A" %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

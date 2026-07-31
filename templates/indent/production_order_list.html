@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+  <!-- Display Django messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+<div class="container-xl my-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <a href="{% url 'production_order_create' %}" class="btn btn-primary">
+                <i class="ti ti-plus"></i> New Order
+            </a>
+            <h3 class="card-title mb-0">Production Orders</h3>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Sales Order</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in orders %}
+                    <tr>
+                        <td>{{ po.order_number }}</td>
+                        <td>{{ po.sales_order|default:"-" }}</td>
+                        <td><span class="badge bg-blue text-white">{{ po.status }}</span></td>
+                        <td>{{ po.created_at|date:"d M Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'production_order_detail' po.pk %}" class="btn btn-sm btn-outline-secondary">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No production orders yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

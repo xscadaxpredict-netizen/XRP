@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Customers | XsHoT ERP{% endblock %}
+
+{% block includecss %}
+<link rel="stylesheet" href="{% static 'gstbillingapp/DataTables/jquery.dataTables.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-4">Customers</h3>
+
+<!-- Filter Bar -->
+<div class="xshot-filter-bar mb-4">
+    <a href="{% url 'customer_add' %}" id="add_customer_btn"
+        class="btn btn-primary rounded-pill btn-md d-inline-flex align-items-center gap-1">
+        <i class="ti ti-user-plus"></i> Add Customer
+    </a>
+    <div class="search-box">
+        <i class="ti ti-search"></i>
+        <input type="text" id="customer-search" placeholder="Search..." class="form-control form-control-sm">
+    </div>
+</div>
+
+<!-- Table Card -->
+<div class="card xshot-table-card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table mb-0" id="customer-table">
+                <thead>
+                    <tr>
+                        <th>Customer Name</th>
+                        <th>Address</th>
+                        <th>Phone</th>
+                        <th>GST No</th>
+                        <th>PAN No</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td class="fw-semibold">{{ customer.customer_name }}</td>
+                        <td class="text-muted small">{{ customer.customer_address }}</td>
+                        <td>{{ customer.customer_phone }}</td>
+                        <td><span class="text-muted small">{{ customer.customer_gst }}</span></td>
+                        <td><span class="text-muted small">{{ customer.customer_pan }}</span></td>
+                        <td style="white-space:nowrap;">
+                            <a href="{% url 'customer_edit' customer.id %}"
+                                class="btn btn-sm btn-outline-primary rounded-pill me-1" title="Edit">
+                                <i class="ti ti-edit me-1"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" title="Delete"
+                                data-bs-toggle="modal" data-bs-target="#customerDeleteModal"
+                                data-customer-id="{{ customer.id }}" data-customer-name="{{ customer.customer_name }}">
+                                <i class="ti ti-trash me-1"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="customerDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="ti ti-user-minus text-danger" style="font-size:1.3rem;"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">Delete Customer</h5>
+                        <p class="text-muted small mb-0">This action cannot be undone</p>
+                    </div>
+                </div>
+            </div>
+            <form method="POST" action="{% url 'customer_delete' %}">
+                {% csrf_token %}
+                <div class="modal-body pt-3">
+                    <p>Are you sure you want to delete <strong><span class="customer-name"></span></strong>?</p>
+                    <input type="hidden" name="customer_id">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill"
+                        data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger rounded-pill">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block includejs %}
+<script src="{% static 'gstbillingapp/DataTables/jquery.dataTables.min.js' %}"></script>
+<script>
+    $('#customerDeleteModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        $(this).find('[name="customer_id"]').val(button.data('customer-id'));
+        $(this).find('.customer-name').html(button.data('customer-name'));
+    });
+    $(document).ready(function () {
+        var dt = $('#customer-table').DataTable({ "order": [], "pageLength": 25, "columnDefs": [{ "targets": 5, "orderable": false }] });
+        $('#customer-search').on('keyup', function () {
+            dt.search(this.value).draw();
+        });
+    });
+</script>
+{% endblock %}

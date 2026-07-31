@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ stock.product_name }} - Product Detail</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    .card {
+      border-radius: 15px;
+    }
+    .logo {
+      max-height: 60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container my-5">
+    <!-- Logo at top -->
+    <div class="text-center mb-4">
+        <img src="{% static 'xlogo.jpeg' %}" width="110" height="32" alt="Xpredict" class="navbar-brand-image">
+
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow-lg border-0">
+          <div class="card-header bg-primary text-white text-center rounded-top-3">
+            <h2 class="mb-0">{{ stock.product_name }}</h2>
+          </div>
+          <div class="card-body text-center">
+
+            <!-- Product Info -->
+            <p class="lead mb-1"><strong>Product Code:</strong> {{ stock.product_code }}</p>
+            <p class="lead mb-1"><strong>Quantity:</strong> {{ stock.quantity }}</p>
+            <p class="text-muted"><strong>Last Updated:</strong> {{ stock.updated_at|date:"d M Y H:i" }}</p>
+
+            <!-- Barcode + QR toggle -->
+            <div id="barcode-container" class="my-4">
+              {% if stock.barcode_image %}
+                <img src="{{ stock.barcode_image.url }}" alt="Barcode" height="100" class="barcode-img">
+              {% endif %}
+
+              {% if stock.qr_code %}
+                <img src="{{ stock.qr_code.url }}" alt="QR Code" height="140" class="qr-img d-none mx-auto">
+              {% endif %}
+            </div>
+
+            {% if stock.barcode_image and stock.qr_code %}
+              <button type="button" id="toggle-btn" class="btn btn-outline-primary">
+                Show QR Code
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.getElementById("toggle-btn");
+    if (!btn) return;
+
+    btn.addEventListener("click", function() {
+      const barcode = document.querySelector(".barcode-img");
+      const qr = document.querySelector(".qr-img");
+
+      if (barcode.classList.contains("d-none")) {
+        barcode.classList.remove("d-none");
+        qr.classList.add("d-none");
+        btn.innerText = "Show QR Code";
+      } else {
+        barcode.classList.add("d-none");
+        qr.classList.remove("d-none");
+        btn.innerText = "Show Barcode";
+      }
+    });
+  });
+  </script>
+</body>
+</html>

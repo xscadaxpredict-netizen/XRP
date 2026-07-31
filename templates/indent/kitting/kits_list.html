@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header d-print-none mb-3 mt-3">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">Machine Kits (BOM)</h2>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+                <a href="{% url 'download_kit_template' %}" class="btn btn-outline-primary me-2">Download Template</a>
+                <a href="{% url 'upload_kit_excel' %}" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M12 11v6" /><path d="M9.5 13.5l2.5 -2.5l2.5 2.5" /></svg>
+                    Import New Kit
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                {{ message }}
+                <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-vcenter card-table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Kit Name</th>
+                            <th>Total Components</th>
+                            <th>Created At</th>
+                            <th>Updated At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for kit in kits %}
+                        <tr>
+                            <td class="fw-bold">
+                                <a href="{% url 'machine_kit_detail' kit.id %}">{{ kit.name }}</a>
+                            </td>
+                            <td>{{ kit.components.count }} items</td>
+                            <td>{{ kit.created_at|date:"M d, Y" }}</td>
+                            <td>{{ kit.updated_at|date:"M d, Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No Kits found. Import one to get started.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

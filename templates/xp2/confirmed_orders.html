@@ -95,7 +95,6 @@
                     <tbody>
                         {% if confirmed_orders %}
                             {% for order in confirmed_orders %}
-                                {% for confirmed_entry in order.confirmed_enquiry_set.all %}
                                     <tr>
                                         <td class="fw-bold text-dark">{{ order.companyname }}</td>
                                         <td>{{ order.customername }}</td>
@@ -104,35 +103,36 @@
                                         <td class="text-secondary fw-bold">#{{ order.id }}</td>
                                         <td class="text-nowrap">{{ order.closuredate|date:"M d, Y"|default:"-" }}</td>
                                         
-                                        {% if confirmed_entry.relegate %}
-                                            <td>
-                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill"><i class="bi bi-x-circle me-1"></i>Relegated</span>
-                                            </td>
-                                        {% else %}
-                                            <td class="fw-bold text-primary">{{ confirmed_entry.quotation }}</td>
-                                        {% endif %}
+                                        <td>
+                                            {% for confirmed_entry in order.confirmed_enquiry_set.all %}
+                                                {% if confirmed_entry.relegate %}
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill mb-1 d-block"><i class="bi bi-x-circle me-1"></i>Relegated ({{ confirmed_entry.quotation }})</span>
+                                                {% else %}
+                                                    <span class="fw-bold text-primary d-block">{{ confirmed_entry.quotation }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </td>
 
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1 justify-content-end">
                                                 <!-- View Button -->
-                                                <a class="btn btn-outline-primary btn-custom-pill rounded-pill shadow-sm {% if confirmed_entry.relegate %}disabled{% endif %}" 
-                                                   href="{% url 'confirmed_view' order.id confirmed_entry.quotation %}">
-                                                    <i class="bi bi-eye me-1"></i> View
+                                                <a class="btn btn-outline-primary btn-custom-pill rounded-pill shadow-sm" 
+                                                   href="{% url 'confirmed_view' order.id order.confirmed_enquiry_set.first.quotation %}">
+                                                    <i class="bi bi-eye me-1"></i> View Details
                                                 </a>
                                                 
                                                 <!-- Relegate Button -->
                                                 <button type="button" 
-                                                        class="btn btn-outline-danger btn-custom-pill rounded-pill shadow-sm {% if confirmed_entry.relegate %}disabled{% endif %}" 
+                                                        class="btn btn-outline-danger btn-custom-pill rounded-pill shadow-sm" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#confirmModal" 
-                                                        data-order-id="{{ order.id }}" 
-                                                        data-quotation-number="{{ confirmed_entry.quotation }}">
+                                                        data-order-id="{{ order.id }}">
                                                     <i class="bi bi-arrow-right-circle me-1"></i> Relegate
                                                 </button>
                                                 
                                                 <!-- Revert Button -->
                                                 <button type="button" 
-                                                        class="btn btn-outline-secondary btn-custom-pill rounded-pill shadow-sm {% if confirmed_entry.revert or confirmed_entry.relegate %}disabled{% endif %}" 
+                                                        class="btn btn-outline-secondary btn-custom-pill rounded-pill shadow-sm" 
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#revertModal" 
                                                         data-order-id="{{ order.id }}" 
@@ -142,7 +142,6 @@
                                             </div>
                                         </td>
                                     </tr>
-                                {% endfor %}
                             {% endfor %}
                         {% else %}
                             <tr>

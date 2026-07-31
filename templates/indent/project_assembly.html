@@ -1,0 +1,1344 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- SVG Filter for solid borders on clipped shapes -->
+    <svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <filter id="node-outline" x="-10%" y="-10%" width="120%" height="120%">
+                <feMorphology in="SourceAlpha" result="expanded" operator="dilate" radius="0.8" />
+                <feComponentTransfer in="expanded" result="opaque">
+                    <feFuncA type="linear" slope="15" />
+                </feComponentTransfer>
+                <feFlood flood-color="#000" result="black" />
+                <feComposite in="black" in2="opaque" operator="in" result="outline" />
+                <feMerge>
+                    <feMergeNode in="outline" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="d-flex justify-content-between align-items-center mb-4 px-3">
+        <h2>{{ project.name }} - Assembly Visualizer</h2>
+        <div>
+            <a href="{% url 'project_detail' project.id %}" class="btn btn-outline-secondary me-2">Back to Project</a>
+            {% if is_deployed %}
+            <a href="{% url 'deployment_details' project.deployment.id %}" class="btn btn-info fw-bold text-white">
+                <i class="bi bi-check-circle"></i> Already Pushed - View Documents
+            </a>
+            {% else %}
+            <form action="{% url 'project_deploy' project.id %}" method="post" class="d-inline" id="deployForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success fw-bold" id="deployBtn"
+                    onclick="if(confirm('Are you sure you want to push this project to Deployment?')) { document.getElementById('deploymentLoadingOverlay').classList.remove('d-none'); document.getElementById('deploymentLoadingOverlay').classList.add('d-flex'); return true; } return false;">
+                    <i class="bi bi-rocket-takeoff"></i> Push to Deployment
+                </button>
+            </form>
+            {% endif %}
+            
+            <div class="d-inline ms-3">
+                <button class="btn btn-outline-primary fw-bold" type="button" data-bs-toggle="modal" data-bs-target="#clientLinkModal">
+                    <i class="bi bi-share"></i> Share with Client
+                </button>
+            </div>
+        </div>
+    </div>
+
+    Canvas
+    <div class="card p-4 border rounded position-relative overflow-hidden"
+        style="min-height: 600px; background-color: #f8fafc;" id="assembly-canvas">
+
+        <!-- Legend -->
+        <div class="position-absolute top-0 start-0 m-3 p-2 bg-white border rounded z-3" style="font-size: 0.85rem;">
+            <div class="d-flex align-items-center mb-1">
+                <div class="rounded-circle bg-success me-2" style="width: 12px; height: 12px;"></div> Completed (100%)
+            </div>
+            <div class="d-flex align-items-center mb-1">x
+                <div class="rounded-circle bg-warning me-2" style="width: 12px; height: 12px;"></div> In Progress
+            </div>
+            <div class="d-flex align-items-center mb-1">
+                <div class="rounded-circle bg-primary me-2" style="width: 12px; height: 12px;"></div> Lead Department
+            </div>
+            <hr class="my-1">
+            <div class="d-flex align-items-center mb-1"><small>⬡ PSF (Hexagon)</small></div>
+            <div class="d-flex align-items-center mb-1"><small>⊔ MSF (U-Frame)</small></div>
+            <div class="d-flex align-items-center mb-1"><small>▭ ESD (Rectangle)</small></div>
+            <div class="d-flex align-items-center mb-1"><small>⌇ WAH (Wire Rectangle)</small></div>
+            <div class="d-flex align-items-center"><small>⬮ RAF / RAH (Capsule)</small></div>
+        </div>
+
+        <div class="row h-100 w-100 m-0">
+            <!-- Left Side: Nodes Hierarchy -->
+            <div class="col-8 d-flex flex-column align-items-center h-100"
+                style="padding-top: 20px; padding-bottom: 20px; gap: 150px;">
+
+                <!-- Top Level: Lead Department -->
+                <div class="d-flex justify-content-center w-100">
+                    {% for node in nodes %}
+                    {% if node.is_lead %}
+                    {% if 'RAH' in node.name or 'RAF' in node.name %}
+                    <div id="node-{{ node.id }}"
+                        class="assembly-node card text-center position-relative z-2 scale-110 shape-double-capsule node-default-align"
+                        style="transition: transform 0.2s; cursor: pointer;">
+                        <div class="shape-double-capsule-bg"></div>
+                        <!-- Left Capsule: Vertical RAF Label -->
+                        <div class="rah-capsule">
+                            <div class="vertical-text">RAF</div>
+                        </div>
+                        <!-- Right Capsule: Vertical Progress -->
+                        <div class="rah-capsule">
+                            <div class="vertical-progress-label">{{ node.progress|floatformat:0 }}%</div>
+                            <div class="vertical-progress-container">
+                                <div class="vertical-progress-bar progress-bar progress-bar-striped progress-bar-animated {% if node.progress >= 100 %}bg-success{% else %}bg-warning{% endif %}"
+                                    style="height: {{ node.progress }}%;"></div>
+                            </div>
+                        </div>
+                        <!-- Star indicator for Lead -->
+                        <div
+                            style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); z-index: 10;">
+                            <i class="bi bi-star-fill text-warning"
+                                style="font-size: 1.2rem; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));"></i>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div id="node-{{ node.id }}"
+                        class="assembly-node card text-center position-relative z-2 scale-110 {% if 'PSF' in node.name %}shape-hex{% elif 'MSF' in node.name %}shape-uframe node-msf-align{% elif 'WAH' in node.name or 'W&H' in node.name %}shape-wire{% else %}shape-rect{% endif %} node-default-align"
+                        style="transition: transform 0.2s; background-color: #fff; padding: 20px; cursor: pointer;">
+                        <div class="node-content-wrapper">
+                            <h6 class="fw-bold mb-2 text-truncate" style="max-width: 120px;" title="{{ node.name }}">
+                                <i class="bi bi-star-fill text-warning"></i><br>{{ node.name }}
+                            </h6>
+                            <div class="progress mb-2 w-100" style="height: 8px; max-width: 100px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated {% if node.progress >= 100 %}bg-success{% else %}bg-warning{% endif %}"
+                                    role="progressbar" style="width: {{ node.progress }}%;"
+                                    aria-valuenow="{{ node.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small
+                                class="fw-bold {% if node.progress >= 100 %}text-success{% else %}text-muted{% endif %}">
+                                {{ node.progress }}%
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Bottom Level: Other Departments -->
+                <div class="d-flex flex-wrap justify-content-center align-items-baseline w-100" style="gap: 100px;">
+                    {% for node in nodes %}
+                    {% if not node.is_lead %}
+                    {% if 'RAH' in node.name or 'RAF' in node.name %}
+                    <div id="node-{{ node.id }}"
+                        class="assembly-node card text-center position-relative z-2 shape-double-capsule node-default-align"
+                        style="transition: transform 0.2s; cursor: pointer;">
+                        <div class="shape-double-capsule-bg"></div>
+                        <!-- Left Capsule: Vertical RAF Label -->
+                        <div class="rah-capsule">
+                            <div class="vertical-text">RAF</div>
+                        </div>
+                        <!-- Right Capsule: Vertical Progress -->
+                        <div class="rah-capsule">
+                            <div class="vertical-progress-label">{{ node.progress|floatformat:0 }}%</div>
+                            <div class="vertical-progress-container">
+                                <div class="vertical-progress-bar progress-bar progress-bar-striped progress-bar-animated {% if node.progress >= 100 %}bg-success{% else %}bg-warning{% endif %}"
+                                    style="height: {{ node.progress }}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div id="node-{{ node.id }}"
+                        class="assembly-node card text-center position-relative z-2 {% if 'PSF' in node.name %}shape-hex{% elif 'MSF' in node.name %}shape-uframe node-msf-align{% elif 'WAH' in node.name or 'W&H' in node.name %}shape-wire{% else %}shape-rect{% endif %} node-default-align"
+                        style="transition: transform 0.2s; background-color: #fff; padding: 15px; cursor: pointer;">
+                        <div class="node-content-wrapper">
+                            <h6 class="fw-bold mb-2 text-truncate" style="max-width: 100px;" title="{{ node.name }}">
+                                {{ node.name }}
+                            </h6>
+                            <div class="progress mb-2 w-100" style="height: 8px; max-width: 80px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated {% if node.progress >= 100 %}bg-success{% else %}bg-warning{% endif %}"
+                                    role="progressbar" style="width: {{ node.progress }}%;"
+                                    aria-valuenow="{{ node.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small
+                                class="fw-bold {% if node.progress >= 100 %}text-success{% else %}text-muted{% endif %}">
+                                {{ node.progress }}%
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+            </div>
+
+            <!-- Right Side: Machine Container -->
+            <div class="col-4 d-flex flex-column align-items-center justify-content-center h-100">
+                <div id="target-machine" class="machine-container position-relative"
+                    style="background-color: #ffffff; border-radius: 12px; border: 3px solid #000; text-align: center; width: 100%; max-width: 420px; min-height: 500px; display: flex; flex-direction: column; cursor: pointer; perspective: 1500px;"
+                    onclick="this.classList.toggle('open'); setTimeout(function(){ if(window.lines){ window.lines.forEach(l => l.position()); } }, 800);">
+
+                    <!-- CABINET DOORS -->
+                    <div class="cabinet-door door-left d-flex flex-column align-items-start">
+                        <div class="mt-4 ms-4 text-start">
+                            <img src="{% static 'xlogo.jpeg' %}" width="120" style="mix-blend-mode: multiply;" alt="Xpredict LABS">
+                        </div>
+                        <div class="mt-4 ms-4" style="width: 80%; opacity: 0.6;">
+                            <svg width="100%" height="90" xmlns="http://www.w3.org/2000/svg">
+                                <pattern id="vents-l" width="35" height="14" patternUnits="userSpaceOnUse">
+                                    <rect x="0" y="0" width="25" height="5" rx="2.5" fill="#555"/>
+                                </pattern>
+                                <rect width="100%" height="100%" fill="url(#vents-l)"/>
+                            </svg>
+                        </div>
+                        <div class="mt-auto mb-4 ms-4 text-start" style="color:#3e2753; font-size: 0.75rem;">
+                            <div style="font-weight:900; font-size:1.3rem; margin-bottom: 8px;">Contact Us</div>
+                            <div style="border: 1px dashed #999; padding: 10px; border-radius: 6px; display:inline-block; background-color: rgba(255,255,255,0.6);">
+                                <div class="mb-1"><i class="bi bi-telephone"></i> +91 7975154628</div>
+                                <div class="mb-1"><i class="bi bi-globe"></i> www.xpredictlabs.com</div>
+                                <div><i class="bi bi-envelope"></i> info@xpredictlabs.com</div>
+                            </div>
+                        </div>
+                        <div class="door-handle handle-left"></div>
+                    </div>
+
+                    <div class="cabinet-door door-right d-flex flex-column align-items-end">
+                        <div class="mt-4 me-4" style="width: 80%; opacity: 0.6;">
+                            <svg width="100%" height="140" xmlns="http://www.w3.org/2000/svg">
+                                <pattern id="vents-r" width="35" height="14" patternUnits="userSpaceOnUse">
+                                    <rect x="10" y="0" width="25" height="5" rx="2.5" fill="#555"/>
+                                </pattern>
+                                <rect width="100%" height="100%" fill="url(#vents-r)"/>
+                            </svg>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-center my-auto w-100" style="transform: scale(0.95) translateX(-10px);">
+                            <div style="display:flex; align-items: stretch; justify-content: center;">
+                                <div style="display:flex; align-items:center;">
+                                    <span style="color: #4a2c53; font-weight: 900; font-size: 2.8rem; letter-spacing:-1px;">Hi</span>
+                                    <span style="color: #fff; background-color: #C41E3A; font-weight: 800; font-size: 2.8rem; padding: 0 4px; margin-left:2px;">Dr</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; margin-left:4px;">
+                                    <div style="color: #fff; background-color: #4a2c53; font-weight: 900; font-size: 1.8rem; padding: 0 6px; line-height: 1.1; letter-spacing:1px;">EC</div>
+                                    <div style="color: #fff; background-color: #4a2c53; font-weight: bold; font-size: 0.75rem; padding: 2px 6px; text-align: center; border-top: 1px solid rgba(255,255,255,0.4);">EC1000</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-4 me-4 mt-auto" style="width: 80%; opacity: 0.6;">
+                            <svg width="100%" height="120" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="100%" height="100%" fill="url(#vents-r)"/>
+                            </svg>
+                        </div>
+                        <div class="door-handle handle-right"></div>
+                    </div>
+
+                    <!-- MACHINE INSIDE -->
+                    <div class="machine-inside p-3 w-100 h-100 d-flex flex-column z-0">
+                        <h5 class="fw-bold mb-0 text-uppercase" style="color:#000; letter-spacing:3px; font-size:1rem;">
+                            Hidrec Machine</h5>
+                        <hr style="border-color:#f2f2f2; margin:8px 0;">
+                        <div class="badge mb-2 w-75 mx-auto"
+                            style="background-color:#000000d3; color:#fff; font-size:0.85rem; padding: 8px;">
+                            {% if project.lead %}{{ project.lead.name }}{% else %}{{ project.lead_name|default:"LEAD DEP" }}{% endif %}
+                        </div>
+
+                        <!-- SVG Skeleton Layout -->
+                        <div class="flex-grow-1 d-flex align-items-center justify-content-center w-100"
+                            style="padding:10px;">
+                            <svg viewBox="0 0 450 400" xmlns="http://www.w3.org/2000/svg"
+                                style="width:100%; max-height:440px;">
+
+                                <!-- PSF: Hexagon shape (left) -->
+                                <g id="machine-psf">
+                                    <polygon points="70,50 180,50 180,210 150,250 100,250 70,210" fill="none"
+                                        stroke="#f2f2f2" stroke-width="2" stroke-dasharray="6,3" class="skeleton-shape"
+                                        data-dept="PSF" />
+                                    <text x="125" y="145" text-anchor="middle" fill="#bbb" font-size="10"
+                                        font-weight="bold">PSF</text>
+                                    <text x="125" y="162" text-anchor="middle" fill="#bbb" font-size="9"
+                                        class="progress-text" data-dept="PSF"></text>
+                                </g>
+
+                                <!-- MSF: Large U-Frame Container -->
+                                <g id="machine-msf">
+                                    <path
+                                        d="M 15 20 L 15 340 Q 15 360 35 360 L 415 360 Q 435 360 435 340 L 435 20 L 400 20 L 400 315 Q 400 320 395 320 L 55 320 Q 50 320 50 315 L 50 20 Z"
+                                        fill="none" stroke="#ccc" stroke-width="2" stroke-dasharray="6,3"
+                                        class="skeleton-shape" data-dept="MSF" />
+                                    <text x="225" y="338" text-anchor="middle" fill="#bbb" font-size="11"
+                                        font-weight="bold">MSF</text>
+                                    <text x="225" y="352" text-anchor="middle" fill="#bbb" font-size="9"
+                                        class="progress-text" data-dept="MSF"></text>
+                                </g>
+
+                                <!-- ESD: Rounded Rectangle with wavy wires (center) -->
+                                <g id="machine-esd">
+                                    <rect x="200" y="50" width="100" height="200" rx="12" ry="12" fill="none" stroke="#ccc"
+                                        stroke-width="2" stroke-dasharray="6,3" class="skeleton-shape" data-dept="ESD" />
+                                    <path d="M210,80 Q220,100 210,120 Q200,140 210,160 Q220,180 210,200 Q200,220 210,240"
+                                        fill="none" stroke="#ddd" stroke-width="1.5" opacity="0.5" />
+                                    <path d="M290,80 Q280,100 290,120 Q300,140 290,160 Q280,180 290,200 Q300,220 290,240"
+                                        fill="none" stroke="#ddd" stroke-width="1.5" opacity="0.5" />
+                                    <text x="250" y="145" text-anchor="middle" fill="#bbb" font-size="11"
+                                        font-weight="bold">ESD</text>
+                                    <text x="250" y="162" text-anchor="middle" fill="#bbb" font-size="10"
+                                        class="progress-text" data-dept="ESD"></text>
+                                </g>
+
+                                <!-- WAH: Below ESD -->
+                                <g id="machine-wah">
+                                    <rect x="220" y="270" width="60" height="35" rx="6" ry="6" fill="none" stroke="#ccc"
+                                        stroke-width="2" stroke-dasharray="6,3" class="skeleton-shape"
+                                        data-dept="WAH,W&H" />
+                                    <path
+                                        d="M225,282 Q228,275 231,282 T237,282 T243,282 T249,282 T255,282 T261,282 T267,282 T273,282"
+                                        fill="none" stroke="#ddd" stroke-width="1" opacity="0.6" class="wah-wire-path" />
+                                    <path
+                                        d="M225,292 Q228,285 231,292 T237,292 T243,292 T249,292 T255,292 T261,292 T267,292 T273,292"
+                                        fill="none" stroke="#ddd" stroke-width="1" opacity="0.6" class="wah-wire-path" />
+                                    <text x="250" y="284" text-anchor="middle" fill="#bbb" font-size="8"
+                                        font-weight="bold">WAH</text>
+                                    <text x="250" y="298" text-anchor="middle" fill="#bbb" font-size="8"
+                                        class="progress-text" data-dept="WAH,W&H"></text>
+                                </g>
+                                <line x1="250" y1="251" x2="250" y2="265" stroke="#ccc" stroke-width="1.5"
+                                    marker-end="url(#arrowhead)" />
+
+                                <!-- RAH: Two capsules on a bar (right) -->
+                                <g id="machine-rah">
+                                    <line x1="335" y1="60" x2="375" y2="60" stroke="#ccc" stroke-width="2"
+                                        stroke-dasharray="6,3" />
+                                    <line x1="335" y1="60" x2="335" y2="85" stroke="#ccc" stroke-width="1.5" />
+                                    <rect x="320" y="85" width="30" height="80" rx="10" ry="10" fill="none" stroke="#ccc"
+                                        stroke-width="2" stroke-dasharray="6,3" class="skeleton-shape"
+                                        data-dept="RAF,RAH" />
+                                    <text x="335" y="125" text-anchor="middle" fill="#888" font-size="9"
+                                        font-weight="bold">RAF</text>
+
+                                    <line x1="375" y1="60" x2="375" y2="85" stroke="#ccc" stroke-width="1.5" />
+                                    <rect x="360" y="85" width="30" height="80" rx="10" ry="10" fill="none" stroke="#ccc"
+                                        stroke-width="2" stroke-dasharray="6,3" class="skeleton-shape"
+                                        data-dept="RAF,RAH" />
+                                    <text x="375" y="125" text-anchor="middle" fill="#888" font-size="9"
+                                        class="progress-text" data-dept="RAF,RAH"></text>
+                                </g>
+
+                                <defs>
+                                    <pattern id="wah-grid" width="6" height="6" patternUnits="userSpaceOnUse">
+                                        <rect width="6" height="6" fill="#f0f7ff" />
+                                        <path d="M 6 0 L 6 6 M 0 6 L 6 6" fill="none" stroke="rgba(0,0,0,0.05)"
+                                            stroke-width="1" />
+                                    </pattern>
+                                    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                                        <polygon points="0 0, 8 3, 0 6" fill="#ccc" />
+                                    </marker>
+                                </defs>
+                            </svg>
+                        </div>
+
+                        <small class="font-monospace fw-semibold" id="machine-status-text" style="color:#666;">SYSTEM STANDBY</small>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .assembly-node {
+        z-index: 10;
+        min-width: 130px;
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        overflow: visible !important;
+    }
+
+    .node-default-align {
+        justify-content: center;
+        align-items: center;
+    }
+
+    .node-msf-align {
+        justify-content: flex-end !important;
+        padding-bottom: 20px !important;
+    }
+
+    .node-content-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+
+    /* Shape Classes */
+    .shape-rect {
+        border-radius: 8px !important;
+        min-width: 140px;
+        min-height: 90px;
+        border: 2px solid #000 !important;
+    }
+
+    .shape-wire {
+        border-radius: 8px !important;
+        min-width: 140px;
+        min-height: 90px;
+        background-color: #f0f7ff !important;
+        background-image:
+            repeating-linear-gradient(90deg, transparent, transparent 5px, rgba(0, 0, 0, 0.05) 5px, rgba(0, 0, 0, 0.05) 6px),
+            repeating-linear-gradient(0deg, transparent, transparent 5px, rgba(0, 0, 0, 0.05) 5px, rgba(0, 0, 0, 0.05) 6px);
+        border: 3px dotted #000 !important;
+        position: relative;
+    }
+
+    .shape-wire::after {
+        content: "⌇⌇⌇";
+        position: absolute;
+        bottom: 5px;
+        right: 10px;
+        font-size: 1.2rem;
+        color: #999;
+        opacity: 0.5;
+    }
+
+    .shape-hex {
+        position: relative;
+        background: none !important;
+        border: none !important;
+        min-width: 140px;
+        min-height: 180px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-2 -2 104 104' preserveAspectRatio='none'%3E%3Cpolygon points='0,0 100,0 100,80 75,100 25,100 0,80' fill='%23ffffff' stroke='%23000000' stroke-width='2' vector-effect='non-scaling-stroke' /%3E%3C/svg%3E") !important;
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+    }
+
+    .shape-uframe {
+        position: relative;
+        background: none !important;
+        border: none !important;
+        min-width: 150px;
+        min-height: 150px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-2 -2 104 104' preserveAspectRatio='none'%3E%3Cpolygon points='0,0 20,0 20,45 80,45 80,0 100,0 100,100 0,100' fill='%23ffffff' stroke='%23000000' stroke-width='2' vector-effect='non-scaling-stroke' /%3E%3C/svg%3E") !important;
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+    }
+
+    .shape-double-capsule {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        min-width: 130px;
+        min-height: 140px;
+        display: flex;
+        flex-direction: row !important;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0 10px;
+    }
+
+    .shape-double-capsule-bg {
+        position: absolute;
+        top: 0px;
+        left: 20px;
+        right: 20px;
+        height: 20px;
+        border-top: 2px dashed #000;
+        border-left: 2px solid #000;
+        border-right: 2px solid #000;
+        z-index: 0;
+    }
+
+    .rah-capsule {
+        width: 45px;
+        height: 120px;
+        border-radius: 25px;
+        border: 2px solid #000;
+        background-color: #fff !important;
+        position: relative;
+        margin-top: 20px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 1;
+    }
+
+    .vertical-text {
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+        font-weight: bold;
+        font-size: 0.95rem;
+        color: #333 !important;
+        transform: rotate(180deg);
+        user-select: none;
+    }
+
+    .vertical-progress-container {
+        width: 10px;
+        height: 70px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        overflow: hidden;
+        margin-top: 5px;
+        border: 1px solid #ccc;
+    }
+
+    .vertical-progress-bar {
+        width: 100%;
+        background-color: #28a745;
+        transition: height 0.3s ease;
+    }
+
+    .vertical-progress-bar.bg-warning {
+        background-color: #ffc107;
+    }
+
+    .vertical-progress-label {
+        font-size: 0.75rem;
+        font-weight: bold;
+        color: #333 !important;
+        white-space: nowrap;
+        margin-bottom: 2px;
+    }
+
+    .scale-110 {
+        transform: scale(1.1);
+    }
+
+    .assembly-node:hover {
+        transform: scale(1.05) translateY(-3px);
+        z-index: 99 !important;
+    }
+
+    .leader-line {
+        z-index: 1;
+    }
+
+    .machine-container {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .machine-container.glow {
+        /* User requested no blue shiny border */
+        /* box-shadow: 0 0 25px 8px rgba(0, 100, 255, 0.4) !important; */
+        /* border-color: #0066ff !important; */
+    }
+
+    /* SVG skeleton fill */
+    .skeleton-shape.filled {
+        fill: #8E8E93 !important;
+        /* Updated from #000 to match RAH style */
+        stroke: #000000 !important;
+        stroke-dasharray: none !important;
+        transition: fill 0.8s ease, stroke 0.5s ease;
+    }
+
+    .skeleton-shape.partial {
+        stroke: #000 !important;
+        stroke-dasharray: none !important;
+        transition: fill 0.8s ease, stroke 0.5s ease;
+    }
+
+    /* Cabinet Door Styles */
+    .cabinet-door {
+        position: absolute;
+        top: 0;
+        width: 50%;
+        height: 100%;
+        background-color: #fdfdfd;
+        border: 2px solid #555;
+        transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.8s ease;
+        z-index: 20;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.02);
+        backface-visibility: hidden;
+    }
+    .door-left {
+        left: 0;
+        transform-origin: left center;
+        border-right: 1px solid #444;
+        border-top-left-radius: 12px;
+        border-bottom-left-radius: 12px;
+    }
+    .door-right {
+        right: 0;
+        transform-origin: right center;
+        border-left: 1px solid #444;
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
+    }
+    .machine-container.open .door-left {
+        transform: rotateY(-105deg);
+        box-shadow: 10px 0 20px rgba(0,0,0,0.15);
+    }
+    .machine-container.open .door-right {
+        transform: rotateY(105deg);
+        box-shadow: -10px 0 20px rgba(0,0,0,0.15);
+    }
+    .door-handle {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 14px;
+        height: 90px;
+        background: linear-gradient(90deg, #222, #444);
+        border: 1px solid #111;
+        z-index: 10;
+    }
+    .door-handle::after {
+        content: '';
+        position: absolute;
+        top: 15px;
+        width: 12px;
+        height: 60px;
+        background: transparent;
+        border: 5px solid #222;
+    }
+    .handle-left {
+        right: 0;
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+        box-shadow: -2px 0 5px rgba(0,0,0,0.3);
+    }
+    .handle-left::after {
+        right: 13px;
+        border-right: none;
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
+    }
+    .handle-right {
+        left: 0;
+        background: linear-gradient(-90deg, #222, #444);
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+    }
+    .handle-right::after {
+        left: 13px;
+        border-left: none;
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+    }
+    .machine-inside {
+        opacity: 0;
+        transition: opacity 0.4s ease 0.2s;
+        pointer-events: none;
+    }
+    .machine-container.open .machine-inside {
+        opacity: 1;
+        pointer-events: auto;
+    }
+</style>
+
+<!-- Client Link Modal -->
+<div class="modal fade" id="clientLinkModal" tabindex="-1" aria-labelledby="clientLinkModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="clientLinkModalLabel"><i class="bi bi-link-45deg"></i> Client Tracking Link</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Share this link with the client to let them track the project's assembly progress. This link will expire once the project is marked as completed.</p>
+        <div class="input-group mb-3">
+          <input type="text" class="form-control" id="clientLinkInput" data-path="{% url 'client_project_assembly' project.client_token %}" readonly>
+          <button class="btn btn-primary" type="button" onclick="copyClientLink()">
+              <i class="bi bi-clipboard"></i> Copy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var linkInput = document.getElementById("clientLinkInput");
+        if (linkInput) {
+            linkInput.value = window.location.origin + linkInput.getAttribute("data-path");
+        }
+    });
+</script>
+
+<script>
+function copyClientLink() {
+    var copyText = document.getElementById("clientLinkInput");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(copyText.value).then(() => {
+        alert("Link copied to clipboard!");
+    });
+}
+</script>
+
+<!-- LeaderLine Library -->
+<script src="https://cdn.jsdelivr.net/npm/leader-line-new@1.1.9/leader-line.min.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const nodesData = [];
+        {% for node in nodes %}
+        nodesData.push({
+            id: "{{ node.id }}",
+            name: "{{ node.name|escapejs }}",
+            is_lead: {% if node.is_lead %}true{% else %}false{% endif %},
+        progress: parseFloat("{{ node.progress|default:0 }}")
+        });
+    {% endfor %}
+
+    window.leadNodeId = null;
+    let allComplete = true;
+
+    const leadNodeData = nodesData.find(n => n.is_lead);
+    if (leadNodeData) {
+        window.leadNodeId = `node-${leadNodeData.id}`;
+    }
+
+    window.lines = [];
+    window.lineNodeMap = [];
+    const machineEl = document.getElementById('target-machine');
+
+    // Update each department in the machine SVG
+    nodesData.forEach(node => {
+        if (node.progress < 100) {
+            allComplete = false;
+        }
+
+        const startEl = document.getElementById(`node-${node.id}`);
+        const isComplete = node.progress >= 100;
+        const progress = Math.min(Math.round(node.progress), 100);
+
+        // Update progress text in machine SVG
+        document.querySelectorAll(`.progress-text[data-dept]`).forEach(txt => {
+            const depts = (txt.getAttribute('data-dept') || "").split(',');
+            const isMatch = depts.some(d => d && node.name.toUpperCase().includes(d.trim().toUpperCase()));
+            if (isMatch) {
+                txt.textContent = progress + '%';
+                if (isComplete) {
+                    if (txt.getAttribute('data-dept') === 'MSF') {
+                        txt.setAttribute('fill', '#333');
+                    } else {
+                        txt.setAttribute('fill', '#fff');
+                    }
+                    txt.setAttribute('font-weight', 'bold');
+                } else if (progress > 0) {
+                    txt.setAttribute('fill', '#666');
+                    txt.setAttribute('font-weight', 'bold');
+                }
+            }
+        });
+
+        // Fill / partial-fill skeleton shapes
+        document.querySelectorAll('.skeleton-shape').forEach(shape => {
+            const depts = (shape.getAttribute('data-dept') || "").split(',');
+            const isMatch = depts.some(d => d && node.name.toUpperCase().includes(d.trim().toUpperCase()));
+
+            if (isMatch) {
+                if (isComplete) {
+                    shape.classList.add('filled');
+                    shape.removeAttribute('stroke-dasharray');
+                    if (shape.getAttribute('data-dept') === 'MSF') {
+                        shape.style.fill = 'url(#wah-grid)';
+                        shape.style.stroke = '#555';
+                    } else {
+                        shape.style.fill = '#8E8E93';
+                        shape.style.stroke = '#333';
+                    }
+                } else if (progress > 0) {
+                    // Partial: solid border, fill from bottom to top based on progress
+                    shape.classList.add('partial');
+                    shape.removeAttribute('stroke-dasharray');
+                    
+                    let deptSafe = shape.getAttribute('data-dept').replace(/[^a-zA-Z0-9]/g, '-');
+                    let gradId = `grad-${node.id}-${deptSafe}`;
+                    let svgElement = shape.closest('svg');
+                    let defs = svgElement.querySelector('defs');
+                    if (!defs) {
+                        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                        svgElement.prepend(defs);
+                    }
+                    
+                    let existingGrad = document.getElementById(gradId);
+                    if (!existingGrad) {
+                        existingGrad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+                        existingGrad.setAttribute('id', gradId);
+                        existingGrad.setAttribute('x1', '0%');
+                        existingGrad.setAttribute('y1', '100%');
+                        existingGrad.setAttribute('x2', '0%');
+                        existingGrad.setAttribute('y2', '0%');
+                        
+                        let stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                        stop1.setAttribute('class', 'stop-fill');
+                        stop1.setAttribute('offset', `${progress}%`);
+                        stop1.setAttribute('stop-color', '#8E8E93');
+                        
+                        let stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                        stop2.setAttribute('class', 'stop-empty');
+                        stop2.setAttribute('offset', `${progress}%`);
+                        stop2.setAttribute('stop-color', 'transparent');
+                        
+                        existingGrad.appendChild(stop1);
+                        existingGrad.appendChild(stop2);
+                        defs.appendChild(existingGrad);
+                    } else {
+                        existingGrad.querySelector('.stop-fill').setAttribute('offset', `${progress}%`);
+                        existingGrad.querySelector('.stop-empty').setAttribute('offset', `${progress}%`);
+                    }
+                    
+                    shape.style.fill = `url(#${gradId})`;
+                    shape.style.stroke = '#333';
+                }
+
+                // Also update the label text and wah wires
+                const parentG = shape.closest('g');
+                if (parentG) {
+                    const nameTexts = parentG.querySelectorAll('text:not(.progress-text)');
+                    nameTexts.forEach(t => {
+                        if (!t.classList.contains('no-fill-change')) {
+                            if (isComplete) {
+                                if (shape.getAttribute('data-dept') === 'MSF') {
+                                    t.setAttribute('fill', '#333');
+                                } else {
+                                    t.setAttribute('fill', '#fff');
+                                }
+                            } else if (progress > 0) {
+                                t.setAttribute('fill', '#666');
+                            }
+                        }
+                    });
+
+                    // Update WAH wire path colors
+                    const wirePaths = parentG.querySelectorAll('.wah-wire-path');
+                    wirePaths.forEach(p => {
+                        if (isComplete) {
+                            p.setAttribute('stroke', '#fff');
+                            p.setAttribute('opacity', '0.4');
+                        } else if (progress > 0) {
+                            p.setAttribute('stroke', '#666');
+                            p.setAttribute('opacity', '0.6');
+                        }
+                    });
+                }
+            }
+        });
+
+        // Draw line to Lead Node
+        if (!node.is_lead && window.leadNodeId) {
+            const endEl = document.getElementById(window.leadNodeId);
+            if (startEl && endEl) {
+                const line = new LeaderLine(
+                    startEl,
+                    endEl,
+                    {
+                        color: isComplete ? '#000' : '#adb5bd',
+                        size: 3,
+                        path: 'fluid',
+                        startSocket: 'top',
+                        endSocket: 'bottom',
+                        endPlug: 'arrow3',
+                        dash: isComplete ? false : { animation: true },
+                        dropShadow: false
+                    }
+                );
+                window.lines.push(line);
+                window.lineNodeMap.push({ line: line, startNodeId: `node-${node.id}` });
+            }
+        }
+
+        // Draw line from Lead to Machine
+        if (node.is_lead && machineEl) {
+            const mLine = new LeaderLine(
+                startEl,
+                machineEl,
+                {
+                    color: '#000',
+                    size: 4,
+                    path: 'fluid',
+                    startSocket: 'right',
+                    endSocket: 'left',
+                    endPlug: 'arrow3',
+                    dash: { animation: true },
+                    dropShadow: false
+                }
+            );
+            window.lines.push(mLine);
+            window.lineNodeMap.push({ line: mLine, startNodeId: `node-${node.id}` });
+        }
+    });
+
+    // Overall progress
+    const totalProgress = nodesData.length > 0
+        ? Math.round(nodesData.reduce((s, n) => s + Math.min(n.progress, 100), 0) / nodesData.length)
+        : 0;
+
+    const statusText = document.getElementById("machine-status-text");
+    if (statusText) {
+        statusText.innerText = `Hidrec Machine - ${totalProgress}% Complete`;
+        if (allComplete) statusText.style.color = '#00cc66';
+    }
+
+    // Overlay for Push to Deployment
+    const deployForm = document.getElementById('deployForm');
+    if (deployForm) {
+        deployForm.addEventListener('submit', function() {
+            const overlay = document.getElementById('deploymentLoadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('d-none');
+                overlay.classList.add('d-flex');
+            }
+        });
+    }
+
+    window.addEventListener('resize', function () {
+        window.lines.forEach(line => line.position());
+    });
+
+    setTimeout(() => {
+        window.lines.forEach(line => line.position());
+    }, 800);
+    });
+</script>
+
+<!-- Loading Overlay -->
+<div id="deploymentLoadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white z-max d-none align-items-center justify-content-center flex-column" style="z-index: 9999; opacity: 0.95;">
+    <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem; border-width: 0.25rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <h3 class="mt-4 text-primary fw-bold">Preparing Deployment Documents...</h3>
+    <p class="text-muted">This may take a few moments. Please do not close this page.</p>
+    <div class="mt-2 d-flex justify-content-center gap-2">
+        <div class="spinner-grow text-primary spinner-grow-sm" role="status" style="animation-delay: 0s;"></div>
+        <div class="spinner-grow text-primary spinner-grow-sm" role="status" style="animation-delay: 0.2s;"></div>
+        <div class="spinner-grow text-primary spinner-grow-sm" role="status" style="animation-delay: 0.4s;"></div>
+    </div>
+</div>
+
+<style>
+/* Cinematic 3D Folding Box CSS */
+.folding-box {
+    position: absolute;
+    background: #d2a679; /* Cardboard */
+    border: 1px solid #a67c52;
+    z-index: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    /* Set up 3D environment for flaps */
+    transform-style: preserve-3d;
+    perspective: 800px;
+}
+.flap {
+    position: absolute;
+    background: #c89a6c;
+    border: 1px solid #a67c52;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+}
+
+/* Flap default states (open) */
+.flap.top { transform-origin: bottom; transform: rotateX(0deg); transition: transform 0.6s ease; }
+.flap.bottom { transform-origin: top; transform: rotateX(0deg); transition: transform 0.6s ease; }
+.flap.left { transform-origin: right; transform: rotateY(0deg); transition: transform 0.6s ease; }
+.flap.right { transform-origin: left; transform: rotateY(0deg); transition: transform 0.6s ease; }
+
+.folding-box.folded-h .flap.left { transform: rotateY(180deg); }
+.folding-box.folded-h .flap.right { transform: rotateY(-180deg); }
+
+.folding-box.folded-v .flap.top { transform: rotateX(-180deg); z-index: 10; }
+.folding-box.folded-v .flap.bottom { transform: rotateX(180deg); z-index: 10; }
+</style>
+
+<script>
+    {% if has_loading_photos %}
+    document.addEventListener("DOMContentLoaded", function () {
+        window.setTimeout(() => {
+            if (document.hidden) return;
+            runLorryAnimation();
+            const totalNodes = document.querySelectorAll('.assembly-node').length;
+            const cycleDuration = (totalNodes * 2500) + 12000;
+            window.animIntervalId = window.setInterval(runLorryAnimation, cycleDuration); 
+        }, 1500);
+    });
+
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden) {
+            if (window.animIntervalId) window.clearInterval(window.animIntervalId);
+            if (window.animCycleId) window.animCycleId++; // Abort pending timeouts
+            
+            // Clean up screen immediately
+            document.querySelectorAll('.anim-element').forEach(el => el.remove());
+            document.querySelectorAll('.temp-leader-line').forEach(el => el.remove());
+            document.querySelectorAll('.assembly-node').forEach(n => { n.style.opacity = '1'; n.style.visibility = 'visible'; });
+            document.querySelectorAll('.leader-line').forEach(l => { l.style.display = ''; l.style.opacity = '1'; });
+            const m = document.querySelector('.machine-container') || document.getElementById('target-machine');
+            if (m) { m.style.opacity = '1'; m.style.visibility = 'visible'; }
+        } else {
+            // Restart cycle
+            runLorryAnimation();
+            const totalNodes = document.querySelectorAll('.assembly-node').length;
+            const cycleDuration = (totalNodes * 2500) + 12000;
+            window.animIntervalId = window.setInterval(runLorryAnimation, cycleDuration);
+        }
+    });
+
+    function runLorryAnimation() {
+        if (document.hidden) return;
+        
+        if (!window.animCycleId) window.animCycleId = 1;
+        else window.animCycleId++;
+        const currentCycleId = window.animCycleId;
+        
+        // Shadow setTimeout so nested calls automatically abort if cycle changes
+        const setTimeout = (cb, delay) => {
+            return window.setTimeout(() => {
+                if (window.animCycleId === currentCycleId) cb();
+            }, delay);
+        };
+
+        const canvas = document.getElementById('assembly-canvas');
+        if (!canvas) return;
+
+        document.querySelectorAll('.anim-element').forEach(el => el.remove());
+        document.querySelectorAll('.temp-leader-line').forEach(el => el.remove());
+
+        // Restore ALL nodes and lines that vanished in the previous loop
+        document.querySelectorAll('.assembly-node').forEach(node => {
+            node.style.visibility = 'visible';
+            node.style.transition = 'opacity 0.5s ease';
+            node.style.opacity = '1';
+        });
+        const machineEl = document.querySelector('.machine-container') || document.getElementById('target-machine');
+        if (machineEl) {
+            machineEl.style.visibility = 'visible';
+            machineEl.style.transition = 'opacity 0.5s ease';
+            machineEl.style.opacity = '1';
+        }
+        
+        document.querySelectorAll('.leader-line').forEach(el => {
+            el.style.display = '';
+            el.style.opacity = '1';
+            el.style.transition = '';
+        });
+        if (window.lines) {
+            window.lines.forEach(line => {
+                try { if (line.show) line.show('none'); } catch(e){}
+            });
+        }
+
+        let lorry = document.createElement('div');
+        lorry.id = 'lorry-anim';
+        lorry.className = 'anim-element';
+        lorry.innerHTML = `<i class="bi bi-truck" style="font-size: 22rem; color: #002060; filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.3)); line-height: 1;"></i>`;
+        lorry.style.position = 'absolute';
+        lorry.style.bottom = '2%';
+        lorry.style.left = '-500px';
+        lorry.style.zIndex = '500';
+        lorry.style.transition = 'left 2.5s cubic-bezier(0.25, 1, 0.5, 1)';
+        canvas.appendChild(lorry);
+
+        // Helper: find and fade arrows that originate FROM a given node
+        function fadeArrowsForNode(nodeEl) {
+            if (!window.lineNodeMap || !window.lineNodeMap.length) return;
+            const nodeId = nodeEl.id;
+            const allLineSvgs = document.querySelectorAll('body > .leader-line');
+            window.lineNodeMap.forEach((entry, idx) => {
+                if (entry.startNodeId === nodeId) {
+                    // Fade the corresponding SVG element
+                    if (allLineSvgs[idx]) {
+                        allLineSvgs[idx].style.transition = 'opacity 1.2s ease';
+                        allLineSvgs[idx].style.opacity = '0';
+                        setTimeout(() => { allLineSvgs[idx].style.display = 'none'; }, 1200);
+                    }
+                }
+            });
+        }
+
+        function packNode(node, delay, targetEl) {
+            setTimeout(() => {
+                const canvasBbox = canvas.getBoundingClientRect();
+                const bbox = node.getBoundingClientRect();
+                const targetBbox = targetEl.getBoundingClientRect();
+                
+                const box = document.createElement('div');
+                box.className = 'folding-box anim-element';
+                const w = bbox.width;
+                const h = bbox.height;
+                box.style.width = w + 'px';
+                box.style.height = h + 'px';
+                box.style.left = (bbox.left - canvasBbox.left) + 'px';
+                box.style.top = (bbox.top - canvasBbox.top) + 'px';
+                
+                let deptName = 'PART';
+                if (node.querySelector('h6')) deptName = node.querySelector('h6').innerText;
+                else if (node.querySelector('.vertical-text')) deptName = node.querySelector('.vertical-text').innerText;
+                
+                const flapH = Math.ceil(h / 2) + 1;
+                const flapW = Math.ceil(w / 2) + 1;
+                
+                box.innerHTML = `
+                    <div class="flap top" style="width: ${w}px; height: ${flapH}px; top: -${flapH-1}px; left: -1px;"></div>
+                    <div class="flap bottom" style="width: ${w}px; height: ${flapH}px; bottom: -${flapH-1}px; left: -1px;"></div>
+                    <div class="flap left" style="width: ${flapW}px; height: ${h}px; left: -${flapW-1}px; top: -1px;"></div>
+                    <div class="flap right" style="width: ${flapW}px; height: ${h}px; right: -${flapW-1}px; top: -1px;"></div>
+                    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: #5a3c1e;">${deptName}</div>
+                `;
+                canvas.appendChild(box);
+                
+                box.style.opacity = '0';
+                box.style.transform = 'scale(0.8)';
+                box.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                
+                setTimeout(() => {
+                    box.style.opacity = '1';
+                    box.style.transform = 'scale(1.05) translateY(-5px)';
+                    setTimeout(() => {
+                        box.classList.add('folded-h');
+                        setTimeout(() => {
+                            box.classList.add('folded-v');
+                            setTimeout(() => {
+                                // VANISH the department shape!
+                                node.style.transition = 'opacity 0.5s ease';
+                                node.style.opacity = '0';
+                                setTimeout(() => { node.style.visibility = 'hidden'; }, 500); // foolproof hide
+                                
+                                fadeArrowsForNode(node);
+
+                                box.style.transition = 'all 1.2s ease-in-out';
+                                box.style.left = (targetBbox.left - canvasBbox.left + targetBbox.width / 2 - w/2) + 'px';
+                                box.style.top = (targetBbox.top - canvasBbox.top + targetBbox.height / 2 - h/2) + 'px';
+                                box.style.transform = 'scale(0.2)';
+                                setTimeout(() => {
+                                    box.style.transition = 'opacity 0.3s ease';
+                                    box.style.opacity = '0';
+                                    // FOOLPROOF: destroy the box element entirely so it can't get stuck!
+                                    setTimeout(() => { try { box.remove(); } catch(e){} }, 300);
+                                }, 1000);
+                            }, 800);
+                        }, 500);
+                    }, 500);
+                }, 50);
+            }, delay);
+        }
+
+        const nodes = Array.from(document.querySelectorAll('.assembly-node'));
+        let leadNodeEl = window.leadNodeId ? document.getElementById(window.leadNodeId) : null;
+        let nonLeadNodes = leadNodeEl ? nodes.filter(n => n.id !== window.leadNodeId) : nodes;
+        
+        const packOrder = ['MSF', 'PSF', 'ESD', 'WAH', 'RAF', 'RAH'];
+        nonLeadNodes.sort((a, b) => {
+            let nameA = (a.innerText || "").toUpperCase();
+            let nameB = (b.innerText || "").toUpperCase();
+            let rankA = packOrder.findIndex(o => nameA.includes(o));
+            let rankB = packOrder.findIndex(o => nameB.includes(o));
+            if (rankA === -1) rankA = 999;
+            if (rankB === -1) rankB = 999;
+            return rankA - rankB;
+        });
+        
+        let currentIndex = 0;
+        nonLeadNodes.forEach((node) => {
+            packNode(node, currentIndex * 2500, leadNodeEl || machineEl);
+            currentIndex++;
+        });
+        if (leadNodeEl) {
+            packNode(leadNodeEl, currentIndex * 2500, machineEl);
+            currentIndex++;
+        }
+
+        const machinePackDelay = currentIndex * 2500 + 1500;
+        setTimeout(() => {
+            const canvasBbox = canvas.getBoundingClientRect();
+            let machineBbox = { left: canvasBbox.right - 300, top: canvasBbox.top + 100, width: 250, height: 400 };
+            if (machineEl) { machineBbox = machineEl.getBoundingClientRect(); }
+
+            const bigBox = document.createElement('div');
+            bigBox.className = 'folding-box anim-element';
+            const w = machineBbox.width;
+            const h = machineBbox.height;
+            bigBox.style.width = w + 'px';
+            bigBox.style.height = h + 'px';
+            bigBox.style.left = (machineBbox.left - canvasBbox.left) + 'px';
+            bigBox.style.top = (machineBbox.top - canvasBbox.top) + 'px';
+            const flapH = Math.ceil(h / 2) + 1;
+            const flapW = Math.ceil(w / 2) + 1;
+            bigBox.innerHTML = `
+                <div class="flap top" style="width: ${w}px; height: ${flapH}px; top: -${flapH-1}px; left: -1px;"></div>
+                <div class="flap bottom" style="width: ${w}px; height: ${flapH}px; bottom: -${flapH-1}px; left: -1px;"></div>
+                <div class="flap left" style="width: ${flapW}px; height: ${h}px; left: -${flapW-1}px; top: -1px;"></div>
+                <div class="flap right" style="width: ${flapW}px; height: ${h}px; right: -${flapW-1}px; top: -1px;"></div>
+                <div class="box-logo box-logo-center" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 1;">
+                    <img src="{% static 'xlogo.png' %}" style="max-width: 80%; max-height: 80%; object-fit: contain; filter: grayscale(100%);">
+                </div>
+                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 32px; color: #5a3c1e;">MACHINE<br>PACKED</div>
+                <div class="box-logo box-logo-corner" style="position: absolute; bottom: 10px; right: 10px; z-index: 40; opacity: 0;">
+                    <img src="{% static 'xlogo.png' %}" style="height: 25px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                </div>
+                <div class="pack-seal" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg) scale(10); opacity: 0; z-index: 50; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; transition: transform 1.8s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 1.2s ease;">
+                    <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 6px solid #548c4f; box-sizing: border-box;"></div>
+                    <div style="position: absolute; width: 85%; height: 85%; border-radius: 50%; border: 3px solid #548c4f; box-sizing: border-box;"></div>
+                    <div style="position: absolute; width: 68%; height: 68%; border-radius: 50%; border: 1px solid #548c4f; box-sizing: border-box;"></div>
+                    <div style="position: absolute; top: 16%; color: #548c4f; font-size: 16px; display: flex; gap: 10px; transform: rotate(15deg);">
+                        <i class="bi bi-star-fill" style="transform: scale(0.6)"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill" style="transform: scale(0.6)"></i>
+                    </div>
+                    <div style="position: absolute; bottom: 16%; color: #548c4f; font-size: 16px; display: flex; gap: 10px; transform: rotate(15deg);">
+                        <i class="bi bi-star-fill" style="transform: scale(0.6)"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill" style="transform: scale(0.6)"></i>
+                    </div>
+                    <div style="position: absolute; background: #548c4f; width: 110%; height: 46px; transform: rotate(-15deg); display: flex; align-items: center; justify-content: center; z-index: 2;">
+                        <span style="color: white; font-weight: 900; font-size: 28px; font-family: 'Arial Black', Impact, sans-serif; letter-spacing: 4px; padding-left: 4px;">PACKED</span>
+                    </div>
+                </div>
+            `;
+            canvas.appendChild(bigBox);
+            bigBox.style.opacity = '0';
+            bigBox.style.transform = 'scale(0.9)';
+            bigBox.style.transition = 'all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            
+            setTimeout(() => {
+                bigBox.style.opacity = '1';
+                bigBox.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    bigBox.classList.add('folded-h');
+                    setTimeout(() => {
+                        bigBox.classList.add('folded-v');
+                        
+                        setTimeout(() => {
+                            const seal = bigBox.querySelector('.pack-seal');
+                            if (seal) {
+                                seal.style.opacity = '1';
+                                seal.style.transform = 'translate(-50%, -50%) rotate(-10deg) scale(1)';
+                            }
+                            bigBox.querySelectorAll('.box-logo').forEach(logo => {
+                                logo.style.transition = 'opacity 0.3s ease';
+                                logo.style.opacity = logo.classList.contains('box-logo-center') ? '0.15' : '1';
+                            });
+                        }, 400);
+
+                        // VANISH the machine shape!
+                        if (machineEl) {
+                            machineEl.style.transition = 'opacity 0.5s ease';
+                            machineEl.style.opacity = '0';
+                            setTimeout(() => { machineEl.style.visibility = 'hidden'; }, 500);
+                        }
+                        setTimeout(() => {
+                            lorry.style.left = '35%';
+                            setTimeout(() => {
+                                const lorryBbox = lorry.getBoundingClientRect();
+                                const canvasBbox2 = canvas.getBoundingClientRect();
+                                const cargoLeft = lorryBbox.left + lorryBbox.width * 0.05;
+                                const cargoTop = lorryBbox.top + lorryBbox.height * 0.15;
+                                const cargoWidth = lorryBbox.width * 0.45;
+                                const cargoHeight = lorryBbox.height * 0.6;
+
+                                // Calculate scale to fit inside the cargo area
+                                const scaleX = cargoWidth / w;
+                                const scaleY = cargoHeight / h;
+                                const scaleFactor = Math.min(scaleX, scaleY) * 0.9; // 90% of max fit
+                                
+                                // To center it, we set left/top such that its original center aligns with cargo center
+                                const destLeft = cargoLeft - canvasBbox2.left + (cargoWidth - w) / 2;
+                                const destTop = cargoTop - canvasBbox2.top + (cargoHeight - h) / 2;
+                                
+                                bigBox.style.transition = 'all 1.5s cubic-bezier(0.25, 1, 0.5, 1)';
+                                bigBox.style.left = destLeft + 'px';
+                                bigBox.style.top = destTop + 'px';
+                                // DO NOT change width/height here, just scale it!
+                                bigBox.style.transform = `scale(${scaleFactor})`;
+                                bigBox.style.zIndex = '499';
+                                bigBox.style.opacity = '1';
+                                
+                                // After box lands in truck, reparent it so it moves with the truck
+                                setTimeout(() => {
+                                    const lorryW = lorry.offsetWidth || lorryBbox.width;
+                                    const lorryH = lorry.offsetHeight || lorryBbox.height;
+                                    const relCargoLeft = lorryW * 0.05;
+                                    const relCargoTop = lorryH * 0.15;
+                                    const relCargoWidth = lorryW * 0.45;
+                                    const relCargoHeight = lorryH * 0.60;
+                                    
+                                    // Position relative to the lorry icon
+                                    bigBox.style.transition = 'none';
+                                    bigBox.style.position = 'absolute';
+                                    bigBox.style.left = (relCargoLeft + (relCargoWidth - w) / 2) + 'px';
+                                    bigBox.style.top = (relCargoTop + (relCargoHeight - h) / 2) + 'px';
+                                    bigBox.style.transform = `scale(${scaleFactor})`;
+                                    bigBox.style.opacity = '1';
+                                    bigBox.style.zIndex = '-1';
+                                    lorry.prepend(bigBox);
+                                    setTimeout(() => {
+                                        // Show "ON YOUR WAY!" text
+                                        const dispatchText = document.createElement('div');
+                                        dispatchText.className = 'anim-element';
+                                        dispatchText.innerHTML = 'ON YOUR WAY!';
+                                        dispatchText.style.position = 'absolute';
+                                        dispatchText.style.left = '50%';
+                                        dispatchText.style.top = '30%';
+                                        dispatchText.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                                        dispatchText.style.fontSize = '80px';
+                                        dispatchText.style.fontWeight = '900';
+                                        dispatchText.style.color = '#6c757d';
+                                        dispatchText.style.textShadow = '2px 2px 10px rgba(0,0,0,0.2)';
+                                        dispatchText.style.opacity = '0';
+                                        dispatchText.style.transition = 'all 1s ease';
+                                        dispatchText.style.zIndex = '999';
+                                        dispatchText.style.whiteSpace = 'nowrap';
+                                        canvas.appendChild(dispatchText);
+                                        
+                                        setTimeout(() => {
+                                            dispatchText.style.opacity = '1';
+                                            dispatchText.style.transform = 'translate(-50%, -50%) scale(1)';
+                                            
+                                            // Fade out before next cycle starts
+                                            setTimeout(() => {
+                                                dispatchText.style.opacity = '0';
+                                                setTimeout(() => { try { dispatchText.remove(); } catch(e){} }, 1000);
+                                            }, 2000);
+                                        }, 50);
+
+                                        lorry.style.transition = 'left 3s cubic-bezier(0.5, 0, 1, 1)';
+                                        lorry.style.left = '120%';
+                                        // 7. Restore everything after lorry is gone
+                                        setTimeout(() => {
+                                            document.querySelectorAll('.assembly-node').forEach(n => {
+                                                n.style.visibility = 'visible';
+                                                n.style.transition = 'opacity 0.5s ease';
+                                                n.style.opacity = '1';
+                                            });
+                                            if (machineEl) {
+                                                machineEl.style.visibility = 'visible';
+                                                machineEl.style.transition = 'opacity 0.5s ease';
+                                                machineEl.style.opacity = '1';
+                                            }
+                                            document.querySelectorAll('.leader-line').forEach(el => {
+                                                el.style.transition = 'opacity 0.5s ease';
+                                                el.style.display = '';
+                                                el.style.opacity = '1';
+                                            });
+                                            if (window.lines) {
+                                                window.lines.forEach(line => { 
+                                                    try { if(line.show) line.show('none'); } catch(e){} 
+                                                });
+                                            }
+                                        }, 3000);
+                                    }, 800);
+                                }, 1500);
+                            }, 2800);
+                        }, 800);
+                    }, 600);
+                }, 600);
+            }, 50);
+        }, machinePackDelay);
+    }
+    {% endif %}
+</script>
+{% endblock %}

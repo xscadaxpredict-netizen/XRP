@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-xl my-4">
+    <div class="page-header d-print-none mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">Payment Checkout: {{ vendor.name }}</h2>
+                <div class="text-muted mt-1">Select orders to settle and provide payment proof</div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="payment-form">
+        {% csrf_token %}
+        <div class="row row-cards">
+            <!-- Left Side: Unpaid POs List -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h3 class="card-title">Outstanding Purchase Orders</h3>
+                        <div class="form-check pt-2">
+                          <input class="form-check-input" type="checkbox" id="select-all">
+                          <label class="form-check-label" for="select-all">Select All</label>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-vcenter table-hover card-table">
+                            <thead>
+                                <tr>
+                                    <th class="w-1"></th>
+                                    <th>PO Number</th>
+                                    <th>Status</th>
+                                    <th>Total Amt</th>
+                                    <th>Paid</th>
+                                    <th>Remaining</th>
+                                    <th class="w-25">Paying Now</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in unpaid_pos %}
+                                <tr class="{% if po.is_priority %}table-warning{% endif %}">
+                                    <td>
+                                        <input class="form-check-input po-checkbox" type="checkbox" name="selected_pos" value="{{ po.id }}" 
+                                               data-remaining="{{ po.remaining_balance }}">
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ po.po_number }}</div>
+                                        <div class="text-muted small">Due: {{ po.due_date }}</div>
+                                    </td>
+                                    <td>
+                                        {% if po.payment_status == 'partial' %}
+                                            <span class="badge bg-yellow-lt">Partial</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary-lt">Unpaid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>₹{{ po.get_grand_total|floatformat:2 }}</td>
+                                    <td>₹{{ po.amount_paid|floatformat:2 }}</td>
+                                    <td class="text-danger fw-bold remaining-balance-cell" data-original="{{ po.remaining_balance }}">
+                                        ₹{{ po.remaining_balance|floatformat:2 }}
+                                    </td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text">₹</span>
+                                            <input type="number" step="0.01" class="form-control pay-input" name="pay_amount_{{ po.id }}" 
+                                                   value="0.00" min="0" max="{{ po.remaining_balance }}" disabled>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-light fw-bold text-azure">
+                                    <td colspan="5" class="text-end">Total Payment Amount:</td>
+                                    <td colspan="2" id="total-display">₹0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Section: Transaction Details -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-light">
+                        <h3 class="card-title">Payment Confirmation</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label required">Transaction ID / Reference</label>
+                            <input type="text" class="form-control" name="transaction_id" placeholder="Bank ref number" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required">Payment Proof</label>
+                            <input type="file" class="form-control" name="proof" accept="image/*,application/pdf" required>
+                            <small class="text-muted">Attach screenshot or receipt</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Remarks</label>
+                            <textarea class="form-control" name="remarks" rows="5" placeholder="Add payment notes..."></textarea>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary w-100 py-2" id="submit-btn" disabled>
+                                Confirm & Record Payment
+                            </button>
+                            <a href="{% url 'vendor_payments_board' %}" class="btn btn-link w-100 text-muted mt-2">Cancel</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const mainSelect = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.po-checkbox');
+    const payInputs = document.querySelectorAll('.pay-input');
+    const totalDisplay = document.getElementById('total-display');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function updateRowBalance(row) {
+        const input = row.querySelector('.pay-input');
+        const cb = row.querySelector('.po-checkbox');
+        const balanceCell = row.querySelector('.remaining-balance-cell');
+        
+        const originalRemaining = parseFloat(cb.dataset.remaining);
+        const payingNow = parseFloat(input.value) || 0;
+        
+        const currentRemaining = originalRemaining - payingNow;
+        balanceCell.innerHTML = '₹' + currentRemaining.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        
+        if (currentRemaining <= 0) {
+            balanceCell.classList.remove('text-danger');
+            balanceCell.classList.add('text-success');
+        } else {
+            balanceCell.classList.remove('text-success');
+            balanceCell.classList.add('text-danger');
+        }
+    }
+
+    function calculateGrandTotal() {
+        let total = 0;
+        payInputs.forEach(input => {
+            if (!input.disabled) {
+                total += parseFloat(input.value) || 0;
+            }
+        });
+        totalDisplay.innerText = '₹' + total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        submitBtn.disabled = total <= 0;
+    }
+
+    mainSelect.addEventListener('change', function() {
+        checkboxes.forEach(cb => {
+            cb.checked = this.checked;
+            cb.dispatchEvent(new Event('change'));
+        });
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const row = this.closest('tr');
+            const input = row.querySelector('.pay-input');
+            const originalRemaining = parseFloat(this.dataset.remaining);
+            
+            if (this.checked) {
+                input.disabled = false;
+                input.value = originalRemaining.toFixed(2);
+            } else {
+                input.disabled = true;
+                input.value = "0.00";
+            }
+            updateRowBalance(row);
+            calculateGrandTotal();
+        });
+    });
+
+    payInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const row = this.closest('tr');
+            const cb = row.querySelector('.po-checkbox');
+            const max = parseFloat(cb.dataset.remaining);
+            
+            let val = parseFloat(this.value) || 0;
+            if (val > max) {
+                this.value = max.toFixed(2);
+                val = max;
+            }
+            
+            updateRowBalance(row);
+            calculateGrandTotal();
+        });
+    });
+});
+</script>
+{% endblock %}

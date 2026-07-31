@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-xl my-4">
+    <!-- Page header -->
+    <div class="page-header d-print-none mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="page-pretitle text-muted text-uppercase fw-bold mb-1">Financial Analysis</div>
+                <h2 class="page-title fs-3 fw-extrabold text-dark">{{ project.name }}</h2>
+                <div class="text-muted mt-1" style="font-size: 0.9rem;">
+                    {% if project.lead %}<strong>Lead:</strong> {{ project.lead.name }} | {% endif %}
+                    <strong>Location:</strong> {{ project.place|default:"-" }}
+                </div>
+            </div>
+            <div class="col-auto ms-auto">
+                <a href="{% url 'project_detail' project.id %}" class="btn btn-outline-primary shadow-sm fw-bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l14 0" /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg>
+                    Back to Project Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="row row-cards mb-4">
+        <!-- Allocated Budget -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0 position-relative overflow-hidden" style="background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);">
+                <div class="card-status-start bg-indigo" style="width: 5px;"></div>
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="subheader text-muted fw-bold text-uppercase fs-8 tracking-wider">Allocated Budget</div>
+                        <div class="ms-auto text-indigo">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-wallet" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17 8v-3a1 1 0 0 0 -1 -1h-10a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1 -1 1h-12a2 2 0 0 1 -2 -2v-12" /><path d="M20 12v4h-4a2 2 0 0 1 0 -4h4" /></svg>
+                        </div>
+                    </div>
+                    <div class="h2 mb-1 fw-extrabold text-indigo fs-2">₹{{ allocated_budget }}</div>
+                    <div class="text-secondary small">Authorized financial limit</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Budget Used -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0 position-relative overflow-hidden" style="background: linear-gradient(135deg, #fffcf5 0%, #fef3d6 100%);">
+                <div class="card-status-start bg-orange" style="width: 5px;"></div>
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="subheader text-muted fw-bold text-uppercase fs-8 tracking-wider">Total Budget Used</div>
+                        <div class="ms-auto text-orange">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-chart-pie" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 3.2a9 9 0 1 0 10.8 10.8a1 1 0 0 0 -1 -1h-6.8a1 1 0 0 1 -1 -1v-6.8a1 1 0 0 0 -1 -1z" /><path d="M15 3.5a9 9 0 0 1 5.5 5.5h-4.5a1 1 0 0 1 -1 -1v-4.5z" /></svg>
+                        </div>
+                    </div>
+                    <div class="h2 mb-1 fw-extrabold text-orange fs-2">₹{{ total_used }}</div>
+                    <div class="text-secondary small">POs Committed + Direct Issues</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Remaining Budget -->
+        <div class="col-sm-6 col-lg-3">
+            {% if budget_exceeded %}
+            <div class="card shadow-sm border-0 position-relative overflow-hidden" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe3e3 100%);">
+                <div class="card-status-start bg-danger" style="width: 5px;"></div>
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="subheader text-muted fw-bold text-uppercase fs-8 tracking-wider">Budget Overrun</div>
+                        <div class="ms-auto text-danger">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-alert-triangle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" /></svg>
+                        </div>
+                    </div>
+                    <div class="h2 mb-1 fw-extrabold text-danger fs-2">₹{{ over_budget_amount }}</div>
+                    <div class="text-secondary small">Deficit (Limit exceeded)</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card shadow-sm border-0 position-relative overflow-hidden" style="background: linear-gradient(135deg, #f6fbf8 0%, #e6f6ed 100%);">
+                <div class="card-status-start bg-success" style="width: 5px;"></div>
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="subheader text-muted fw-bold text-uppercase fs-8 tracking-wider">Remaining Budget</div>
+                        <div class="ms-auto text-success">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-discount-check" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
+                        </div>
+                    </div>
+                    <div class="h2 mb-1 fw-extrabold text-success fs-2">₹{{ remaining_budget }}</div>
+                    <div class="text-secondary small">Available headroom limit</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Overdue Payments -->
+        <div class="col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0 position-relative overflow-hidden" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe3e3 100%);">
+                <div class="card-status-start bg-danger" style="width: 5px;"></div>
+                <div class="card-body py-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="subheader text-muted fw-bold text-uppercase fs-8 tracking-wider">Overdue Payments</div>
+                        <span class="badge bg-danger text-white ms-auto font-monospace">{{ overdue_count }} POs</span>
+                    </div>
+                    <div class="h2 mb-1 fw-extrabold text-danger fs-2">₹{{ overdue_amount }}</div>
+                    <div class="text-secondary small">Awaiting payment past terms</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visual Graphs & Analysis Cards -->
+    <div class="row row-cards mb-4">
+        <!-- Budget Fulfill analysis -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-transparent border-bottom-0 pb-0">
+                    <h3 class="card-title fw-bold text-secondary">Budget Allocation Consumption</h3>
+                </div>
+                <div class="card-body">
+                    {% if budget_exceeded %}
+                    <div class="alert alert-danger shadow-xs py-3 border-0 rounded d-flex align-items-center gap-2 mb-4" style="background-color: #fff5f5;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon text-danger" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" /></svg>
+                        <div>
+                            <span class="fw-bold">Budget Limit Exceeded:</span> The project has consumed <strong>{{ used_percent }}%</strong> of the allocated budget (overrun of ₹{{ over_budget_amount }}).
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2 small fw-bold">
+                            <span>Total Committed / Spent</span>
+                            <span>{{ used_percent }}% Consumption</span>
+                        </div>
+                        <div class="progress" style="height: 20px; border-radius: 4px;">
+                            {% if budget_exceeded %}
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">100% Exceeded</div>
+                            {% else %}
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ po_percent }}%" aria-valuenow="{{ po_percent }}" aria-valuemin="0" aria-valuemax="100" title="Committed POs">POs ({{ po_percent }}%)</div>
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ issue_percent }}%" aria-valuenow="{{ issue_percent }}" aria-valuemin="0" aria-valuemax="100" title="Direct Issues">Stock Issues ({{ issue_percent }}%)</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded border border-light-subtle">
+                                <span class="d-block text-muted small fw-bold text-uppercase">Purchase Orders</span>
+                                <span class="fs-4 fw-bold text-primary">₹{{ committed_po }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded border border-light-subtle">
+                                <span class="d-block text-muted small fw-bold text-uppercase">Direct Stock Issues</span>
+                                <span class="fs-4 fw-bold text-success">₹{{ direct_issues_cost }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Outflow Status -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-transparent border-bottom-0 pb-0">
+                    <h3 class="card-title fw-bold text-secondary">Purchase Order Cash Outflow</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2 small fw-bold">
+                            <span>Vendor Payments Made</span>
+                            <span>{{ paid_percent }}% Disbursed</span>
+                        </div>
+                        <div class="progress" style="height: 20px; border-radius: 4px;">
+                            <div class="progress-bar bg-teal" role="progressbar" style="width: {{ paid_percent }}%" aria-valuenow="{{ paid_percent }}" aria-valuemin="0" aria-valuemax="100">Paid ({{ paid_percent }}%)</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded border border-light-subtle">
+                                <span class="d-block text-muted small fw-bold text-uppercase">Paid Outflow</span>
+                                <span class="fs-4 fw-bold text-teal">₹{{ total_paid_po }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded border border-light-subtle">
+                                <span class="d-block text-muted small fw-bold text-uppercase">Outstanding/Unpaid</span>
+                                <span class="fs-4 fw-bold text-muted">₹{{ total_pending_po }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kitting BOM Section if present -->
+    {% if kit %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-light d-flex align-items-center py-3">
+            <div>
+                <h3 class="card-title fw-extrabold text-dark mb-0">Kitting / BOM Financial Estimates</h3>
+                <small class="text-muted">Machine Kit Attached: <strong>{{ kit.name }}</strong></small>
+            </div>
+            <div class="ms-auto text-end">
+                <span class="badge bg-indigo-subtle text-indigo border border-indigo-subtle px-2 py-1 fs-7">
+                    <strong>Total Est. BOM Cost:</strong> ₹{{ total_kit_est_cost }}
+                </span>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fs-7 ms-2">
+                    <strong>Est. Shortage Cost:</strong> ₹{{ total_kit_shortage_cost }}
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-vcenter card-table table-striped align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr class="text-secondary small fw-bold text-uppercase">
+                            <th>Component Name</th>
+                            <th>Category</th>
+                            <th class="text-center">Req. Qty</th>
+                            <th class="text-center">In Stock</th>
+                            <th class="text-center">Shortage</th>
+                            <th class="text-end">Est. Unit Price</th>
+                            <th class="text-end">Est. BOM Cost</th>
+                            <th class="text-end">Est. Shortage Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in kit_components_data %}
+                        <tr>
+                            <td><strong>{{ item.component.stock_item.product_name }}</strong></td>
+                            <td>
+                                {% if item.component.category_name %}
+                                <span class="badge bg-light text-secondary border border-light-subtle">{{ item.component.category_name }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ item.component.required_quantity }}</td>
+                            <td class="text-center">
+                                <span class="badge {% if item.in_stock > 0 %}bg-success-subtle text-success border border-success-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}">
+                                    {{ item.in_stock|floatformat:0 }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if item.shortage > 0 %}
+                                <span class="text-danger fw-bold">{{ item.shortage }}</span>
+                                {% else %}
+                                <span class="text-success font-monospace">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end font-monospace">₹{{ item.unit_price }}</td>
+                            <td class="text-end font-monospace fw-bold">₹{{ item.est_cost }}</td>
+                            <td class="text-end font-monospace {% if item.shortage_cost > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                ₹{{ item.shortage_cost }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Lists Section -->
+    <div class="row row-cards">
+        <!-- Purchase Orders Card -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h3 class="card-title fw-bold text-secondary mb-0">Project Purchase Orders</h3>
+                </div>
+                <div class="card-body p-0">
+                    {% if po_list_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-vcenter card-table table-striped align-middle mb-0" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr class="text-secondary small fw-bold text-uppercase">
+                                    <th>PO Number</th>
+                                    <th>Vendor</th>
+                                    <th class="text-end">Grand Total</th>
+                                    <th class="text-end">Amount Paid</th>
+                                    <th class="text-end">Remaining Balance</th>
+                                    <th>Due Date</th>
+                                    <th class="text-center">Payment Status</th>
+                                    <th class="text-center">Overdue?</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in po_list_data %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'purchase_order_print' row.po.id %}" target="_blank" class="fw-bold font-monospace">
+                                            {{ row.po.po_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ row.po.vendor.name }}</td>
+                                    <td class="text-end font-monospace fw-bold">₹{{ row.total_val }}</td>
+                                    <td class="text-end font-monospace text-teal">₹{{ row.po.amount_paid }}</td>
+                                    <td class="text-end font-monospace text-orange fw-bold">₹{{ row.balance }}</td>
+                                    <td>{{ row.po.due_date|date:"Y-m-d"|default:"-" }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if row.po.payment_status == 'paid' %}bg-success-subtle text-success border border-success-subtle{% elif row.po.payment_status == 'partial' %}bg-warning-subtle text-warning border border-warning-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %} text-uppercase">
+                                            {{ row.po.get_payment_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if row.is_overdue %}
+                                        <span class="badge bg-danger text-white blink-animation">OVERDUE</span>
+                                        {% else %}
+                                        <span class="text-muted font-monospace">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-shopping-cart-x text-secondary mb-2" width="48" height="48" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M17 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M17 17h-11v-14h-2" /><path d="M6 5l7.999 .571m5.43 1.584l-.429 2.845h-13" /><path d="M17 10l-2 2m0 -2l2 2" /></svg>
+                        <p class="mb-0">No purchase orders have been created for this project yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Direct Material Issues Card -->
+        <div class="col-12">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h3 class="card-title fw-bold text-secondary mb-0">Project Direct Material Issues</h3>
+                </div>
+                <div class="card-body p-0">
+                    {% if material_issues %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-vcenter card-table table-striped align-middle mb-0" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr class="text-secondary small fw-bold text-uppercase">
+                                    <th>Material / Product</th>
+                                    <th class="text-center">Issued Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total Cost</th>
+                                    <th>Issued At</th>
+                                    <th>Issued By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for issue in material_issues %}
+                                <tr>
+                                    <td><strong>{{ issue.stock_item.product_name }}</strong></td>
+                                    <td class="text-center font-monospace">{{ issue.issued_qty }}</td>
+                                    <td class="text-end font-monospace">₹{{ issue.unit_price }}</td>
+                                    <td class="text-end font-monospace fw-bold text-success">₹{{ issue.total_value }}</td>
+                                    <td>{{ issue.issued_at|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ issue.issued_by.first_name|default:issue.issued_by.username|default:"System" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package-x text-secondary mb-2" width="48" height="48" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 19a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M12 12l8 -8" /><path d="M20 12v-2a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h4" /><path d="M22 22l-5 -5m0 5l5 -5" /><path d="M12 3l-8 4.5v9l8 4.5l8 -4.5v-9z" /></svg>
+                        <p class="mb-0">No direct stock materials have been issued to this project yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+    .blink-animation {
+        animation: blink 2s infinite ease-in-out;
+    }
+</style>
+{% endblock %}

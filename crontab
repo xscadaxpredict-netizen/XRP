@@ -1,1 +1,0 @@
-* * * * * /Users/shashank/Downloads/sample2/sample/bin/python /Users/shashank/Downloads/sample2/sample/xplbs/manage.py send_site_visit_reminders >> /Users/shashank/site_reminders.log 2>&1

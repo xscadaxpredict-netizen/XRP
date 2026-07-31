@@ -1,0 +1,283 @@
+/* XsHoT custom CSS overrides for Tabler */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --tblr-font-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif;
+}
+
+body {
+    background-color: #f4f6fa;
+}
+
+/* ===== Auth pages ===== */
+.auth-brand-logo {
+    width: 90px;
+    height: 90px;
+    margin: 0 auto 24px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.auth-brand-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+.badge-count {
+    font-size: 0.65rem;
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    padding: 0.25em 0.45em;
+}
+
+/* ===== Global Soft Card ===== */
+.card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+
+.xshot-hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.xshot-hover-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+}
+
+/* ===== Soft Tables inside Cards ===== */
+.card .table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.card .table thead th {
+    background: #f8fafc;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    font-weight: 700;
+    border-bottom: 1px solid #e9ecef;
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+.card .table tbody td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+.card .table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Hover effect on table rows */
+.card .table tbody tr {
+    transition: background-color 0.15s ease;
+}
+.card .table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* ===== Form Tables (invoice_create etc.) ===== */
+.card .table-bordered {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.card .table-bordered > :not(caption) > * > * {
+    border-color: #e2e8f0;
+}
+.card .table-bordered thead th,
+.card .table-bordered .table-active {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+/* ===== Filter Bar (list pages) ===== */
+.xshot-filter-bar {
+    background: #eef2f7;
+    border-radius: 16px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    border: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.xshot-filter-bar .search-box {
+    margin-left: auto;
+    position: relative;
+}
+.xshot-filter-bar .search-box input {
+    border-radius: 8px;
+    border: 1px solid #dce3eb;
+    padding: 6px 12px 6px 34px;
+    background: #fff;
+    min-width: 180px;
+    font-size: 0.85rem;
+}
+.xshot-filter-bar .search-box .ti-search {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+/* ===== Table Card (list pages) ===== */
+.xshot-table-card {
+    border-radius: 16px;
+    overflow: hidden;
+}
+.xshot-table-card .card-body {
+    padding: 0;
+}
+
+/* Scrollbar */
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+/* Hide DataTables built-in filter/length (we have our own search) */
+.xshot-table-card .dataTables_wrapper .dataTables_filter,
+.xshot-table-card .dataTables_wrapper .dataTables_length {
+    display: none;
+}
+.xshot-table-card .dataTables_wrapper .dataTables_paginate {
+    padding: 12px 16px;
+}
+.xshot-table-card .dataTables_wrapper .dataTables_info {
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+/* ===== Soft Buttons ===== */
+.btn {
+    border-radius: 8px;
+}
+.btn.rounded-pill {
+    border-radius: 50rem;
+}
+
+/* Action button hover polish */
+.btn-outline-primary:hover,
+.btn-outline-warning:hover,
+.btn-outline-danger:hover {
+    transform: translateY(-1px);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* ===== Form inputs inside cards ===== */
+.card .form-control,
+.card .form-select {
+    border-radius: 8px;
+    border-color: #e2e8f0;
+}
+.card .form-control:focus,
+.card .form-select:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.15);
+}
+
+/* ===== Responsive: mobile tweaks ===== */
+@media (max-width: 768px) {
+    .xshot-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .xshot-filter-bar .btn {
+        align-self: flex-start;
+    }
+    .xshot-filter-bar .search-box {
+        margin-left: 0;
+        margin-top: 8px;
+    }
+    .xshot-filter-bar .search-box input {
+        width: 100%;
+    }
+}
+
+/* ===== Autocomplete Dropdown for Customer Suggestions ===== */
+.customer_search_area {
+    position: relative;
+}
+#customer_search_bar {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 280px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1050;
+    padding: 6px 0;
+}
+.customer-search-result {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-align: left;
+}
+.customer-search-result:last-child {
+    border-bottom: none;
+}
+.customer-search-result:hover {
+    background: #f8fafc;
+}
+.customer-search-result div:first-child {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+.customer-search-result div:not(:first-child) {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* ===== Centered Delete Row Buttons ===== */
+.remove-invoice-row {
+    width: 32px !important;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+    line-height: 1 !important;
+}
+.remove-invoice-row i {
+    font-size: 1.1rem !important;
+}
+
+/* ===== Override DataTables 404 sorting icons with inline SVGs ===== */
+table.dataTable thead .sorting {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E") !important;
+}
+table.dataTable thead .sorting_asc {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m18 15-6-6-6 6'/%3E%3C/svg%3E") !important;
+}
+table.dataTable thead .sorting_desc {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+}

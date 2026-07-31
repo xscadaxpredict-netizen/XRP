@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header d-print-none mb-4">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">Administration</div>
+                <h2 class="page-title"><i class="bi bi-gear-fill me-2 text-primary"></i> Master Settings Dashboard</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                    {{ message }}
+                    <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="row row-cards">
+            {% for m in master_models %}
+            <div class="col-md-6 col-lg-4">
+                <a href="{% url 'master_list' m.app_label m.model_name %}" class="card card-link card-link-pop text-decoration-none shadow-sm h-100" style="border-radius: 12px; transition: transform 0.2s;">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary-lt p-3 rounded-circle me-3 text-primary d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                <i class="bi {{ m.icon }} fs-3"></i>
+                            </div>
+                            <h3 class="card-title mb-0 fs-3 fw-bold text-dark">{{ m.name }}</h3>
+                        </div>
+                        <p class="text-muted">{{ m.description }}</p>
+                    </div>
+                    <div class="card-footer bg-transparent border-0 pt-0 text-end">
+                        <span class="text-primary fw-semibold small">Manage <i class="bi bi-arrow-right ms-1"></i></span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

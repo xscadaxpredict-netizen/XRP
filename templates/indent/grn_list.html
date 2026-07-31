@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-xl my-4">
+
+    <!-- ---------------- TABS ---------------- -->
+    <ul class="nav nav-tabs" id="grnTabs">
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#internalTab">Internal GRN (Department Indent)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#purchaseTab">Purchase GRN</a>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3">
+
+        <div id="purchaseTab" class="tab-pane fade show active">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0"> Purchase Orders & GRN History</h3>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover table-vcenter align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Vendor</th>
+                                <th>Contact Info</th>
+                                <th>Total POs</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v_name, v_group in vendor_groups.items %}
+                            <tr>
+                                <td><strong>{{ v_name }}</strong></td>
+                                <td>
+                                    {{ v_group.vendor.contact_number|default:"-" }}<br>
+                                    <small class="text-muted">{{ v_group.vendor.contact_email|default:"-" }}</small>
+                                </td>
+                                <td><span class="badge bg-info">{{ v_group.pos|length }} POs</span></td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#vendorPos{{ forloop.counter }}">View Purchase Orders</button>
+                                </td>
+                            </tr>
+
+                            <tr class="bg-light">
+                                <td colspan="9" class="p-0">
+                                    <div class="collapse" id="vendorPos{{ forloop.counter }}">
+                                        <div class="border rounded m-2 p-3 bg-white shadow-sm">
+                                            <h6 class="fw-bold mb-3 text-primary">📦 Purchase Orders for {{ v_name }}
+                                            </h6>
+                                            <table class="table table-sm table-hover mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>PO No</th>
+                                                        <th>Project</th>
+                                                        <th>Indent No</th>
+                                                        <th>Ordered</th>
+                                                        <th>Accepted</th>
+                                                        <th>Progress</th>
+                                                        <th>Status</th>
+                                                        <th class="text-center">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for po_obj in v_group.pos %}
+                                                    <tr>
+                                                        <td><strong>{{ po_obj.po_number }}</strong></td>
+                                                        <td>{{ po_obj.indent.project.name|default:"-" }}</td>
+                                                        <td>{{ po_obj.indent.indent_number|default:"-" }}</td>
+                                                        <td>{{ po_obj.total_ordered }}</td>
+                                                        <td class="text-success fw-bold">{{ po_obj.total_accepted }}
+                                                        </td>
+                                                        <td>{{ po_obj.progress_html|safe }}</td>
+                                                        <td>{{ po_obj.status_badge_html|safe }}</td>
+                                                        <td class="text-center">{{ po_obj.action_html|safe }}</td>
+                                                    </tr>
+
+                                                    {% if po_obj.grns.all %}
+                                                    <tr>
+                                                        <td colspan="8" class="p-0">
+                                                            <div class="collapse" id="grnHistory{{ po_obj.id }}">
+                                                                <div class="bg-light p-2 border-bottom">
+                                                                    <table
+                                                                        class="table table-sm table-bordered bg-white mb-0"
+                                                                        style="font-size: 0.85rem;">
+                                                                        <thead class="table-dark">
+                                                                            <tr>
+                                                                                <th>GRN No</th>
+                                                                                <th>Product Details</th>
+                                                                                <th class="text-center">Ordered</th>
+                                                                                <th class="text-center">Received</th>
+                                                                                <th class="text-center">Accepted</th>
+                                                                                <th class="text-center">Rejected</th>
+                                                                                <th>Item Progress</th>
+                                                                                <th>Date</th>
+                                                                                <th>By</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {% for grn_obj in po_obj.grns.all %}
+                                                                            {% for item_obj in grn_obj.items.all %}
+                                                                            {{ item_obj.rendered_row_html|safe }}
+                                                                            {% endfor %}
+                                                                            {% endfor %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---------------- TAB 2: INTERNAL GRN ---------------- -->
+        <div id="internalTab" class="tab-pane fade">
+            <h4 class="mt-4">Internal GRN History</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Indent No</th>
+                            <th>Project</th>
+                            <th>Department</th>
+                            <th>Created On</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i_row in internal_indents %}
+                        <tr>
+                            <td><strong>{{ i_row.indent.indent_number }}</strong></td>
+                            <td>{{ i_row.indent.project.name }}</td>
+                            <td>{{ i_row.indent.department.name }}</td>
+                            <td>{{ i_row.indent.created_at|date:"Y-m-d" }}</td>
+                            <td class="text-center">{{ i_row.indent.action_buttons_html|safe }}</td>
+                        </tr>
+
+                        {% if i_row.indent.internal_grns.all %}
+                        <tr>
+                            <td colspan="5" class="p-0">
+                                <div class="collapse" id="igrnHistory{{ i_row.indent.id }}">
+                                    <div class="border rounded m-2 p-3">
+                                        <h6 class="fw-bold text-primary">📘 IGRN History for {{
+                                            i_row.indent.indent_number }}</h6>
+                                        <table class="table table-sm table-bordered mb-3">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Item</th>
+                                                    <th>Requested</th>
+                                                    <th>Received</th>
+                                                    <th>Pending</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {{ i_row.indent.summary_rows_html|safe }}
+                                            </tbody>
+                                        </table>
+
+                                        <table class="table table-sm table-striped">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>IGRN No</th>
+                                                    <th>Item Details</th>
+                                                    <th class="text-center">Requested</th>
+                                                    <th class="text-center">Received</th>
+                                                    <th class="text-center">Accepted</th>
+                                                    <th class="text-center">Rejected</th>
+                                                    <th>Progress</th>
+                                                    <th>Date</th>
+                                                    <th>Created By</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for i_grn in i_row.indent.internal_grns.all %}
+                                                {% for i_grn_item in i_grn.items.all %}
+                                                {{ i_grn_item.rendered_row_html|safe }}
+                                                {% endfor %}
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
+            btn.addEventListener("click", function () {
+                let expanded = this.getAttribute("aria-expanded") === "true";
+            });
+        });
+    });
+</script>
+
+{% endblock %}

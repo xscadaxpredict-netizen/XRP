@@ -181,11 +181,11 @@
                     </button>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-vcenter table-hover card-table mb-0" style="min-width: 1200px;">
+                    <table class="table table-vcenter table-hover card-table mb-0" style="min-width: 1350px;">
                         <thead>
                             <tr class="text-muted" style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                 <th class="w-1">Sl.</th>
-                                <th style="width: 220px;">Description</th>
+                                <th style="width: 350px;">Description</th>
                                 <th style="width: 100px;">HSN Code</th>
                                 <th style="width: 110px;">Base Amt</th>
                                 <th style="width: 110px;">Transfer Price</th>
@@ -341,7 +341,7 @@
             tags: true,
             placeholder: "Search or type a product",
             allowClear: true,
-            width: '180px'
+            width: '320px'
         });
     
         // Listen for Select2 selection and clearing
@@ -360,7 +360,7 @@
                         tags: true,
                         placeholder: "Search or type a product",
                         allowClear: true,
-                        width: '180px'
+                        width: '320px'
                     });
                 }
             }, 10);
@@ -656,6 +656,7 @@
                     newInput.className = "form-control form-control-sm rounded-2";
                     newInput.name = "products[]";
                     newInput.placeholder = "Enter Product Name";
+                    newInput.style.minWidth = "320px";
                     newInput.required = true;
                     newInput.value = selectedValue;
                     selectBox.replaceWith(newInput);
@@ -716,7 +717,7 @@
                 tags: true,
                 placeholder: "Search or type a product",
                 allowClear: true,
-                width: '180px'
+                width: '320px'
             });
             checkGSTNumbers();
             updateRowNumbers();
@@ -727,7 +728,7 @@
                 tags: true,
                 placeholder: "Search or type a product",
                 allowClear: true,
-                width: '180px'
+                width: '320px'
             });
         });
 

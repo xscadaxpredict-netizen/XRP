@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}XsHoT ERP{% endblock %}</title>
+
+    <!-- Tabler CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+    <!-- Tabler Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'gstbillingapp/custom.css' %}">
+
+    {% block includecss %}
+    {% endblock %}
+</head>
+
+<body class="animated-fade-in-up">
+    <div class="page">
+        {% if user.is_authenticated %}
+            {% include "gstbillingapp/navbar.html" %}
+        {% endif %}
+
+        <div class="page-wrapper">
+            <div class="container-fluid px-4 py-4">
+                {% if success_message %}
+                    <div class="alert alert-important alert-success alert-dismissible" role="alert">
+                        <div class="d-flex">
+                            <div>
+                                <i class="ti ti-circle-check fs-2 me-2"></i>
+                            </div>
+                            <div>
+                                {{ success_message }}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if error_message %}
+                    <div class="alert alert-important alert-danger alert-dismissible" role="alert">
+                        <div class="d-flex">
+                            <div>
+                                <i class="ti ti-alert-circle fs-2 me-2"></i>
+                            </div>
+                            <div>
+                                {{ error_message }}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% block content %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabler JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+    <!-- jQuery -->
+    <script src="{% static 'gstbillingapp/js/jquery-3.4.1.min.js' %}"></script>
+
+    {% block includejs %}
+    {% endblock %}
+</body>
+
+</html>

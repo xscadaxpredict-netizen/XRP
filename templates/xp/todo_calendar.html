@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<style>
+    body {
+        background-color: #f8fafc;
+    }
+    
+    .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        border-radius: 1rem;
+    }
+
+    .todo-list-container {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .todo-item {
+        transition: all 0.2s ease;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .todo-item:hover {
+        transform: translateX(5px);
+        background-color: #f1f5f9;
+    }
+    
+    .todo-item.completed {
+        border-left-color: #10b981;
+        opacity: 0.7;
+    }
+
+    .todo-item.completed span {
+        text-decoration: line-through;
+        color: #64748b;
+    }
+
+    /* FullCalendar customizations */
+    .fc-theme-standard td, .fc-theme-standard th {
+        border-color: #e2e8f0;
+    }
+    .fc-header-toolbar {
+        margin-bottom: 1.5rem !important;
+        text-transform: capitalize;
+    }
+    .fc-button-primary {
+        background-color: #1e3a8a !important;
+        border-color: #1e3a8a !important;
+        text-transform: capitalize !important;
+    }
+    .fc-button-primary:hover {
+        background-color: #1e40af !important;
+    }
+    .fc-daygrid-day-number {
+        color: #334155;
+        font-weight: 500;
+    }
+    .fc-col-header-cell-cushion {
+        color: #475569;
+        font-weight: 600;
+        padding: 8px 0 !important;
+    }
+    .fc-event {
+        cursor: pointer;
+        border-radius: 4px;
+        border: none !important;
+        padding: 2px 4px;
+    }
+</style>
+
+<div class="container-fluid mt-4 pb-5">
+    
+    <!-- Header Area -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h2 class="font-weight-bold text-dark mb-1" style="font-size: 1.8rem; letter-spacing: -0.02em;">
+                        Tasks & Calendar
+                    </h2>
+                    <p class="text-muted mb-0 small">Manage your daily tasks and schedule upcoming events.</p>
+                </div>
+                <a href="{% url 'home' %}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        
+        <!-- To-Do List Column -->
+        <div class="col-lg-4">
+            <div class="card glass-card h-100 border-0 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="font-weight-bold fs-5 mb-0"><i class="bi bi-list-check text-primary me-2"></i>My To-Do List</h3>
+                </div>
+                
+                <form id="add-todo-form" class="mb-4">
+                    <div class="input-group shadow-sm rounded-pill overflow-hidden">
+                        <input type="text" id="todo-input" class="form-control border-0 px-4 py-3" placeholder="Add a new task..." required>
+                        <button class="btn btn-primary px-4 fw-bold" type="submit">Add</button>
+                    </div>
+                </form>
+
+                <div class="todo-list-container pe-2" id="todo-list">
+                    <!-- Tasks will be rendered here via JS -->
+                    <div class="text-center text-muted py-5" id="todo-empty-state">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <span class="ms-2">Loading tasks...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Column -->
+        <div class="col-lg-8">
+            <div class="card glass-card h-100 border-0 p-4">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Event Modal -->
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title font-weight-bold fs-4 text-dark" id="addEventModalLabel">Add Calendar Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="add-event-form">
+                    <input type="hidden" id="event-start">
+                    <input type="hidden" id="event-end">
+                    <input type="hidden" id="event-allday">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Event Title</label>
+                        <input type="text" class="form-control form-control-lg rounded-3" id="event-title" required placeholder="E.g., Team Meeting">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">Event Color</label>
+                        <div class="d-flex gap-2">
+                            <input type="radio" class="btn-check" name="event-color" id="color-blue" value="#3b82f6" checked>
+                            <label class="btn btn-outline-primary rounded-circle p-3 shadow-sm" style="background-color: #3b82f6; border-color: #3b82f6;" for="color-blue"></label>
+
+                            <input type="radio" class="btn-check" name="event-color" id="color-green" value="#10b981">
+                            <label class="btn btn-outline-success rounded-circle p-3 shadow-sm" style="background-color: #10b981; border-color: #10b981;" for="color-green"></label>
+
+                            <input type="radio" class="btn-check" name="event-color" id="color-red" value="#ef4444">
+                            <label class="btn btn-outline-danger rounded-circle p-3 shadow-sm" style="background-color: #ef4444; border-color: #ef4444;" for="color-red"></label>
+
+                            <input type="radio" class="btn-check" name="event-color" id="color-purple" value="#8b5cf6">
+                            <label class="btn btn-outline-secondary rounded-circle p-3 shadow-sm" style="background-color: #8b5cf6; border-color: #8b5cf6;" for="color-purple"></label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold">Save Event</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = '{{ csrf_token }}';
+        
+        // --- To-Do List Logic ---
+        
+        function fetchTodos() {
+            fetch("{% url 'api_todo_items' %}")
+                .then(r => r.json())
+                .then(data => {
+                    renderTodos(data);
+                })
+                .catch(err => console.error(err));
+        }
+        
+        function renderTodos(todos) {
+            const list = document.getElementById('todo-list');
+            list.innerHTML = '';
+            
+            if(todos.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center text-muted py-5" id="todo-empty-state">
+                        <div class="fs-1 mb-2 opacity-50">📋</div>
+                        <span class="small">No tasks yet. Add one above!</span>
+                    </div>
+                `;
+                return;
+            }
+            
+            todos.forEach(t => {
+                const item = document.createElement('div');
+                item.className = `todo-item bg-white p-3 mb-3 rounded-3 shadow-sm d-flex justify-content-between align-items-center ${t.is_completed ? 'completed' : ''}`;
+                
+                item.innerHTML = `
+                    <div class="d-flex align-items-center gap-3 w-100" style="cursor:pointer;" onclick="toggleTodo(${t.id})">
+                        <div class="form-check m-0 pointer-events-none">
+                            <input class="form-check-input fs-5" type="checkbox" ${t.is_completed ? 'checked' : ''} style="cursor:pointer;">
+                        </div>
+                        <span class="fw-medium text-dark text-break" style="font-size: 0.95rem;">${escapeHtml(t.title)}</span>
+                    </div>
+                    <button class="btn btn-link text-danger p-1 text-decoration-none" onclick="deleteTodo(${t.id})">
+                        <i class="bi bi-trash fs-5"></i>
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+        }
+        
+        document.getElementById('add-todo-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = document.getElementById('todo-input');
+            const title = input.value.trim();
+            if(!title) return;
+            
+            fetch("{% url 'api_todo_items' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ action: 'add', title: title })
+            }).then(r => r.json()).then(d => {
+                if(d.success) {
+                    input.value = '';
+                    fetchTodos();
+                } else {
+                    Swal.fire('Error', d.error, 'error');
+                }
+            });
+        });
+        
+        window.toggleTodo = function(id) {
+            fetch("{% url 'api_todo_items' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ action: 'toggle', id: id })
+            }).then(r => r.json()).then(d => {
+                if(d.success) {
+                    fetchTodos();
+                }
+            });
+        }
+        
+        window.deleteTodo = function(id) {
+            fetch("{% url 'api_todo_items' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ action: 'delete', id: id })
+            }).then(r => r.json()).then(d => {
+                if(d.success) {
+                    fetchTodos();
+                }
+            });
+        }
+        
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        // Initialize Todos
+        fetchTodos();
+
+
+        // --- FullCalendar Logic ---
+        const calendarEl = document.getElementById('calendar');
+        let addEventModal = new bootstrap.Modal(document.getElementById('addEventModal'));
+        
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            height: '100%',
+            selectable: true,
+            editable: false, // We only allow deleting by clicking
+            eventColor: '#3b82f6',
+            events: "{% url 'api_calendar_events' %}", // Fetch events from API
+            
+            // Handle date selection to add event
+            select: function(info) {
+                document.getElementById('event-title').value = '';
+                document.getElementById('event-start').value = info.startStr;
+                document.getElementById('event-end').value = info.endStr;
+                document.getElementById('event-allday').value = info.allDay;
+                
+                // Show modal
+                addEventModal.show();
+                calendar.unselect();
+            },
+            
+            // Handle event click to delete
+            eventClick: function(info) {
+                Swal.fire({
+                    title: 'Delete Event?',
+                    text: "Are you sure you want to delete '" + info.event.title + "'?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, delete it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch("{% url 'api_calendar_events' %}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                            body: JSON.stringify({ action: 'delete', id: info.event.id })
+                        }).then(r => r.json()).then(d => {
+                            if(d.success) {
+                                info.event.remove();
+                                Swal.fire('Deleted!', 'The event has been deleted.', 'success');
+                            } else {
+                                Swal.fire('Error', d.error, 'error');
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        
+        calendar.render();
+        
+        // Handle Event Form Submission
+        document.getElementById('add-event-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('event-title').value;
+            const start = document.getElementById('event-start').value;
+            const end = document.getElementById('event-end').value;
+            const allDay = document.getElementById('event-allday').value === 'true';
+            
+            // Get selected color
+            let color = '#3b82f6';
+            document.getElementsByName('event-color').forEach(radio => {
+                if(radio.checked) color = radio.value;
+            });
+            
+            fetch("{% url 'api_calendar_events' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ 
+                    action: 'add', 
+                    title: title, 
+                    start: start, 
+                    end: end, 
+                    allDay: allDay,
+                    color: color
+                })
+            }).then(r => r.json()).then(d => {
+                if(d.success) {
+                    calendar.refetchEvents();
+                    addEventModal.hide();
+                } else {
+                    Swal.fire('Error', d.error, 'error');
+                }
+            });
+        });
+        
+    });
+</script>
+{% endblock %}

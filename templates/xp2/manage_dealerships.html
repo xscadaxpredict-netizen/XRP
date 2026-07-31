@@ -124,15 +124,7 @@
                             <label for="target_revenue" class="form-label fw-semibold text-dark">Target Revenue (₹)</label>
                             <input type="number" step="0.01" class="form-control rounded-3" id="target_revenue" name="target_revenue" min="0.00" value="0.00" required>
                         </div>
-                        <div class="mb-4">
-                            <label for="members" class="form-label fw-semibold text-dark">Assign Members (Select Multiple)</label>
-                            <select multiple class="form-select rounded-3" id="members" name="members" style="height: 150px;">
-                                {% for user in all_users %}
-                                    <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
-                                {% endfor %}
-                            </select>
-                            <small class="text-muted">Hold Control/Cmd to select multiple members.</small>
-                        </div>
+
                         <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold">
                             <i class="bi bi-check-lg me-1"></i> Register Dealership
                         </button>

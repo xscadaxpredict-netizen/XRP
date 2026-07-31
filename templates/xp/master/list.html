@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header d-print-none mb-4">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="page-pretitle">
+                    <a href="{% url 'master_dashboard' %}" class="text-decoration-none">Master Settings</a> / {{ info.name }}
+                </div>
+                <h2 class="page-title"><i class="bi {{ info.icon }} me-2 text-primary"></i> Manage {{ info.name }}</h2>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+                <a href="{% url 'master_create' info.app_label info.model_name %}" class="btn btn-primary shadow-sm rounded-pill">
+                    <i class="bi bi-plus-lg me-2"></i> Add New {{ info.name|slice:":-1" }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                    {{ message }}
+                    <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="card shadow-sm border-0" style="border-radius: 12px;">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-vcenter table-hover card-table table-striped mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th># ID</th>
+                                <th>Name / Detail</th>
+                                <th class="w-1">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for obj in objects %}
+                            <tr>
+                                <td class="text-muted">{{ obj.pk }}</td>
+                                <td class="fw-semibold text-dark">{{ obj }}</td>
+                                <td>
+                                    <div class="btn-list flex-nowrap">
+                                        {% if info.app_label == 'auth' and info.model_name == 'user' %}
+                                        <a href="{% url 'manage_module_visibility' obj.id %}" class="btn btn-sm btn-outline-info rounded-pill" title="Manage Modules">
+                                            <i class="bi bi-grid me-1"></i> Modules
+                                        </a>
+                                        <a href="{% url 'manage_submodule_visibility' obj.id %}" class="btn btn-sm btn-outline-info rounded-pill" title="Manage Submodules">
+                                            <i class="bi bi-grid-3x3-gap me-1"></i> Submodules
+                                        </a>
+                                        {% endif %}
+                                        <a href="{% url 'master_update' info.app_label info.model_name obj.pk %}" class="btn btn-sm btn-outline-primary rounded-pill">
+                                            <i class="bi bi-pencil me-1"></i> Edit
+                                        </a>
+                                        <!-- <a href="{% url 'master_delete' info.app_label info.model_name obj.pk %}" class="btn btn-sm btn-outline-danger rounded-pill">
+                                            <i class="bi bi-trash me-1"></i> Delete
+                                        </a> -->
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-5">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+                                    No {{ info.name|lower }} found. <a href="{% url 'master_create' info.app_label info.model_name %}">Add one now.</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

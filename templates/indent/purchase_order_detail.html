@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    .po-preview-box {
+        max-width: 900px;
+        margin: 2rem auto;
+        background: #fff;
+        border: 1px solid #e0e6ed;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        padding: 40px;
+    }
+
+    .po-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid #f1f5f9;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        font-size: 0.875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 4px;
+    }
+
+    .address-box {
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
+
+    .po-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 30px;
+    }
+
+    .po-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        text-align: center;
+        padding: 12px 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .po-table td {
+        padding: 12px 8px;
+        border: 1px solid #e2e8f0;
+        text-align: center;
+    }
+
+    .po-table td.text-left {
+        text-align: left;
+    }
+
+    .grand-total-box {
+        margin-top: 20px;
+        text-align: right;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .status-badge {
+        position: absolute;
+        top: 20px;
+        right: 40px;
+    }
+
+    @media (max-width: 768px) {
+        .po-preview-box {
+            padding: 20px;
+            margin: 1rem;
+        }
+
+        .po-header {
+            flex-direction: column;
+            gap: 20px;
+        }
+    }
+</style>
+
+<div class="container-xl">
+    <div class="d-flex justify-content-between align-items-center mt-4 px-3">
+        <h2 class="mb-0">Purchase Order Preview</h2>
+        <div class="btn-list">
+            <a href="{% url 'purchase_order_print' po.id %}" class="btn btn-outline-primary" target="_blank">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-printer" width="24"
+                    height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M17 17h2a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-14a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h2" />
+                    <path d="M17 9v-4a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v4" />
+                    <path d="M7 13m0 2a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2z" />
+                </svg>
+                Print PDF
+            </a>
+            <a href="{% url 'purchase_order_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+
+    <div class="po-preview-box position-relative">
+        <div class="status-badge">
+            <span
+                class="badge {% if po.status == 'approved' %}bg-success{% elif po.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %} text-uppercase px-3 py-2">
+                {{ po.get_status_display }}
+            </span>
+        </div>
+
+        <!-- HEADER -->
+        <div class="po-header">
+            <div class="brand">
+                <img src="{% static 'xlogo.jpeg' %}" alt="Logo" height="60" class="mb-2">
+                <div class="h3 mb-0">{{ company.name }}</div>
+            </div>
+            <div class="text-md-end">
+                <div class="text-muted mb-1">Purchase Order</div>
+                <div class="h2 mb-1">{{ po.po_number }}</div>
+                <div class="text-muted">Date: {{ po.created_at|date:"d M, Y" }}</div>
+            </div>
+        </div>
+
+        <!-- ADDRESSES -->
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="section-title">Bill From:</div>
+                <div class="address-box">
+                    <strong>{{ company.name }}</strong><br>
+                    <span class="text-muted small">{{ company.address }}</span><br>
+                    <div class="mt-2">
+                        <strong>GST:</strong> {{ company.gst }}<br>
+                        <strong>PAN:</strong> {{ company.pan }}<br>
+                        <strong>Email:</strong> {{ company.email }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="section-title">Bill To:</div>
+                <div class="address-box">
+                    <strong>{{ vendor.name }}</strong><br>
+                    <span class="text-muted small">{{ vendor.address|default:"No address provided" }}</span><br>
+                    <div class="mt-2">
+                        <strong>GST:</strong> {{ vendor.gst_number|default:"-" }}<br>
+                        <strong>Phone:</strong> {{ vendor.contact_number|default:"-" }}<br>
+                        <strong>Email:</strong> {{ vendor.contact_email|default:"-" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BANK DETAILS -->
+        <div class="mt-4 p-3 bg-light rounded shadow-none border">
+            <div class="section-title border-0 mb-2">Vendor Bank Details</div>
+            <div class="row small g-2">
+                <div class="col-4"><strong>Bank:</strong> {{ vendor.bank_name|default:"-" }}</div>
+                <div class="col-4"><strong>A/c No:</strong> {{ vendor.bank_account_no|default:"-" }}</div>
+                <div class="col-4"><strong>IFSC:</strong> {{ vendor.ifsc_code|default:"-" }}</div>
+            </div>
+        </div>
+
+        <!-- ITEMS -->
+        <table class="po-table">
+            <thead>
+                <tr>
+                    <th width="60">SL</th>
+                    <th class="text-left">Product / Description</th>
+                    <th width="100">Qty</th>
+                    <th width="150">Unit Price</th>
+                    <th width="150">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in po.items.all %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-left">
+                        <strong>{{ item.product_name }}</strong>
+                        {% if item.remarks %}
+                        <div class="text-muted small italic">{{ item.remarks }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.quantity }}</td>
+                    <td>₹{{ item.unit_price|floatformat:2 }}</td>
+                    <td class="fw-bold">₹{{ item.total_price|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">No items found for this order.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- GRAND TOTAL -->
+        <div class="grand-total-box">
+            <span class="text-muted fw-normal me-3 h4">Grand Total:</span>
+            ₹{{ total_amount|floatformat:2 }}
+        </div>
+
+        <!-- FOOTER -->
+        <div class="mt-5 pt-4 border-top text-center text-muted small">
+            This is a computer-generated document representing the formal Purchase Order issued to the vendor.
+        </div>
+    </div>
+</div>
+{% endblock %}

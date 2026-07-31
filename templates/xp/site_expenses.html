@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="page-wrapper" id="dashboard-container" style="opacity: 0; transition: opacity 0.4s ease-in-out;">
+  <div class="page-body">
+    <div class="container-xl">
+      
+      <!-- Page Title -->
+      <div class="row align-items-center mb-4 pt-3">
+        <div class="col">
+          <h2 class="page-title text-dark fw-bold mb-1">
+            <i class="bi bi-bar-chart-fill text-primary me-2"></i> Site Expenses Dashboard
+          </h2>
+          <p class="text-muted mb-0">Track total allocated and used advances per site and advance type.</p>
+        </div>
+        <div class="col-auto">
+          <a href="{% url 'assign_advances' %}" class="btn btn-outline-secondary transition-link shadow-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Advances
+          </a>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="card shadow-sm border-0 mb-4 rounded-4">
+        <div class="card-body bg-light rounded-4">
+          <form method="GET" action="{% url 'site_expenses_report' %}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+              <label for="site_id" class="form-label fw-semibold">Select Site:</label>
+              <select name="site_id" id="site_id" class="form-select select2-hidden-accessible" style="width: 100%;">
+                <option value="">-- All Sites --</option>
+                {% for site in sites %}
+                  <option value="{{ site.id }}" {% if selected_site_id == site.id %}selected{% endif %}>{{ site.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            
+            <div class="col-md-3">
+              <label for="advance_type" class="form-label fw-semibold">Advance Type:</label>
+              <select name="advance_type" id="advance_type" class="form-select">
+                <option value="Both" {% if advance_type == 'Both' %}selected{% endif %}>Both (AMC & Project)</option>
+                <option value="Site AMC" {% if advance_type == 'Site AMC' %}selected{% endif %}>Site AMC Only</option>
+                <option value="Site Project" {% if advance_type == 'Site Project' %}selected{% endif %}>Site Project Only</option>
+                <option value="Food and Groceries" {% if advance_type == 'Food and Groceries' %}selected{% endif %}>Food and Groceries</option>
+                <option value="Client Visit" {% if advance_type == 'Client Visit' %}selected{% endif %}>Client Visit</option>
+              </select>
+            </div>
+            
+            <div class="col-md-2">
+              <label for="from_date" class="form-label fw-semibold">From Date:</label>
+              <input type="date" name="from_date" id="from_date" class="form-control" value="{{ from_date|default:'' }}">
+            </div>
+            
+            <div class="col-md-2">
+              <label for="to_date" class="form-label fw-semibold">To Date:</label>
+              <input type="date" name="to_date" id="to_date" class="form-control" value="{{ to_date|default:'' }}">
+            </div>
+            
+            <div class="col-md-2 text-end">
+              <button type="submit" class="btn btn-primary w-100 shadow-sm"><i class="bi bi-filter me-1"></i> Filter</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="row row-cards mb-4">
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-sm shadow-sm border-0 rounded-4" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto">
+                  <span class="bg-primary text-white avatar shadow-sm rounded-circle p-3">
+                    <i class="bi bi-wallet2 fs-3"></i>
+                  </span>
+                </div>
+                <div class="col">
+                  <div class="font-weight-medium text-muted">Total Allocated</div>
+                  <div class="text-dark fs-2 fw-bold">₹{{ total_assigned|default:"0.00" }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-sm shadow-sm border-0 rounded-4" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto">
+                  <span class="bg-danger text-white avatar shadow-sm rounded-circle p-3">
+                    <i class="bi bi-graph-down-arrow fs-3"></i>
+                  </span>
+                </div>
+                <div class="col">
+                  <div class="font-weight-medium text-muted">Total Used (Expenses)</div>
+                  <div class="text-dark fs-2 fw-bold">₹{{ total_used|default:"0.00" }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-sm shadow-sm border-0 rounded-4" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-auto">
+                  <span class="bg-success text-white avatar shadow-sm rounded-circle p-3">
+                    <i class="bi bi-piggy-bank fs-3"></i>
+                  </span>
+                </div>
+                <div class="col">
+                  <div class="font-weight-medium text-muted">Remaining Balance</div>
+                  <div class="text-dark fs-2 fw-bold">₹{{ total_remaining|default:"0.00" }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Detailed Groups Table -->
+      <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-header border-0 pb-0">
+          <h3 class="card-title fw-bold text-dark">Advance Groups Contributing to Totals</h3>
+        </div>
+        <div class="table-responsive p-3">
+          <table class="table table-vcenter card-table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Group Name</th>
+                <th>Site</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Assigned</th>
+                <th>Used</th>
+                <th>Remaining</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in groups %}
+              <tr>
+                <td class="fw-bold text-primary">{{ group.name }}</td>
+                <td>{{ group.site.name|default:"-" }}</td>
+                <td>
+                  {% if group.advance_type == 'Site AMC' %}
+                    <span class="badge bg-purple-lt">{{ group.advance_type }}</span>
+                  {% elif group.advance_type == 'Site Project' %}
+                    <span class="badge bg-indigo-lt">{{ group.advance_type }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary-lt">{{ group.advance_type|default:"-" }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-muted">{{ group.created_at|date:"M d, Y" }}</td>
+                <td class="text-success fw-semibold">₹{{ group.total_advance }}</td>
+                <td class="text-danger fw-semibold">₹{{ group.used_advance }}</td>
+                <td class="fw-bold">₹{{ group.remaining_balance }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center py-5 text-muted">No advance groups found for the selected criteria.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+  .select2-container .select2-selection--single {
+      height: 38px !important;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+  }
+  .select2-selection__rendered {
+      line-height: 36px !important;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 36px !important;
+  }
+</style>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+  $(document).ready(function() {
+      $('#site_id').select2({
+          placeholder: "-- All Sites --",
+          allowClear: true
+      });
+  });
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const container = document.getElementById("dashboard-container");
+    if (container) {
+      requestAnimationFrame(() => {
+        container.style.opacity = "1";
+      });
+    }
+
+    const transitionLinks = document.querySelectorAll(".transition-link");
+    transitionLinks.forEach(link => {
+      link.addEventListener("click", function(e) {
+        e.preventDefault();
+        const targetUrl = this.getAttribute("href");
+        if (container) {
+          container.style.opacity = "0";
+        }
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 350);
+      });
+    });
+  });
+</script>
+{% endblock %}

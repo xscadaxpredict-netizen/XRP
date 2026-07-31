@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+
+    <h3>Indent {{ indent.indent_number }}</h3>
+
+    <p><b>Title:</b> {{ indent.title }}</p>
+    <p><b>Department:</b> {{ indent.department }}</p>
+    <p><b>Project:</b> {{ indent.project|default:"No Project" }}</p>
+    <p><b>Created:</b> {{ indent.created_at }}</p>
+    <p><b>Required By Date:</b> {{ indent.required_date|date:"Y-m-d"|default:"-" }}</p>
+    <p><b>Remarks:</b> {{ indent.remarks }}</p>
+
+    <hr>
+
+
+    <table class="table table-bordered mt-3">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Indent Qty</th>
+                <th>Stock Available</th>
+                <th>Stock Use</th>
+                <th>PO Qty</th>
+                <th>Vendor</th>
+                <th>Remarks</th>
+                <th>Action</th>
+                <th>GRN</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for item in items %}
+            <tr id="row-{{ item.id }}" data-url="{% url 'update_indent_item' item.id %}">
+                <td>{{ item.product_name }}</td>
+                <td><span id="indent-qty-{{ item.id }}">{{ item.quantity }}</span></td>
+                <td>{{ item.stock_available }}</td>
+
+                {% if not item.submitted %}
+                    <td>
+                        <input type="number" name="stock_to_use" id="stock-use-{{ item.id }}" class="form-control"
+                            value="{% if item.stock_available >= item.quantity %}{{ item.quantity }}{% else %}{{ item.stock_available }}{% endif %}"
+                            max="{{ item.stock_available }}" step="1" style="width: 100px;"
+                            oninput="syncQuantities({{ item.id }}, 'stock')">
+                    </td>
+                    <td>
+                        <input type="number" name="shortage_qty" id="po-qty-{{ item.id }}" class="form-control"
+                            value="{% if item.stock_available >= item.quantity %}0{% else %}{{ item.shortage }}{% endif %}"
+                            step="1" style="width: 100px;" oninput="syncQuantities({{ item.id }}, 'po')">
+                    </td>
+                    <td>
+                        <select name="vendor" class="form-select" id="vendor-{{ item.id }}" style="min-width: 150px;">
+                            <option value="">Select Vendor</option>
+                            {% for v in vendors %}
+                            <option value="{{ v.id }}">{{ v.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <textarea name="remarks" class="form-control" rows="1" style="min-width: 150px;"></textarea>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary btn-sm ajax-btn" data-action="submit">Submit</button>
+                    </td>
+                {% elif not item.approved and not item.rejected %}
+                    <input type="hidden" name="stock_to_use" value="{{ item.stock_to_use }}">
+                    <input type="hidden" name="shortage_qty" value="{{ item.shortage_qty }}">
+                    <input type="hidden" name="vendor" value="{{ item.vendor.id|default:'' }}">
+                    <input type="hidden" name="remarks" value="{{ item.remarks|default:'' }}">
+                    <td>{{ item.stock_to_use }}</td>
+                    <td>{{ item.shortage_qty }}</td>
+                    <td>{{ item.vendor.name|default:"-" }}</td>
+                    <td>{{ item.remarks|default:"-" }}</td>
+                    <td>
+                        {% if is_admin or is_accounts %}
+                        <div class="d-flex flex-column gap-1">
+                            <button class="btn btn-success btn-sm ajax-btn" data-action="approve">Approve</button>
+                            <button type="button" class="btn btn-danger btn-sm"
+                                onclick="openRejectBox({{ item.id }})">Reject</button>
+                        </div>
+                        <!-- Reject Box -->
+                        <div id="reject-box-{{ item.id }}" class="mt-2 d-none">
+                            <textarea name="reject_reason" class="form-control form-control-sm" rows="2"
+                                placeholder="Reason"></textarea>
+                            <button class="btn btn-danger btn-sm mt-1 ajax-btn" data-action="reject">Confirm</button>
+                        </div>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">Pending Approval</span>
+                        {% endif %}
+                    </td>
+                {% else %}
+                <td>{{ item.stock_to_use }}</td>
+                <td>{{ item.shortage_qty }}</td>
+                <td>{{ item.vendor.name|default:"-" }}</td>
+                <td>{{ item.remarks|default:"-" }}</td>
+                <td>
+                    {% if item.approved %}
+                    <span class="badge bg-success">Approved</span>
+                    {% else %}
+                    <span class="badge bg-danger">Rejected</span>
+                    {% endif %}
+                </td>
+                {% endif %}
+                <td>
+                    {% if indent.status == "internal" and item.approved %}
+                    <a href="{% url 'create_internal_grn' indent.id %}" class="btn btn-sm btn-outline-success">
+                        GRN
+                    </a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <hr>
+    <h4 class="mt-4 mb-3">Vendor-wise Purchase Orders</h4>
+
+    {% if vendor_groups %}
+    <div class="row">
+        {% for vendor_name, group in vendor_groups.items %}
+
+        <div class="col-sm-4 mb-3">
+            <div class="card shadow-sm" style="border-radius: 10px;">
+
+                <div class="card-header py-2 d-flex justify-content-between align-items-center"
+                    style="background: #f8f9fa; border-radius: 10px 10px 0 0;">
+                    <strong>{{ vendor_name }}</strong>
+
+                    {% if group.existing_po %}
+                    <div class="text-end">
+                        <span class="badge bg-success mb-1">Already Converted</span>
+                        <br>
+                        <a href="{% url 'purchase_order_detail' group.existing_po.id %}"
+                            class="btn btn-sm btn-outline-info">
+                            {{ group.existing_po.po_number }}
+                        </a>
+                    </div>
+                    {% else %}
+                        {% if is_admin or is_stock or is_vendor %}
+                        <a href="{% url 'indent_convert_to_po' indent.id group.vendor_id %}" class="btn btn-primary btn-sm">
+                            Convert To PO
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <div class="card-body p-2">
+                    <ul class="list-group list-group-flush large">
+                        {% for item in group.items %}
+                        <li class="list-group-item px-2 py-1">
+                            <b>{{ item.product_name }}</b>
+                            <br>
+                            <span class="text-primary">PO Qty: {{ item.shortage_qty }} {{ item.unit }}</span>
+                            {% if item.remarks %}
+                            <br><small class="text-info"><i>{{ item.remarks }}</i></small>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <p class="text-muted">No approved purchase items yet.</p>
+    {% endif %}
+    {% comment %}
+    <script>
+        function openRejectBox(id) {
+            document.getElementById("reject-box-" + id).classList.remove("d-none");
+        }
+    </script> {% endcomment %}
+    <script>
+        function syncQuantities(itemId, changed) {
+            const indentQty = parseInt(document.getElementById("indent-qty-" + itemId).innerText);
+            const stockUseInput = document.getElementById("stock-use-" + itemId);
+            const poQtyInput = document.getElementById("po-qty-" + itemId);
+            // Get max stock available from max attribute
+            const maxStock = parseInt(stockUseInput.getAttribute('max')) || 0;
+
+            let stockUse = parseInt(stockUseInput.value) || 0;
+            let poQty = parseInt(poQtyInput.value) || 0;
+
+            if (changed === 'stock') {
+                if (stockUse > maxStock) {
+                    alert("No stock available! Please increase PO quantity.");
+                    stockUse = maxStock;
+                    stockUseInput.value = stockUse;
+                }
+                // If user changes stock use, update PO qty to match remaining
+                poQty = Math.max(0, indentQty - stockUse);
+                poQtyInput.value = poQty;
+            } else if (changed === 'po') {
+                // If user changes PO qty, update stock use to match remaining
+                stockUse = Math.max(0, indentQty - poQty);
+
+                if (stockUse > maxStock) {
+                    alert("No stock available! Please increase PO quantity.");
+                    // Force PO qty to be minimum required to cover the deficit
+                    const minPoQty = indentQty - maxStock;
+                    poQty = minPoQty;
+                    poQtyInput.value = poQty;
+                    stockUse = maxStock;
+                }
+                stockUseInput.value = stockUse;
+            }
+        }
+
+        function openRejectBox(id) {
+            document.getElementById("reject-box-" + id).classList.remove("d-none");
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Include CSRF token in fetch headers
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            const csrftoken = getCookie('csrftoken');
+
+            const buttons = document.querySelectorAll('.ajax-btn');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const actionValue = this.getAttribute('data-action');
+                    
+                    const row = this.closest('tr');
+                    const url = row.getAttribute('data-url');
+                    
+                    const formData = new FormData();
+                    formData.append('action', actionValue);
+                    
+                    // Gather inputs in the row manually
+                    const inputs = row.querySelectorAll('input, select, textarea');
+                    inputs.forEach(input => {
+                        if(input.name) {
+                            formData.append(input.name, input.value);
+                        }
+                    });
+                    
+                    // Disable row buttons to prevent double submit
+                    const rowButtons = row.querySelectorAll('button');
+                    rowButtons.forEach(b => b.disabled = true);
+                    const originalText = this.innerText;
+                    this.innerText = 'Processing...';
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': csrftoken
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Find the td index where the form inputs start (index 3 onwards)
+                            const tds = row.querySelectorAll('td');
+                            if (actionValue === 'submit') {
+                                tds[3].innerHTML = data.stock_to_use;
+                                tds[4].innerHTML = data.shortage_qty;
+                                tds[5].innerHTML = data.vendor;
+                                tds[6].innerHTML = data.remarks;
+                                tds[7].innerHTML = '<span class="badge bg-success">Submitted</span>';
+                            } else if (actionValue === 'reject') {
+                                tds[7].innerHTML = '<span class="badge bg-danger">Rejected</span>';
+                            } else if (actionValue === 'approve') {
+                                tds[7].innerHTML = '<span class="badge bg-success">Approved</span>';
+                            }
+                        } else {
+                            alert(data.error || "An error occurred.");
+                            rowButtons.forEach(b => b.disabled = false);
+                            this.innerText = originalText;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert("A network error occurred.");
+                        rowButtons.forEach(b => b.disabled = false);
+                        this.innerText = originalText;
+                    });
+                });
+            });
+        });
+    </script>
+    {% endblock %}

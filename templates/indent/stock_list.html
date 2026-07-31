@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Display Django messages -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+
+<div class="container-xl my-4">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center gap-3">
+      <h3 class="card-title mb-0"> Current Stock</h3>
+      
+      <!-- 🔍 Instant Search Bar -->
+      <div class="flex-grow-1 mx-3" style="max-width: 400px;">
+        <div class="input-icon">
+          <span class="input-icon-addon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+              <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
+              <path d="M21 21l-6 -6"></path>
+            </svg>
+          </span>
+          <input type="text" id="stockSearchInput" class="form-control" placeholder="Search by product name, code, type, vendor..." aria-label="Search stock">
+        </div>
+      </div>
+
+      <div class="btn-list">
+        <a href="{% url 'export_stock_template' %}" class="btn btn-outline-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-download" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
+              <path d="M7 11l5 5l5 -5"></path>
+              <path d="M12 4l0 12"></path>
+            </svg>
+            Template
+        </a>
+        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#importStockModal">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-upload" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+              <path d="M14 3v4a1 1 0 0 0 1 1h4"></path>
+              <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"></path>
+              <path d="M12 11v6"></path>
+              <path d="M9.5 13.5l2.5 -2.5l2.5 2.5"></path>
+            </svg>
+            Import
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#stockModal">
+          Add New Stock
+        </button>
+      </div>
+    </div>
+    <div class="card-body table-responsive">
+      <table class="table table-bordered table-striped align-middle">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Product Code</th>
+            <th>Quantity</th>
+            <th>Min Stock</th>
+            <th>Stock Type</th>
+            <th>Department</th>
+            <th>Vendors (Price / Lead Time)</th>
+            <th>History</th>
+            <th>Barcode</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stock in stocks %}
+          <tr class="stock-row">
+            <td>{{ stock.product_name }}</td>
+            <td>{{ stock.product_code }}</td>
+            <td>
+              <span class="{% if stock.quantity < stock.min_stock %}text-danger fw-bold{% endif %}">
+                {{ stock.quantity }}
+              </span>
+            </td>
+            <td>{{ stock.min_stock }}</td>
+            <td>{{ stock.get_stock_type_display }}</td>
+            <td>{{ stock.get_department_display }}</td>
+            <td>
+              <div class="d-flex flex-column gap-1">
+                {% for vs in stock.vendor_mappings.all %}
+                <div class="badge bg-light text-dark border d-flex justify-content-between">
+                  <span>{{ vs.vendor.name }}</span>
+                  <span class="ms-2 fw-bold">₹{{ vs.price }} ({{ vs.lead_time }}d)</span>
+                </div>
+                {% empty %}
+                <span class="text-muted small">No vendors linked</span>
+                {% endfor %}
+                <button class="btn btn-sm btn-outline-primary py-0"
+                  onclick="openVendorModal('{{ stock.id }}', '{{ stock.product_name|escapejs }}')">
+                  + Add Vendor
+                </button>
+              </div>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-info text-white"
+                onclick="showHistory('{{ stock.id }}', '{{ stock.product_name|escapejs }}')">
+                <i class="bi bi-clock-history"></i> Logs
+              </button>
+              <!-- Hidden Logs Data -->
+              <div id="history-data-{{ stock.id }}" class="d-none">
+                <table class="table table-sm table-bordered">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Qty</th>
+                      <th>User</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for log in stock.logs.all|dictsortreversed:"timestamp" %}
+                    <tr>
+                      <td>{{ log.timestamp|date:"d M H:i" }}</td>
+                      <td><span class="badge bg-secondary">{{ log.transaction_type }}</span></td>
+                      <td class="{% if log.change_quantity > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                        {{ log.change_quantity }}
+                      </td>
+                      <td>{{ log.user.username|default:"System" }}</td>
+                      <td>{{ log.description|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">No logs found</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+            <td class="text-center">
+              <div id="barcode-container-{{ stock.id }}">
+                {% if stock.barcode_image %}
+                <a href="{% url 'product_detail' stock.product_code %}">
+                  <img src="{{ stock.barcode_image.url }}" alt="Barcode" height="60" class="barcode-img">
+                </a>
+                {% endif %}
+
+                {% if stock.qr_code %}
+                <a href="{% url 'product_detail' stock.product_code %}">
+                  <img src="{{ stock.qr_code.url }}" alt="QR Code" height="80" class="qr-img d-none">
+                </a>
+                {% endif %}
+              </div>
+
+              {% if stock.barcode_image and stock.qr_code %}
+              <button type="button" class="btn btn-sm btn-outline-primary mt-2 toggle-code" data-id="{{ stock.id }}">
+                Show QR
+              </button>
+              {% endif %}
+            </td>
+            <td>{{ stock.updated_at|date:"d M Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center text-muted">No stock items found</td>
+          </tr>
+          {% endfor %}
+          <tr id="noResultsRow" class="d-none">
+            <td colspan="10" class="text-center text-muted py-3">No matching stock items found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div class="modal fade" id="stockModal" tabindex="-1" aria-labelledby="stockModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" enctype="multipart/form-data" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title" id="stockModalLabel">➕ Add / Update Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Product Name</label>
+          <input type="text" name="product_name" class="form-control" placeholder="Enter product name" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Quantity</label>
+          <input type="number" name="quantity" class="form-control" min="0" placeholder="Enter quantity" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Minimum Stock (Alert Level)</label>
+          <input type="number" name="min_stock" class="form-control" min="0" value="0">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Stock Type</label>
+          <select name="stock_type" class="form-control" required>
+            <option value="capital">Capital Goods</option>
+            <option value="running">Running Goods</option>
+            <option value="consumables">Consumables</option>
+            <option value="finished">Finished Goods</option>
+            <option value="semifinished">Semi Finished Goods</option>
+            <option value="raw">Raw Materials</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Department</label>
+          <select name="department" class="form-control" required>
+            <option value="RAF">RAF</option>
+            <option value="MSF">MSF</option>
+            <option value="PSF">PSF</option>
+            <option value="WAH">W&H</option>
+            <option value="ESD">ESD</option>
+            <option value="PKG">PKG</option>
+            <option value="ALF">ALF</option>
+          </select>
+        </div>
+
+        <hr>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="text-muted mb-0">Vendor Details (Optional)</h6>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="addVendorRowBtn">+ Add Vendor</button>
+        </div>
+
+        <div id="vendorRowsContainer">
+          <div class="vendor-row border rounded p-2 mb-2 bg-light position-relative">
+            <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-vendor-row" style="font-size: 0.75rem;" aria-label="Close" onclick="this.parentElement.remove();"></button>
+            <div class="mb-2">
+              <label class="form-label small">Vendor</label>
+              <select name="initial_vendor_id[]" class="form-select">
+                <option value="">-- Select Vendor --</option>
+                {% for vendor in vendors %}
+                <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-2">
+                <label class="form-label small">Price (₹)</label>
+                <input type="number" step="0.01" name="initial_price[]" class="form-control form-control-sm" placeholder="0.00">
+              </div>
+              <div class="col-md-6 mb-2">
+                <label class="form-label small">Lead Time (Days)</label>
+                <input type="number" name="initial_lead_time[]" class="form-control form-control-sm" placeholder="0">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary"> Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".toggle-code").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const id = btn.getAttribute("data-id");
+        const container = document.getElementById(`barcode-container-${id}`);
+        const barcodeImg = container.querySelector(".barcode-img");
+        const qrImg = container.querySelector(".qr-img");
+
+        if (barcodeImg.classList.contains("d-none")) {
+          // Show Barcode, hide QR
+          barcodeImg.classList.remove("d-none");
+          qrImg.classList.add("d-none");
+          btn.innerText = "Show QR";
+        } else {
+          // Show QR, hide Barcode
+          barcodeImg.classList.add("d-none");
+          qrImg.classList.remove("d-none");
+          btn.innerText = "Show Barcode";
+        }
+      });
+    });
+
+    const addVendorRowBtn = document.getElementById("addVendorRowBtn");
+    const container = document.getElementById("vendorRowsContainer");
+    if (addVendorRowBtn && container) {
+      addVendorRowBtn.addEventListener("click", function() {
+        const row = document.createElement("div");
+        row.className = "vendor-row border rounded p-2 mb-2 bg-light position-relative";
+        row.innerHTML = `
+          <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-vendor-row" style="font-size: 0.75rem;" aria-label="Close" onclick="this.parentElement.remove();"></button>
+          <div class="mb-2">
+            <label class="form-label small">Vendor</label>
+            <select name="initial_vendor_id[]" class="form-select">
+              <option value="">-- Select Vendor --</option>
+              {% for vendor in vendors %}
+              <option value="{{ vendor.id }}">{{ vendor.name|escapejs }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-2">
+              <label class="form-label small">Price (₹)</label>
+              <input type="number" step="0.01" name="initial_price[]" class="form-control form-control-sm" placeholder="0.00">
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-label small">Lead Time (Days)</label>
+              <input type="number" name="initial_lead_time[]" class="form-control form-control-sm" placeholder="0">
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    const searchInput = document.getElementById("stockSearchInput");
+    const noResultsRow = document.getElementById("noResultsRow");
+    const rows = document.querySelectorAll(".stock-row");
+
+    if (searchInput) {
+      searchInput.addEventListener("input", function () {
+        const query = this.value.toLowerCase().trim();
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+          const productName = row.cells[0]?.textContent.toLowerCase() || "";
+          const productCode = row.cells[1]?.textContent.toLowerCase() || "";
+          const stockType = row.cells[4]?.textContent.toLowerCase() || "";
+          const department = row.cells[5]?.textContent.toLowerCase() || "";
+          const vendors = row.cells[6]?.textContent.toLowerCase() || "";
+
+          if (
+            productName.includes(query) ||
+            productCode.includes(query) ||
+            stockType.includes(query) ||
+            department.includes(query) ||
+            vendors.includes(query)
+          ) {
+            row.classList.remove("d-none");
+            visibleCount++;
+          } else {
+            row.classList.add("d-none");
+          }
+        });
+
+        if (visibleCount === 0 && query !== "") {
+          noResultsRow.classList.remove("d-none");
+        } else {
+          noResultsRow.classList.add("d-none");
+        }
+      });
+    }
+  });
+
+  function openVendorModal(stockId, productName) {
+    document.getElementById('vendor_stock_id').value = stockId;
+    document.getElementById('vendorStockTitle').textContent = 'Manage Vendors for ' + productName;
+    var modal = new bootstrap.Modal(document.getElementById('vendorStockModal'));
+    modal.show();
+  }
+
+  function showHistory(stockId, productName) {
+    var content = document.getElementById('history-data-' + stockId).innerHTML;
+    document.getElementById('historyModalTitle').textContent = 'Stock History: ' + productName;
+    document.getElementById('historyModalBody').innerHTML = content;
+    var modal = new bootstrap.Modal(document.getElementById('historyModal'));
+    modal.show();
+  }
+</script>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="historyModalTitle">Stock History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="historyModalBody">
+        <!-- Content will be loaded here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vendor Stock Modal -->
+<div class="modal fade" id="vendorStockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content">
+      {% csrf_token %}
+      <input type="hidden" name="add_vendor_stock" value="1">
+      <input type="hidden" name="stock_id" id="vendor_stock_id">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="vendorStockTitle">Manage Vendors</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Select Vendor</label>
+          <select name="vendor_id" class="form-select" required>
+            {% for vendor in vendors %}
+            <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Price (₹)</label>
+            <input type="number" step="0.01" name="price" class="form-control" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Lead Time (Days)</label>
+            <input type="number" name="lead_time" class="form-control" value="0" required>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        <button type="submit" class="btn btn-primary">Save Vendor Details</button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Import Stock Modal -->
+<div class="modal fade" id="importStockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'import_stock' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Bulk Import Stock</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">Please upload an Excel file (.xlsx) with the correct headers. You can download the template above.</p>
+          <div class="mb-3">
+            <label class="form-label">Select Excel File</label>
+            <input type="file" name="excel_file" class="form-control" accept=".xlsx" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Upload & Import</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

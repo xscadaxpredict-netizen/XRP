@@ -1,29 +1,82 @@
-{% extends "admin/base_site.html" %}
+{% extends "base.html" %}
+
 {% block content %}
-{% load custom_filters %}
-<h1>Manage Submodule Visibility for {{ user.username }}</h1>
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title text-primary">
+                    Manage Submodule Visibility for {{ user.username }}
+                </h2>
+                <div class="text-muted mt-1">Configure which submodules are visible within enabled modules.</div>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+                <div class="btn-list">
+                    <a href="{% url 'master_list' 'auth' 'user' %}" class="btn btn-outline-secondary rounded-pill">
+                        <i class="bi bi-arrow-left me-2"></i> Back to Users
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-<form method="post" action="{% url 'manage_submodule_visibility' user.id %}">
-    {% csrf_token %}
-    <ul>
-        {% for module, submodules in modules_with_submodules.items %}
-            <li>
-                <strong>{{ module.name }}</strong>
-                <ul>
-                    {% for sub in submodules %}
-                        <li>
-                            <label>
-                                <input type="checkbox" name="submodule_{{ sub.submodule.id }}" 
-                                       {% if sub.is_visible %}checked{% endif %}>
-                                {{ sub.submodule.name }}
+<div class="page-body">
+    <div class="container-xl">
+        <div class="card shadow-sm border-0" style="border-radius: 12px; max-width: 800px; margin: 0 auto;">
+            <div class="card-body p-4 p-md-5">
+                <form method="post" action="{% url 'manage_submodule_visibility' user.id %}">
+                    {% csrf_token %}
+                    
+                    {% for module, submodules in user_visibility_data.items %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-primary mb-3" style="font-size: 1.1rem;">
+                                {{ module.name }}
                             </label>
-                        </li>
+                            
+                            <div class="bg-light p-4 rounded-3 shadow-sm border">
+                                <div class="row">
+                                    {% for sub in submodules %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="hover-bg-white p-2 rounded transition-all border border-transparent hover-border-light">
+                                                <div class="form-check m-0 d-flex align-items-center">
+                                                    <input class="form-check-input cursor-pointer" type="checkbox" id="submodule_{{ sub.submodule.id }}" name="submodule_{{ sub.submodule.id }}" {% if sub.is_visible %}checked{% endif %}>
+                                                    <label class="form-check-label fw-medium ms-2 cursor-pointer w-100" for="submodule_{{ sub.submodule.id }}">
+                                                        {{ sub.submodule.name }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% empty %}
+                                        <div class="col-12 text-muted fst-italic">No submodules available for this module.</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="alert alert-info border-0 rounded-3 shadow-sm">
+                            <i class="bi bi-info-circle me-2"></i> No modules are currently enabled for this user. Please enable modules first.
+                        </div>
                     {% endfor %}
-                </ul>
-            </li>
-        {% endfor %}
-    </ul>
-    <button type="submit" class="btn btn-primary">Save Changes</button>
-</form>
+                    
+                    <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+                        <a href="{% url 'master_list' 'auth' 'user' %}" class="btn btn-outline-secondary px-4 rounded-pill">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                            <i class="bi bi-check2-circle me-2"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
+<style>
+    .cursor-pointer { cursor: pointer !important; }
+    .hover-bg-white:hover { background-color: #fff !important; }
+    .transition-all { transition: all 0.2s ease-in-out; }
+    .border-transparent { border-color: transparent !important; }
+    .hover-border-light:hover { border-color: #dee2e6 !important; }
+    .form-check-input { margin-top: 0 !important; }
+</style>
 {% endblock %}

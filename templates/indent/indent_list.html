@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<style>
+  .sfg-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 2000;
+    display: none;
+    float: left;
+    min-width: 100%;
+    padding: 0.5rem 0;
+    margin: 0.125rem 0 0;
+    font-size: 0.85rem;
+    color: #1e293b;
+    text-align: left;
+    list-style: none;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .sfg-dropdown .dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    clear: both;
+    font-weight: 400;
+    color: #1e293b;
+    text-align: inherit;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    border-bottom: 1px solid #f8fafc;
+  }
+
+  .sfg-dropdown .dropdown-item:hover {
+    background-color: #f1f5f9;
+    color: #206bc4;
+  }
+</style>
+<!-- Display Django messages -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dimdissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dimdiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+<div class="container-xl my-4">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h2 class="card-title mb-0"> Indents</h2>
+      {% if request.GET.project and request.GET.department %}
+      <!-- Showing project-wise, dept-wise indents -->
+      <a class="btn btn-primary" href="{% url 'project_indent_create' request.GET.project request.GET.department %}">
+        + New Indent
+      </a>
+      {% else %}
+      <!-- Normal indent creation -->
+      <a class="btn btn-primary" href="{% url 'indent_create' %}">
+        + New Indent
+      </a>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table card-table table-vcenter text-nowrap">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Indent ID</th>
+              <th>Department</th>
+              <th>Title</th>
+              <th>Item Name</th>
+              <th>Related SFG</th>
+              <th>Quantity</th>
+              <th>Unit</th>
+              {% comment %} <th>Status</th> {% endcomment %}
+              <th>Created</th>
+              <th>Required By</th>
+              <th class="w-1">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for indent in indents %}
+            <tr>
+              <td>{{ indent.id }}</td>
+              <td>{{ indent.indent_number }}</td>
+              <td>{{ indent.department }}</td>
+              <td>{{ indent.title }}</td>
+
+              <!-- Multiple items per indent -->
+              <td>
+                <ul class="list-unstyled mb-0">
+                  {% for item in indent.items.all %}
+                  <li>{{ item.product_name }}</li>
+                  {% empty %}
+                  <li><span class="text-muted">No items</span></li>
+                  {% endfor %}
+                </ul>
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  {% for item in indent.items.all %}
+                  <li>{{ item.production_item.item_name|default:"-" }}</li>
+                  {% endfor %}
+                </ul>
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  {% for item in indent.items.all %}
+                  <li>{{ item.quantity }}</li>
+                  {% endfor %}
+                </ul>
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  {% for item in indent.items.all %}
+                  <li>{{ item.unit }}</li>
+                  {% empty %}
+                  <li>-</li>
+                  {% endfor %}
+                </ul>
+              </td>
+
+              {% comment %} <td>
+                {% if indent.status == 'draft' %}
+                <button class="btn btn-md btn-secondary" disabled>Draft</button>
+                {% elif indent.status == 'approved' %}
+                <button class="btn btn-md btn-success" disabled>Approved</button>
+                {% elif indent.status == 'rejected' %}
+                <button class="btn btn-md btn-danger" disabled>Rejected</button><br>
+                <small class="text-muted">{{ indent.reject_reason }}</small>
+                {% else %}
+                <button class="btn btn-md btn-dark" disabled>{{ indent.get_status_display }}</button>
+                {% endif %}
+              </td> {% endcomment %}
+              <td>{{ indent.created_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ indent.required_date|date:"Y-m-d"|default:"-" }}</td>
+              {% comment %} <td>
+                <div class="btn-list flex-nowrap">
+
+                  <!-- 🆕 View Details Button -->
+                  <a href="{% url 'indent_details' indent.id %}" class="btn btn-info btn-md me-1">
+                    View
+                  </a>
+
+                  {% if indent.status == 'draft' %}
+                  <a href="{% url 'indent_approve' indent.id %}" class="btn btn-success btn-md">
+                    Approve
+                  </a>
+                  <button type="button" class="btn btn-danger btn-md ms-1" data-bs-toggle="modal"
+                    data-bs-target="#rejectModal" data-indent-id="{{ indent.id }}"
+                    data-indent-title="{{ indent.title }}">
+                    Reject
+                  </button>
+                  {% endif %}
+
+                  {% if indent.status == 'approved' %}
+                  {% if indent.has_shortage %}
+                  <a href="{% url 'indent_convert_to_po' indent.id %}" class="btn btn-warning btn-md">
+                    Convert To PO
+                  </a>
+                  {% else %}
+                  <button class="btn btn-success btn-md" disabled>
+                    Enough stock available
+                  </button>
+                  {% endif %}
+                  {% endif %}
+                </div>
+              </td> {% endcomment %}
+              <td>
+                <div class="btn-list flex-nowrap">
+
+                  <!-- Only View Button -->
+                  {% if can_view_indent_btn %}
+                  <a href="{% url 'indent_details' indent.id %}" class="btn btn-info btn-md">
+                    View
+                  </a>
+                  {% endif %}
+
+                  <button class="btn btn-warning btn-md" onclick="openEditIndent({{ indent.id }})">
+                    Edit
+                  </button>
+
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted">
+                No indents found
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal fade" id="editIndentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+
+            <form id="editIndentForm">
+              {% csrf_token %}
+              <input type="hidden" id="editIndentId" name="indent_id">
+
+              <div class="modal-header">
+                <h5 class="modal-title">Edit Indent</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+
+              <div class="modal-body">
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" id="editTitle" name="title" required>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Required By Date</label>
+                    <input type="date" class="form-control" id="editRequiredDate" name="required_date" required>
+                  </div>
+                </div>
+
+                <div class="row g-2 mb-1 fw-bold text-muted" style="font-size: 0.8rem;">
+                  <div class="col-md-3">Related SFG</div>
+                  <div class="col-md-4">Item Name</div>
+                  <div class="col-md-2">Qty</div>
+                  <div class="col-md-2">Unit</div>
+                  <div class="col-md-1"></div>
+                </div>
+                <div id="editItemsContainer"></div>
+
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addEditItem()">
+                  + Add Item
+                </button>
+
+                <div id="editErrors" class="text-danger mt-2"></div>
+              </div>
+
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-success">Save Changes</button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="rejectForm">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rejectModalLabel">Reject Indent</h5>
+          <button type="button" class="btn-close" data-bs-dimdiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Rejecting indent: <strong id="modalIndentTitle"></strong> (ID: <span id="modalIndentId"></span>)</p>
+          <div class="mb-3">
+            <label for="reject_reason" class="form-label">Reject Reason</label>
+            <textarea class="form-control" id="reject_reason" name="reject_reason" rows="4" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Reject</button>
+          <button type="button" class="btn btn-secondary" data-bs-dimdiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var rejectModal = document.getElementById('rejectModal')
+    rejectModal.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget
+      if (!button) return; // <-- add this check
+
+      var indentId = button.getAttribute('data-indent-id')
+      var indentTitle = button.getAttribute('data-indent-title')
+
+      // Update modal content
+      var modalTitleElem = rejectModal.querySelector('#modalIndentTitle')
+      var modalIdElem = rejectModal.querySelector('#modalIndentId')
+      modalTitleElem.textContent = indentTitle
+      modalIdElem.textContent = indentId
+
+      // Update form action dynamically
+      var form = rejectModal.querySelector('#rejectForm')
+      form.action = `/indent/${indentId}/reject/`
+
+      // Clear textarea
+      form.reject_reason.value = ''
+    })
+  })
+</script>
+<script>
+  let stockData = {};
+  try {
+    stockData = JSON.parse('{{ stock_json|escapejs }}');
+  } catch (e) {
+    console.error("Failed to load stock data", e);
+  }
+
+  let currentDeptId = null;
+  let currentSfgList = [];
+
+  function openEditIndent(indentId) {
+    fetch(`/indent/edit/${indentId}/`)
+      .then(res => res.json())
+      .then(data => {
+        currentDeptId = data.department_id;
+        currentSfgList = data.sfg_list || [];
+        document.getElementById("editIndentId").value = data.id;
+        document.getElementById("editTitle").value = data.title;
+        document.getElementById("editRequiredDate").value = data.required_date || "";
+
+        let container = document.getElementById("editItemsContainer");
+        container.innerHTML = "";
+
+        data.items.forEach(item => {
+          container.insertAdjacentHTML("beforeend", itemRow(item, data.department_id));
+        });
+
+        // Initialize stock displays for loaded items
+        container.querySelectorAll('input[name="product_name[]"]').forEach(input => {
+          const name = input.value.trim();
+          if (name && currentDeptId) {
+            const deptStock = stockData[currentDeptId] || {};
+            const qty = deptStock[name];
+            if (qty !== undefined) {
+              updateStockDisplay(input, qty);
+            }
+          }
+        });
+
+        new bootstrap.Modal(
+          document.getElementById("editIndentModal")
+        ).show();
+      });
+  }
+
+  function itemRow(item = {}, deptId = null) {
+    const activeDeptId = deptId || currentDeptId || '';
+    const productionItemId = item.production_item_id || '';
+
+    let sfgOptions = '<option value="">-- Select SFG --</option>';
+    currentSfgList.forEach(sfg => {
+      const selected = (String(sfg.id) === String(productionItemId)) ? 'selected' : '';
+      sfgOptions += `<option value="${sfg.id}" ${selected}>${sfg.item_name} (Req: ${sfg.quantity} | Stock: ${sfg.stock_qty})</option>`;
+    });
+
+    return `
+          <div class="row g-2 mb-2 align-items-center">
+            <div class="col-md-3">
+              <select name="production_item[]" class="form-select">
+                ${sfgOptions}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <div class="item-dropdown-container" style="position: relative;">
+                <div class="input-group">
+                  <input name="product_name[]" class="form-control" value="${item.product_name || ''}" 
+                         data-valid="${item.product_name ? 'true' : 'false'}" data-dept-id="${activeDeptId}" placeholder="Select product"
+                         autocomplete="off" onclick="showDropdown(this)" oninput="filterDropdown(this)" required>
+                  <span class="input-group-text bg-light stock-display" style="font-size: 0.7rem; min-width: 70px; padding: 0.25rem 0.5rem;">S: -</span>
+                </div>
+                <div class="sfg-dropdown"></div>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <input name="quantity[]" type="number" class="form-control" value="${item.quantity || 1}" required>
+            </div>
+            <div class="col-md-2">
+              <input name="unit[]" class="form-control" value="${item.unit || ''}" placeholder="Unit">
+            </div>
+            <div class="col-md-1 text-end">
+              <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.row').remove()">✕</button>
+            </div>
+          </div>`;
+  }
+
+  function addEditItem() {
+    document.getElementById("editItemsContainer")
+      .insertAdjacentHTML("beforeend", itemRow({}, currentDeptId));
+  }
+
+  function showDropdown(input) {
+    const container = input.closest('.item-dropdown-container');
+    const dropdown = container.querySelector('.sfg-dropdown');
+
+    // Hide all other dropdowns
+    document.querySelectorAll('.sfg-dropdown').forEach(d => {
+      if (d !== dropdown) d.style.display = 'none';
+    });
+
+    filterDropdown(input);
+  }
+
+  function filterDropdown(input) {
+    const container = input.closest('.item-dropdown-container');
+    const dropdown = container.querySelector('.sfg-dropdown');
+    const query = input.value.trim().toLowerCase();
+
+    // Mark invalid while typing
+    input.dataset.valid = "false";
+
+    // Fix for dropup if near bottom of screen/modal
+    const rect = input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 200) {
+      dropdown.style.bottom = '100%';
+      dropdown.style.top = 'auto';
+      dropdown.style.marginTop = '0';
+      dropdown.style.marginBottom = '0.125rem';
+    } else {
+      dropdown.style.bottom = 'auto';
+      dropdown.style.top = '100%';
+      dropdown.style.marginTop = '0.125rem';
+      dropdown.style.marginBottom = '0';
+    }
+
+    const deptId = input.getAttribute('data-dept-id') || currentDeptId;
+    const deptStock = (deptId && stockData[deptId]) ? stockData[deptId] : {};
+    const productNames = Object.keys(deptStock);
+
+    const matches = query
+      ? productNames.filter(p => p.toLowerCase().includes(query))
+      : productNames.slice(0, 10);
+
+    renderDropdown(dropdown, matches, input, deptStock);
+    dropdown.style.display = matches.length > 0 || query === "" ? 'block' : 'none';
+  }
+
+  function renderDropdown(dropdown, names, input, deptStock) {
+    dropdown.innerHTML = '';
+    if (names.length === 0) {
+      dropdown.innerHTML = '<div class="dropdown-item text-danger small">Item not found in Stock</div>';
+      return;
+    }
+
+    names.forEach(name => {
+      const qty = deptStock[name];
+      const div = document.createElement('div');
+      div.className = 'dropdown-item d-flex justify-content-between';
+      div.innerHTML = `<span>${name}</span> <small class="text-muted">In Stock: ${qty}</small>`;
+      div.onclick = () => selectItem(name, qty, input);
+      dropdown.appendChild(div);
+    });
+  }
+
+  function selectItem(name, stock, input) {
+    input.value = name;
+    input.dataset.valid = "true";
+    updateStockDisplay(input, stock);
+    input.closest('.item-dropdown-container').querySelector('.sfg-dropdown').style.display = 'none';
+  }
+
+  function updateStockDisplay(input, stock) {
+    const display = input.closest('.item-dropdown-container').querySelector('.stock-display');
+    if (display) {
+      if (stock === null || stock === undefined) {
+        display.textContent = 'Stock: -';
+        display.classList.remove('text-success', 'text-danger');
+      } else {
+        display.textContent = `Stock: ${stock}`;
+        if (stock > 0) {
+          display.classList.remove('text-danger');
+          display.classList.add('text-success');
+        } else {
+          display.classList.remove('text-success');
+          display.classList.add('text-danger');
+        }
+      }
+    }
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.item-dropdown-container')) {
+      document.querySelectorAll('.sfg-dropdown').forEach(d => d.style.display = 'none');
+    }
+  });
+</script>
+<script>
+  document.getElementById("editIndentForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    let indentId = document.getElementById("editIndentId").value;
+
+    fetch(`/indent/edit/${indentId}/`, {
+      method: "POST",
+      body: new FormData(this)
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          document.getElementById("editErrors").innerText = "Error saving indent";
+        }
+      });
+  });
+</script>
+{% endblock %}

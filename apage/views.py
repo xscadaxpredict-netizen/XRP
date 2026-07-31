@@ -809,6 +809,14 @@ def servicereport(request):
         service_reports = ServiceReport.objects.all()
     else:
         service_reports = ServiceReport.objects.filter(created_by=user)
+        
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+    
+    if start_date:
+        service_reports = service_reports.filter(date_of_visit__gte=start_date)
+    if end_date:
+        service_reports = service_reports.filter(date_of_visit__lte=end_date)
 
     # 🔍 Search filter
     if search_query:
@@ -838,6 +846,8 @@ def servicereport(request):
         'user_role': user_role,
         'users': User.objects.all() if user_role == 'Admin' else [],
         'sites': Site.objects.all(),
+        'start_date': start_date,
+        'end_date': end_date,
     }
     return render(request, 'apage/servicereport_viewing.html', context)
 
@@ -1654,6 +1664,10 @@ def reject_service_report(request, pk):
         data = json.loads(request.body)
         reason = data.get('reason', '')
         service_report.reject(reason)
+        
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'status': 'success', 'message': 'Report rejected successfully.'})
+            
         return redirect('servicereport')
     
     return HttpResponseForbidden("Invalid method.")
@@ -1985,17 +1999,31 @@ def service_report_pdf(request, pk):
     import base64
     attachments = ServiceReportAttachment.objects.filter(service_report=service_report)
 
+    from PIL import Image
+    import io
+    
     for attachment in attachments:
         try:
             if os.path.exists(attachment.file.path):
-                with open(attachment.file.path, 'rb') as f:
-                    b64_data = base64.b64encode(f.read()).decode('utf-8')
-                    ext = attachment.file.path.split('.')[-1].lower()
-                    mime_type = "image/png" if ext == "png" else "image/jpeg"
-                    attachment.local_url = f"data:{mime_type};base64,{b64_data}"
+                ext = attachment.file.path.split('.')[-1].lower()
+                mime_type = "image/png" if ext == "png" else "image/jpeg"
+                
+                # Compress image using Pillow to prevent Weasyprint Out-Of-Memory (OOM) crash
+                with Image.open(attachment.file.path) as img:
+                    # Convert to RGB if it's RGBA and saving as JPEG
+                    if img.mode in ('RGBA', 'P') and mime_type == 'image/jpeg':
+                        img = img.convert('RGB')
+                        
+                    img.thumbnail((800, 800)) # Resize to max 800x800
+                    buffer = io.BytesIO()
+                    img.save(buffer, format="PNG" if ext == "png" else "JPEG", quality=75)
+                    b64_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                    
+                attachment.local_url = f"data:{mime_type};base64,{b64_data}"
             else:
                 attachment.local_url = ""
         except Exception as e:
+            print(f"Error processing attachment {attachment.id}: {e}")
             attachment.local_url = ""
 
     context = {
@@ -2013,14 +2041,13 @@ def service_report_pdf(request, pk):
 
     html_string = render_to_string('apage/pdf_servicereport.html', context)
 
-    # Create a PDF response using weasyprint
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="service_report_{pk}.pdf"'
-
     from weasyprint import HTML
-    html = HTML(string=html_string, base_url=request.build_absolute_uri())
+    html = HTML(string=html_string)
     pdf = html.write_pdf()
-    response.write(pdf)
+    
+    # Pass the pdf bytes directly into the constructor to automatically set Content-Length
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="service_report_{pk}.pdf"'
 
     return response
 
@@ -2064,8 +2091,8 @@ def servireport_edithistory(request, report_id):
     return render(request, 'apage/edithistory_servicereport.html', context)
 
 @csrf_exempt
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
+@api_view(['GET', 'POST'])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def update_service_report_status(request, pk, action):
     service_report = get_object_or_404(ServiceReport, pk=pk)
@@ -2074,11 +2101,20 @@ def update_service_report_status(request, pk, action):
     user = request.user
     is_admin = user.groups.filter(name='Admin').exists() or user.is_staff or user.is_superuser
     if not is_admin:
-        return JsonResponse({"status": "error", "message": "Permission denied. Admins only."}, status=403)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({"status": "error", "message": "Permission denied. Admins only."}, status=403)
+        return HttpResponseForbidden("Permission denied. Admins only.")
 
     if action == 'approve':
         service_report.approve()
-        return JsonResponse({"status": "success", "message": "Report approved successfully."})
+        
+        # If it's an API request (POST or JSON), return JSON
+        if request.method == 'POST' or request.content_type == 'application/json':
+            return JsonResponse({"status": "success", "message": "Report approved successfully."})
+        
+        # If it's a regular web browser GET request, redirect back
+        messages.success(request, "Report approved successfully.")
+        return redirect('servicereport')
     elif action == 'reject':
         # Try to get reason from JSON body or POST data
         try:
@@ -2432,9 +2468,15 @@ def edit_generator_report(request, report_id):
 
 @login_required
 def generator_report(request):
-    reports = GeneratorReport.objects.filter(
-        created_by=request.user
-    ).order_by('-date')
+    user = request.user
+    user_role = user.groups.first().name if user.groups.first() else None
+    
+    if user_role == 'Admin' or user.is_staff or user.is_superuser:
+        reports = GeneratorReport.objects.all().order_by('-date')
+    else:
+        reports = GeneratorReport.objects.filter(
+            created_by=user
+        ).order_by('-date')
 
     return render(
         request,
@@ -2466,6 +2508,17 @@ def site_amc_management(request):
         site = get_object_or_404(Site, id=site_id)
         
         amc, created = SiteAMC.objects.get_or_create(site=site)
+        
+        # Save old details to history before updating if it already existed
+        if not created and amc.has_amc:
+            from apage.models import SiteAMCHistory
+            SiteAMCHistory.objects.create(
+                amc=amc,
+                amc_start_date=amc.amc_start_date,
+                amc_end_date=amc.amc_end_date,
+                proof_file=amc.proof_file if amc.proof_file else None
+            )
+            
         amc.has_amc = has_amc
         if has_amc:
             amc.amc_start_date = start_date if start_date else None
@@ -2479,9 +2532,11 @@ def site_amc_management(request):
         amc.save()
         return redirect('site_amc_management')
 
+    from datetime import date
     return render(request, 'apage/site_amc.html', {
         'sites': sites,
         'amcs': amcs,
+        'today': date.today(),
     })
 
 
@@ -2606,4 +2661,69 @@ def delete_service_expiry(request, expiry_id):
     expiry = get_object_or_404(ServiceExpiry, id=expiry_id)
     expiry.delete()
     messages.success(request, "Service expiry deleted successfully!")
-    return redirect('service_expiry_management')
+    return redirect('service_expiry_management')
+
+import zipfile
+import io
+
+@login_required
+def bulk_download_service_reports(request):
+    user = request.user
+    user_role = user.groups.first().name if user.groups.first() else None
+
+    # Base queryset
+    if user_role == 'Admin':
+        service_reports = ServiceReport.objects.all()
+    else:
+        service_reports = ServiceReport.objects.filter(created_by=user)
+        
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+    
+    if start_date:
+        service_reports = service_reports.filter(date_of_visit__gte=start_date)
+    if end_date:
+        service_reports = service_reports.filter(date_of_visit__lte=end_date)
+
+    search_query = request.GET.get('search', '')
+    if search_query:
+        from django.db.models import Q
+        service_reports = service_reports.filter(
+            Q(service_name__icontains=search_query) |
+            Q(customer_name__icontains=search_query) |
+            Q(state__name__icontains=search_query) |
+            Q(status_of_call__icontains=search_query) |
+            Q(site__name__icontains=search_query)
+        )
+
+    user_filter = request.GET.get('user', '')
+    if user_filter and user_role == 'Admin':
+        service_reports = service_reports.filter(created_by__id=user_filter)
+
+    site_filter = request.GET.get('site', '')
+    if site_filter:
+        service_reports = service_reports.filter(site__id=site_filter)
+
+    service_reports = service_reports.order_by('-date_of_visit')
+
+    # Generate Zip
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for report in service_reports:
+            try:
+                # Reuse the existing PDF generation logic
+                pdf_response = service_report_pdf(request, report.id)
+                pdf_bytes = pdf_response.content
+                
+                cust_name = report.customer_name if report.customer_name else "Unknown"
+                visit_date = report.date_of_visit if report.date_of_visit else "NoDate"
+                filename = f"ServiceReport_{cust_name}_{visit_date}_{report.id}.pdf".replace(" ", "_").replace("/", "-")
+                
+                zip_file.writestr(filename, pdf_bytes)
+            except Exception as e:
+                print(f"Error generating PDF for report {report.id}: {e}")
+                
+    zip_buffer.seek(0)
+    response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="Bulk_Service_Reports.zip"'
+    return response

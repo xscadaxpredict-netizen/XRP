@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Bank | XsHoT ERP{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <a href="{% url 'displaybanks' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i>
+            </a>
+            <div>
+                <h3 class="fw-bold mb-0" style="font-family:'Outfit',sans-serif;">Add Bank Details</h3>
+                <p class="text-muted small mb-0">Enter your bank account information</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Bank Name</label>
+                            <input type="text" name="bankname" class="form-control" placeholder="e.g. State Bank of India" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Account Holder Name</label>
+                            <input type="text" name="acc_holder_name" class="form-control" placeholder="Full legal name" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Account Number</label>
+                            <input type="text" name="account_number" class="form-control" placeholder="Enter account number" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">IFSC Code</label>
+                            <input type="text" name="ifcs_code" class="form-control" placeholder="e.g. SBIN0001234" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Branch Name</label>
+                            <input type="text" name="branch_name" class="form-control" placeholder="Branch location" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Phone</label>
+                            <input type="tel" name="phone_number" class="form-control" placeholder="Contact number" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Address</label>
+                            <input type="text" name="address" class="form-control" placeholder="Bank branch address" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Email <span class="text-muted">(optional)</span></label>
+                            <input type="email" name="email_b" class="form-control" placeholder="bank@example.com">
+                        </div>
+                        <div class="col-12 pt-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ti ti-building-bank me-2"></i>Add Bank
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -127,6 +127,7 @@
     background-color: #ffffff;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     padding: 16px 24px;
+    position: relative;
   }
 
   .reply-form .input-row {
@@ -216,6 +217,80 @@
     margin-right: 8px;
   }
 
+  .emoji-picker-container {
+    position: absolute;
+    bottom: 80px;
+    left: 24px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.1);
+    z-index: 1000;
+    width: 320px;
+    height: 420px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .picker-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+  }
+  .picker-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .emoji-picker-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+  .picker-tab {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+  }
+  .picker-tab.active {
+    color: #003366;
+    border-bottom: 2px solid #003366;
+  }
+  .picker-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    background: #f8f9fa;
+  }
+  .gif-search-container {
+    padding: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  .gif-results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .gif-result-img {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .gif-result-img:hover {
+    transform: scale(1.05);
+  }
+
   @media (max-width: 576px) {
     .messages-container {
       padding: 16px;
@@ -276,7 +351,13 @@
           {% for msg in req.messages.all %}
             <div class="chat-bubble {% if msg.sender == request.user %}chat-right{% else %}chat-left{% endif %}">
               <span class="sender text-muted">{{ msg.sender.username }}</span>
-              <div class="message-text" style="font-size: 14px; word-break: break-word;">{{ msg.message }}</div>
+              {% if msg.is_gif %}
+                <div class="message-text mt-1">
+                  <video src="{{ msg.gif_url }}" autoplay loop muted playsinline class="rounded shadow-sm" style="max-width: 250px; max-height: 250px; object-fit: contain;"></video>
+                </div>
+              {% else %}
+                <div class="message-text" style="font-size: 14px; word-break: break-word;">{{ msg.message }}</div>
+              {% endif %}
               {% if msg.attachment %}
               <div class="attachment-preview">
                   <a href="{{ msg.attachment.url }}" target="_blank" class="d-flex align-items-center text-decoration-none text-dark gap-2">
@@ -305,12 +386,15 @@
             <input type="hidden" name="request_id" value="{{ req.id }}">
             
             <div class="input-row">
-              <button type="button" class="attach-btn" onclick="document.getElementById('file-input-{{ req.id }}').click();">
+              <button type="button" class="attach-btn" onclick="document.getElementById('file-input-{{ req.id }}').click();" title="Attach File">
                 <i class="bi bi-plus-lg"></i>
+              </button>
+              <button type="button" class="attach-btn" id="emoji-btn-{{ req.id }}" title="Emojis & GIFs">
+                <i class="bi bi-emoji-smile"></i>
               </button>
               <input type="file" name="attachment" id="file-input-{{ req.id }}" class="d-none" onchange="showFileName(event, {{ req.id }})">
               
-              <textarea name="message" rows="1" placeholder="Type your message here..." required></textarea>
+              <textarea name="message" id="message-input-{{ req.id }}" rows="1" placeholder="Type your message here..." required></textarea>
               
               <button type="submit" class="send-btn" {% if req.is_resolved %}disabled{% endif %}>
                 <i class="bi bi-send-fill text-white"></i>
@@ -327,6 +411,25 @@
                 </label>
               </div>
             {% endif %}
+
+            <!-- Emoji & GIF Picker -->
+            <div id="emoji-picker-container-{{ req.id }}" class="emoji-picker-container picker-hidden shadow">
+              <div class="picker-tabs">
+                <button type="button" class="picker-tab active" id="tab-emoji-{{ req.id }}">Emoji</button>
+                <button type="button" class="picker-tab" id="tab-gif-{{ req.id }}">GIFs</button>
+              </div>
+              <div class="picker-content" id="emoji-content-{{ req.id }}">
+                <div id="emoji-picker-mount-{{ req.id }}" class="emoji-picker-wrapper"></div>
+              </div>
+              <div class="picker-content d-none" id="gif-content-{{ req.id }}">
+                <div class="gif-search-container">
+                  <input type="text" class="form-control form-control-sm mb-2" id="gif-search-{{ req.id }}" placeholder="Search GIFs...">
+                </div>
+                <div class="gif-results" id="gif-results-{{ req.id }}">
+                  <p class="text-muted small text-center mt-3">Loading trending GIFs...</p>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
 
@@ -339,6 +442,7 @@
 
 <!-- Scripts -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/picmo@5/dist/umd/picmo.js"></script>
 <script>
   // Smooth Page Transition
   document.addEventListener("DOMContentLoaded", function() {
@@ -356,6 +460,149 @@
     const fileName = input.files[0] ? input.files[0].name : '';
     const display = document.getElementById(`selected-file-${requestId}`);
     display.textContent = fileName ? `📎 ${fileName}` : '';
+  }
+
+  // --- EMOJI & GIF PICKER LOGIC ---
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.reply-form').forEach(form => {
+      const reqId = form.getAttribute('data-request-id');
+      const emojiBtn = document.getElementById(`emoji-btn-${reqId}`);
+      const pickerContainer = document.getElementById(`emoji-picker-container-${reqId}`);
+      const tabEmoji = document.getElementById(`tab-emoji-${reqId}`);
+      const tabGif = document.getElementById(`tab-gif-${reqId}`);
+      const contentEmoji = document.getElementById(`emoji-content-${reqId}`);
+      const contentGif = document.getElementById(`gif-content-${reqId}`);
+      const gifSearch = document.getElementById(`gif-search-${reqId}`);
+      const gifResults = document.getElementById(`gif-results-${reqId}`);
+      const messageInput = document.getElementById(`message-input-${reqId}`);
+
+      // Toggle Picker Visibility
+      emojiBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        pickerContainer.classList.toggle('picker-hidden');
+        if (!pickerContainer.classList.contains('picker-hidden') && gifResults.children.length === 1) {
+            fetchGifs('trending', gifResults, reqId);
+        }
+      });
+
+      // Close picker when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!pickerContainer.contains(e.target) && !emojiBtn.contains(e.target)) {
+          pickerContainer.classList.add('picker-hidden');
+        }
+      });
+
+      // Tab Switching
+      tabEmoji.addEventListener('click', () => {
+        tabEmoji.classList.add('active');
+        tabGif.classList.remove('active');
+        contentEmoji.classList.remove('d-none');
+        contentGif.classList.add('d-none');
+      });
+
+      tabGif.addEventListener('click', () => {
+        tabGif.classList.add('active');
+        tabEmoji.classList.remove('active');
+        contentGif.classList.remove('d-none');
+        contentEmoji.classList.add('d-none');
+        if (gifResults.children.length === 1) {
+            fetchGifs('trending', gifResults, reqId);
+        }
+      });
+
+      // Emoji Selection using Picmo
+      const emojiMount = document.getElementById(`emoji-picker-mount-${reqId}`);
+      if (window.picmo && emojiMount) {
+        const picker = window.picmo.createPicker({
+          rootElement: emojiMount,
+          inline: true
+        });
+        
+        picker.addEventListener('emoji:select', event => {
+          const cursorPosition = messageInput.selectionStart;
+          const textBefore = messageInput.value.substring(0, cursorPosition);
+          const textAfter = messageInput.value.substring(cursorPosition, messageInput.value.length);
+          messageInput.value = textBefore + event.emoji + textAfter;
+          messageInput.focus();
+        });
+      } else {
+        emojiMount.innerHTML = '<p class="text-danger small text-center mt-3">Failed to load Emoji Picker.</p>';
+      }
+
+      // GIF Search
+      let searchTimeout;
+      gifSearch.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        searchTimeout = setTimeout(() => {
+          fetchGifs(query || 'trending', gifResults, reqId);
+        }, 500);
+      });
+    });
+  });
+
+  function fetchGifs(query, container, reqId) {
+    container.innerHTML = '<p class="text-muted small text-center mt-3" style="grid-column: span 2;">Loading...</p>';
+    const endpoint = `{% url 'ajax_gif_search' %}?q=${encodeURIComponent(query)}`;
+
+    fetch(endpoint)
+      .then(res => res.json())
+      .then(data => {
+        container.innerHTML = '';
+        if (data.success && data.data && data.data.length > 0) {
+          data.data.forEach(item => {
+            const video = document.createElement('video');
+            video.src = item.mp4;
+            video.autoplay = true;
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.className = 'gif-result-img shadow-sm';
+            video.onclick = () => sendGifMessage(item.mp4, reqId);
+            container.appendChild(video);
+          });
+        } else {
+          container.innerHTML = '<p class="text-muted small text-center mt-3" style="grid-column: span 2;">No GIFs found.</p>';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        container.innerHTML = '<p class="text-danger small text-center mt-3" style="grid-column: span 2;">Error loading GIFs.</p>';
+      });
+  }
+
+  function sendGifMessage(gifUrl, reqId) {
+    const form = document.querySelector(`.reply-form[data-request-id="${reqId}"]`);
+    const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]').value;
+    
+    // Create form data with just the GIF URL
+    const formData = new FormData();
+    formData.append('request_id', reqId);
+    formData.append('message', '');
+    formData.append('gif_url', gifUrl);
+
+    // Hide picker
+    document.getElementById(`emoji-picker-container-${reqId}`).classList.add('picker-hidden');
+
+    fetch("{% url 'ajax_reply_request' %}", {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+      },
+      body: formData,
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        // Trigger polling or manually append
+        if (typeof startPolling === 'function') {
+            // Polling will catch it naturally within 3 seconds, or we can force it
+        }
+      } else {
+        alert(data.error || "Failed to send GIF.");
+      }
+    });
   }
 
   // Handle Form Submission and Polling
@@ -395,7 +642,7 @@
 
             bubble.innerHTML = `
               <span class="sender" style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 2px; color: rgba(255, 255, 255, 0.75);">${data.sender}</span>
-              <div class="message-text" style="font-size: 14px; word-break: break-word;">${data.message || ''}</div>
+              ${data.is_gif ? `<div class="message-text mt-1"><video src="${data.gif_url}" autoplay loop muted playsinline class="rounded shadow-sm" style="max-width: 250px; max-height: 250px; object-fit: contain;"></video></div>` : `<div class="message-text" style="font-size: 14px; word-break: break-word;">${data.message || ''}</div>`}
               ${data.attachment_url ? `
                 <div class="attachment-preview mt-2 p-2 rounded-3 border d-inline-block" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); max-width: 300px;">
                   <a href="${data.attachment_url}" target="_blank" class="d-flex align-items-center text-decoration-none text-white gap-2">
@@ -505,7 +752,7 @@
 
       bubble.innerHTML = `
         <span class="sender" style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 2px; color: ${senderColor};">${msg.sender}</span>
-        <div class="message-text" style="font-size: 14px; word-break: break-word;">${msg.message}</div>
+        ${msg.is_gif ? `<div class="message-text mt-1"><video src="${msg.gif_url}" autoplay loop muted playsinline class="rounded shadow-sm" style="max-width: 250px; max-height: 250px; object-fit: contain;"></video></div>` : `<div class="message-text" style="font-size: 14px; word-break: break-word;">${msg.message || ''}</div>`}
         ${msg.attachment ? `
           <div class="attachment-preview mt-2 p-2 rounded-3 border d-inline-block" style="background: ${fileBgColor}; border: ${fileBorder}; max-width: 300px;">
             <a href="${msg.attachment}" target="_blank" class="d-flex align-items-center text-decoration-none ${fileTextColor} gap-2">

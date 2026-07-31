@@ -1,7 +1,8 @@
 let runCycleCount = 1; // Initial count of run cycles (global scope)
 
 // Add a new run cycle row
-document.getElementById('addRunCycleBtn').addEventListener('click', function () {
+var el_addRunCycleBtn = document.getElementById('addRunCycleBtn');
+if (el_addRunCycleBtn) el_addRunCycleBtn.addEventListener('click', function() {
   runCycleCount++; // Increment the run cycle count
 
   // Create a new row

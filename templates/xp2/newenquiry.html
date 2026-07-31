@@ -65,21 +65,24 @@
                 <div class="row g-4">
                     <!-- Left Half -->
                     <div class="col-lg-6">
-                        <div class="mb-3">
+                        <div class="mb-3 position-relative">
                             <label class="form-label fw-semibold text-dark"><span class="red-asterisk">*</span> Company Name</label>
-                            <input type="text" class="form-control rounded-3 shadow-sm" name="companyname" placeholder="Company name" value="{{ form_data.companyname }}" required>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="companyname" id="companyname" placeholder="Company name" value="{{ form_data.companyname }}" required>
+                            <div id="duplicate-warning-box" class="invalid-feedback d-none fw-bold mt-2 p-2 bg-danger-subtle text-danger rounded-3 border border-danger">
+                                <!-- Warning will be injected here -->
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold text-dark"><span class="red-asterisk">*</span> Client Contact Name</label>
                             <input type="text" class="form-control rounded-3 shadow-sm" name="customername" placeholder="Enter contact name" value="{{ form_data.customername }}" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold text-dark">Reference</label>
-                            <input type="text" class="form-control rounded-3 shadow-sm" name="refrencename" placeholder="Reference source" value="{{ form_data.refrencename }}">
+                            <label class="form-label fw-semibold text-dark">Email</label>
+                            <input type="email" class="form-control rounded-3 shadow-sm" name="email" id="email" placeholder="example@gmail.com" value="{{ form_data.email }}">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold text-dark">Email</label>
-                            <input type="email" class="form-control rounded-3 shadow-sm" name="email" placeholder="example@gmail.com" value="{{ form_data.email }}">
+                            <label class="form-label fw-semibold text-dark">Reference</label>
+                            <input type="text" class="form-control rounded-3 shadow-sm" name="refrencename" placeholder="Reference source" value="{{ form_data.refrencename }}">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold text-dark">Client Contact Number</label>
@@ -159,6 +162,42 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // Real-time Duplicate Checking
+    const companyInput = document.getElementById("companyname");
+    const emailInput = document.getElementById("email");
+    const warningBox = document.getElementById("duplicate-warning-box");
+    
+    function checkDuplicate() {
+        const company = companyInput.value.trim();
+        const email = emailInput.value.trim();
+        
+        if (!company && !email) return;
+        
+        fetch(`{% url 'check_duplicate_api' %}?companyname=${encodeURIComponent(company)}&email=${encodeURIComponent(email)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.exists) {
+                    if (data.blocked) {
+                        warningBox.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.message} Duplication is not permitted.`;
+                        warningBox.className = 'invalid-feedback fw-bold mt-2 p-2 bg-danger-subtle text-danger rounded-3 border border-danger d-block';
+                        companyInput.classList.add('is-invalid');
+                    } else {
+                        warningBox.innerHTML = `<i class="bi bi-info-circle-fill me-1"></i> ${data.message} This will be flagged for review but you may proceed.`;
+                        warningBox.className = 'fw-bold mt-2 p-2 bg-warning-subtle text-warning-emphasis rounded-3 border border-warning d-block';
+                        companyInput.classList.remove('is-invalid');
+                    }
+                } else {
+                    warningBox.className = 'invalid-feedback d-none fw-bold mt-2 p-2 bg-danger-subtle text-danger rounded-3 border border-danger';
+                    companyInput.classList.remove('is-invalid');
+                }
+            })
+            .catch(err => console.error("Duplicate check failed", err));
+    }
+
+    if (companyInput) companyInput.addEventListener("blur", checkDuplicate);
+    if (emailInput) emailInput.addEventListener("blur", checkDuplicate);
+
+
     // Page transition
     const container = document.getElementById("dashboard-container");
     if (container) {

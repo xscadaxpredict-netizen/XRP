@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  .login-wrapper {
+    min-height: 100vh;
+    display: flex;
+  }
+
+  .login-left {
+    flex: 1;
+    background: url("{% static 'gstbillingapp/images/login_office_bg.jpg' %}") no-repeat center center;
+    background-size: cover;
+  }
+
+  .login-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+  }
+
+  .login-card h3 {
+    font-weight: 700;
+    color: #0d6efd;
+  }
+
+  .form-control {
+    border-radius: 2rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .btn-custom {
+    border-radius: 2rem;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    width: 100%;
+  }
+
+  .text-small {
+    font-size: 0.9rem;
+  }
+</style>
+
+<div class="login-wrapper">
+  <!-- Left side with image -->
+  <div class="login-left"></div>
+
+  <!-- Right side with form -->
+  <div class="login-right">
+    <div class="login-card">
+      <h3 class="text-center mb-4">Hello!</h3>
+      <p class="text-center text-muted mb-4">Sign in to get started</p>
+
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        <!-- Username -->
+        <input type="text" name="username" class="form-control" placeholder="Email Address" required>
+
+        <!-- Password -->
+        <input type="password" name="password" class="form-control" placeholder="Password" required>
+
+        <!-- Login Button -->
+        <button type="submit" class="btn btn-primary btn-custom">Login</button>
+
+      </form>
+      <div class="text-center mt-3">
+        <a href="{% url 'password_reset' %}">
+          Forgot Password?
+        </a>
+      </div>
+
+
+    </div>
+  </div>
+</div>
+{% endblock %}

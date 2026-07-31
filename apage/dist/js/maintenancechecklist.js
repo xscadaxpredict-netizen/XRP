@@ -6,7 +6,7 @@
     const errorDiv = document.getElementById("visit-date-error");
 
     // Add event listener for the 'input' event on the visit-date field
-    visitDateInput.addEventListener("input", function () {
+    if(visitDateInput) visitDateInput.addEventListener("input", function () {
         if (!visitDateInput.value) return;
         const parts = visitDateInput.value.split('-');
         const selectedDate = new Date(parts[0], parts[1] - 1, parts[2]); // Convert selected date to Date object
@@ -84,7 +84,8 @@
 
 
     // JavaScript to add more textboxes dynamically
-    document.getElementById('add-note-btn').addEventListener('click', function() {
+    var el_add_note_btn = document.getElementById('add-note-btn');
+if (el_add_note_btn) el_add_note_btn.addEventListener('click', function() {
         // Get the container for the notes
         var container = document.getElementById('notes-container');
         

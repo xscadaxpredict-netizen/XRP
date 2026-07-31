@@ -58,6 +58,7 @@ def enq_home(request):
     # GET PARAMS
     # ---------------------------
     selected_user_id = request.GET.get("user", "")
+    funnel_layer = request.GET.get("funnel_layer", "")
     search_query = request.GET.get("search", "")
     sort = request.GET.get("sort", "-created_at")
 
@@ -68,8 +69,9 @@ def enq_home(request):
 
     has_profile = hasattr(current_user, 'userprofile')
     is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    is_manager = current_user.is_staff or current_user.is_superuser or is_xpredict
 
-    if current_user.is_superuser:
+    if is_manager:
         enquiries = Enquiry.objects.filter(base_filter)
     else:
         enquiries = Enquiry.objects.filter(base_filter).filter(created_by=current_user)
@@ -77,8 +79,14 @@ def enq_home(request):
     # ---------------------------
     # USER FILTER
     # ---------------------------
-    if selected_user_id:
+    if selected_user_id and selected_user_id != 'all':
         enquiries = enquiries.filter(created_by_id=selected_user_id)
+
+    # ---------------------------
+    # FUNNEL FILTER
+    # ---------------------------
+    if funnel_layer == 'quotation':
+        enquiries = enquiries.filter(quotation__isnull=False).distinct()
 
     # ---------------------------
     # GLOBAL SEARCH
@@ -130,7 +138,7 @@ def enq_home(request):
     # ---------------------------
     # USERS FOR DROPDOWN (FIXED)
     # ---------------------------
-    if current_user.is_superuser:
+    if is_manager:
         users_list = (
             User.objects
             .filter(enquiry__isnull=False)
@@ -147,7 +155,7 @@ def enq_home(request):
     context = {
         "page_obj": page_obj,
         "users_list": users_list,
-        "selected_user_id": int(selected_user_id) if selected_user_id else "",
+        "selected_user_id": selected_user_id if selected_user_id == 'all' else (int(selected_user_id) if selected_user_id else ""),
         "search_query": search_query,
         "current_sort": sort,
     }
@@ -161,6 +169,59 @@ def enquiry_view(request):
     products=Products.objects.all()
     executive=Executive.objects.all()
     return render(request, 'xp2/newenquiry.html',{'products':products , 'users':users,'executive':executive,})
+
+from django.http import JsonResponse
+
+@login_required
+def check_duplicate_api(request):
+    """
+    AJAX endpoint for real-time duplicate checking on the new enquiry form.
+    Returns JSON { 'exists': bool, 'message': str }
+    """
+    company_name = request.GET.get('companyname', '').strip()
+    email = request.GET.get('email', '').strip()
+    
+    if not company_name and not email:
+        return JsonResponse({'exists': False})
+        
+    from django.db.models import Q
+    dup_query = Q()
+    if company_name:
+        dup_query |= Q(companyname__iexact=company_name)
+    if email:
+        dup_query |= Q(email__iexact=email)
+        
+    duplicate = Enquiry.objects.filter(dup_query).first()
+    
+    if duplicate:
+        # Check permissions for blocking
+        current_user = request.user
+        has_profile = hasattr(current_user, 'userprofile')
+        is_xpredict = has_profile and current_user.userprofile.is_xpredict
+        is_internal = current_user.is_superuser or current_user.is_staff or is_xpredict
+        
+        creator = duplicate.created_by
+        dup_is_internal = False
+        if creator:
+            has_prof = hasattr(creator, 'userprofile')
+            dup_is_xpredict = has_prof and creator.userprofile.is_xpredict
+            dup_is_internal = creator.is_superuser or creator.is_staff or dup_is_xpredict
+            
+        blocked = is_internal or dup_is_internal
+
+        # Construct message based on what matched
+        match_reason = []
+        if company_name and duplicate.companyname and company_name.lower() == duplicate.companyname.lower():
+            match_reason.append(f"company name '{duplicate.companyname}'")
+        if email and duplicate.email and email.lower() == duplicate.email.lower():
+            match_reason.append(f"email '{duplicate.email}'")
+            
+        reason_str = " and ".join(match_reason) if match_reason else "similar details"
+        message = f"An enquiry with this {reason_str} already exists (ID: {duplicate.id})."
+        
+        return JsonResponse({'exists': True, 'message': message, 'blocked': blocked})
+        
+    return JsonResponse({'exists': False})
 
 def add_data(request):
     if request.method == "POST":
@@ -179,8 +240,43 @@ def add_data(request):
         subproduct = request.POST.get("subproduct")
         closure_date = request.POST.get("closuredate")
         executive_id = request.POST.get("executive_name")
-        remarks = request.POST.get("remarks")
+        remarks = request.POST.get("remarks") or ""
         files = request.FILES.getlist("attachment[]")
+
+        # Duplicate checking logic
+        from django.db.models import Q
+        current_user = request.user
+        has_profile = hasattr(current_user, 'userprofile')
+        is_xpredict = has_profile and current_user.userprofile.is_xpredict
+        is_internal = current_user.is_superuser or current_user.is_staff or is_xpredict
+        
+        dup_query = Q(companyname__iexact=company_name)
+        if email:
+            dup_query |= Q(email__iexact=email)
+            
+        duplicate_enquiry = Enquiry.objects.filter(dup_query).first()
+        
+        if duplicate_enquiry:
+            creator = duplicate_enquiry.created_by
+            dup_is_internal = False
+            if creator:
+                has_prof = hasattr(creator, 'userprofile')
+                dup_is_xpredict = has_prof and creator.userprofile.is_xpredict
+                dup_is_internal = creator.is_superuser or creator.is_staff or dup_is_xpredict
+
+            if is_internal or dup_is_internal:
+                messages.error(request, f"This enquiry already exists in the system (Company: {duplicate_enquiry.companyname}). Duplication is not permitted.")
+                users_list = User.objects.all()
+                products_list = Products.objects.all()
+                executive_list = Executive.objects.all()
+                return render(request, 'xp2/newenquiry.html', {
+                    'products': products_list,
+                    'users': users_list,
+                    'executive': executive_list,
+                    'form_data': request.POST,
+                })
+            else:
+                remarks = remarks + f"\n\n[SYSTEM FLAG: POTENTIAL DUPLICATE OF ENQ ID {duplicate_enquiry.id}]"
 
         try:
             # Validate and fetch related objects
@@ -298,7 +394,16 @@ def enquiry_details(request, id):
             # Redirect to the same page to display the updated follow-ups
             return redirect('enquiry_details', id=id)
 
-        return render(request, 'xp2/enquiry_details.html', {'enquiry_data': data, 'followups': followups , 'revert_remarks': revert_remarks})
+        current_user = request.user
+        has_profile = hasattr(current_user, 'userprofile')
+        is_xpredict = has_profile and current_user.userprofile.is_xpredict
+
+        return render(request, 'xp2/enquiry_details.html', {
+            'enquiry_data': data, 
+            'followups': followups, 
+            'revert_remarks': revert_remarks,
+            'is_xpredict': is_xpredict
+        })
 
     except Enquiry.DoesNotExist:
         return HttpResponse("Enquiry not found", status=404)
@@ -363,7 +468,7 @@ def lost_orders_view(request):
 
     # Admin users can view all users and filter by selected user
     users = User.objects.all()
-    if selected_user_id:
+    if selected_user_id and selected_user_id != 'all':
         selected_user = User.objects.filter(id=selected_user_id).first()
 
     # Search functionality
@@ -779,8 +884,12 @@ def confirm_order(request, enquiry_id):
     uploaded_quotations = UploadedQuote.objects.filter(enquiry_id=enquiry_id)
     
     if request.method == 'POST':
-        selected_quotation_no = request.POST.get('quotation_selection')
-        if not selected_quotation_no:
+        selected_quotation_nos = request.POST.getlist('quotation_selection')
+        po_files = request.FILES.getlist('po_file')
+        print('POST:', request.POST)
+        print('FILES:', request.FILES)
+
+        if not selected_quotation_nos:
             return render(request, 'xp2/confirm_order.html', {
                 'enquiry': enquiry,
                 'quotations': quotations,
@@ -792,15 +901,30 @@ def confirm_order(request, enquiry_id):
                 'error': 'Please select at least one quotation.',
             })
 
-        # Save the confirmed quotation
-        confirmed_entry = confirmed_enquiry.objects.create(
-            created_by=request.user,
-            enquiry=enquiry,
-            quotation=selected_quotation_no,
-        )
-        confirmed_entry.save()
+        # Save the confirmed quotations
+        for selected_quotation_no in selected_quotation_nos:
+            confirmed_entry = confirmed_enquiry.objects.create(
+                created_by=request.user,
+                enquiry=enquiry,
+                quotation=selected_quotation_no,
+            )
+
+        # Save PO files if uploaded
+        if po_files:
+            import time
+            for i, po_file in enumerate(po_files):
+                # Need a unique quotation number, generic to the enquiry
+                unique_po_no = f"PO_ENQ{enquiry.id}_{int(time.time())}_{i}"
+                UploadedQuote.objects.create(
+                    enquiry=enquiry,
+                    quote_type='Purchase Order (PO)',
+                    file=po_file,
+                    quotation_no=unique_po_no
+                )
 
         # Mark the enquiry as confirmed (reset reverted flag optionally)
+        if not enquiry.oc_number:
+            enquiry.oc_number = f"OC-ENQ{enquiry.id}"
         enquiry.is_confirmed = True
         enquiry.is_reverted = False
         enquiry.save()
@@ -831,7 +955,7 @@ def confirmed_orders(request):
     selected_user_id = request.GET.get('user')
     selected_user = None
 
-    if selected_user_id:
+    if selected_user_id and selected_user_id != 'all':
         selected_user = User.objects.filter(id=selected_user_id).first()
 
     # Base queryset for confirmed enquiries
@@ -1075,30 +1199,50 @@ from app.models import Target ,UserProfile,User
 def dashboard(request):
     followups = FollowUp.objects.all().order_by('-fodate', '-fotime')
     
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    is_manager = current_user.is_staff or current_user.is_superuser or is_xpredict
+    
     # Get the selected user from the dropdown, default to logged-in user if no selection is made
-    selected_user_id = request.POST.get('user') if request.method == 'POST' else request.GET.get('user', request.user.id)
+    default_user = 'all' if is_manager else str(request.user.id)
+    selected_user_id = request.POST.get('user') if request.method == 'POST' else request.GET.get('user', default_user)
     
-    try:
-        selected_user = User.objects.get(id=selected_user_id)
-    except User.DoesNotExist:
-        selected_user = request.user  # Default to logged-in user if the selected user doesn't exist
-    
-    userprofile = UserProfile.objects.filter(user=selected_user).first()
-    target = userprofile.target if userprofile else None
+    if selected_user_id == 'all':
+        selected_user = None
+        base_enquiries = Enquiry.objects.all()
+        base_confirmed = ConfirmedOrder.objects.all()
+        base_quotes = quotation.objects.all()
+        userprofile = None
+        target = None
+        total_target = None
+    else:
+        try:
+            selected_user = User.objects.get(id=selected_user_id)
+            selected_user_id = str(selected_user.id)
+        except (User.DoesNotExist, ValueError):
+            selected_user = request.user
+            selected_user_id = str(selected_user.id)
+            
+        userprofile = UserProfile.objects.filter(user=selected_user).first()
+        target = userprofile.target if userprofile else None
+        total_target = Target.objects.filter(userprofile=userprofile).first()
+        
+        base_enquiries = Enquiry.objects.filter(created_by=selected_user)
+        base_confirmed = ConfirmedOrder.objects.filter(created_by=selected_user)
+        base_quotes = quotation.objects.filter(created_by=selected_user)
     
     if not request.user.is_authenticated:
         return redirect('login')
 
-    total_target = Target.objects.filter(userprofile=userprofile).first()
+    total_enquiries = base_enquiries.count()
+    lost_enquiries = base_enquiries.filter(status='lost').count()
+    active_enquiries = base_enquiries.filter(status='active').count()
+    confirmed_orders = base_confirmed.count()
+    lost_orders = base_enquiries.filter(is_lost=True).count()
+    total_quotes = base_quotes.count()
 
-    total_enquiries = Enquiry.objects.filter(created_by=selected_user).count()
-    lost_enquiries = Enquiry.objects.filter(created_by=selected_user, status='lost').count()
-    active_enquiries = Enquiry.objects.filter(created_by=selected_user, status='active').count()
-    confirmed_orders = ConfirmedOrder.objects.filter(created_by=selected_user).count()
-    lost_orders = Enquiry.objects.filter(created_by=selected_user, is_lost=True).count()
-    total_quotes = quotation.objects.filter(created_by=selected_user).count()
-
-    total_revenue = quotation.objects.filter(created_by=selected_user).aggregate(total_revenue=Sum('finalamount'))['total_revenue'] or 0
+    total_revenue = base_quotes.aggregate(total_revenue=Sum('finalamount'))['total_revenue'] or 0
     if isinstance(total_revenue, str):
         total_revenue = float(total_revenue) if total_revenue else 0
 
@@ -1123,7 +1267,7 @@ def dashboard(request):
     target_to_reach = max(0, int(target_value - confirmed_orders))
 
     monthly_data = (
-        Enquiry.objects.filter(created_by=selected_user)
+        base_enquiries
         .annotate(month=TruncMonth('created_at'))
         .values('month')
         .annotate(count=Count('id'))
@@ -1131,6 +1275,12 @@ def dashboard(request):
     )
     labels = [data['month'].strftime('%B') for data in monthly_data]
     data = [data['count'] for data in monthly_data]
+
+    # Funnel Metrics
+    funnel_enquiry_count = base_enquiries.filter(is_lost=False, is_confirmed=False).count()
+    funnel_quotation_count = base_enquiries.filter(quotation__isnull=False, is_lost=False, is_confirmed=False).distinct().count()
+    funnel_confirmed_count = confirmed_orders
+    funnel_lost_count = lost_orders
 
     users = User.objects.all()
 
@@ -1150,7 +1300,12 @@ def dashboard(request):
         'target_to_reach': target_to_reach,
         'users': users,
         'selected_user': selected_user,
-        'followups': followups
+        'selected_user_id': selected_user_id,
+        'followups': followups,
+        'funnel_enquiry_count': funnel_enquiry_count,
+        'funnel_quotation_count': funnel_quotation_count,
+        'funnel_confirmed_count': funnel_confirmed_count,
+        'funnel_lost_count': funnel_lost_count,
     }
 
     return render(request, 'xp2/dashboard.html', context)
@@ -1287,10 +1442,56 @@ def dealership_dashboard(request):
             'progress_revenue': min(100.0, round((actual_revenue_period / adjusted_target_revenue * 100) if adjusted_target_revenue > 0 else 0, 1)) if adjusted_target_revenue > 0 else 0.0,
         })
 
+    # Funnel Dealership and User Filter
+    selected_dealership_id = request.POST.get('dealership') if request.method == 'POST' else request.GET.get('dealership', 'all')
+    selected_user_id = request.POST.get('user') if request.method == 'POST' else request.GET.get('user', 'all')
+    
+    if selected_dealership_id != 'all':
+        try:
+            selected_dealership = Dealership.objects.get(id=selected_dealership_id)
+            users_in_dealership = selected_dealership.members.all()
+        except (Dealership.DoesNotExist, ValueError):
+            selected_dealership = None
+            selected_dealership_id = 'all'
+            users_in_dealership = User.objects.all()
+    else:
+        selected_dealership = None
+        users_in_dealership = User.objects.all()
+
+    if selected_user_id == 'all':
+        selected_user = None
+        base_enquiries = Enquiry.objects.filter(created_by__in=users_in_dealership)
+        base_confirmed = ConfirmedOrder.objects.filter(created_by__in=users_in_dealership)
+    else:
+        try:
+            selected_user = User.objects.get(id=selected_user_id)
+            selected_user_id = str(selected_user.id)
+            base_enquiries = Enquiry.objects.filter(created_by=selected_user)
+            base_confirmed = ConfirmedOrder.objects.filter(created_by=selected_user)
+        except (User.DoesNotExist, ValueError):
+            selected_user = None
+            selected_user_id = 'all'
+            base_enquiries = Enquiry.objects.filter(created_by__in=users_in_dealership)
+            base_confirmed = ConfirmedOrder.objects.filter(created_by__in=users_in_dealership)
+
+    funnel_enquiry_count = base_enquiries.filter(is_lost=False, is_confirmed=False).count()
+    funnel_quotation_count = base_enquiries.filter(quotation__isnull=False, is_lost=False, is_confirmed=False).distinct().count()
+    funnel_confirmed_count = base_confirmed.count()
+    funnel_lost_count = base_enquiries.filter(is_lost=True).count()
+
     context = {
         'is_manager': is_manager,
         'dealerships_data': dealerships_data,
         'view_mode': view_mode,
+        'users': users_in_dealership,
+        'selected_user': selected_user,
+        'selected_user_id': selected_user_id,
+        'all_dealerships': all_dealerships,
+        'selected_dealership_id': selected_dealership_id,
+        'funnel_enquiry_count': funnel_enquiry_count,
+        'funnel_quotation_count': funnel_quotation_count,
+        'funnel_confirmed_count': funnel_confirmed_count,
+        'funnel_lost_count': funnel_lost_count,
     }
     return render(request, 'xp2/dealership_dashboard.html', context)
 
@@ -1668,7 +1869,7 @@ def create_commercial_quote(request, enquiry_id):
             hsncode = hsn_codes[i].strip() if i < len(hsn_codes) else ""
             base_amount = base_amounts[i] if i < len(base_amounts) else 0
             gst = (
-                float(cgsts[i]) + float(sgsts[i]) + float(igsts[i])
+                float(cgsts[i] or 0) + float(sgsts[i] or 0) + float(igsts[i] or 0)
                 if i < len(cgsts) and i < len(sgsts) and i < len(igsts)
                 else 0
             )
@@ -1702,10 +1903,10 @@ def create_commercial_quote(request, enquiry_id):
                 product_id = product_ids[i]
                 product = Products.objects.get(id=product_id)
                 hsn_code = hsn_codes[i]
-                base_amount = float(base_amounts[i])
-                quantity = int(quantities[i])
-                margin = float(margins[i])
-                final_amount = float(final_amounts[i])
+                base_amount = float(base_amounts[i] or 0)
+                quantity = int(quantities[i] or 0)
+                margin = float(margins[i] or 0)
+                final_amount = float(final_amounts[i] or 0)
 
                 # Ensure rate is calculated correctly
                 rate = (base_amount * quantity) * (1 + margin / 100)
@@ -1766,6 +1967,140 @@ def create_commercial_quote(request, enquiry_id):
 
     import json
     pricing_map_json = json.dumps(pricing_map)
+
+    return render(request, 'xp2/commercial_quote.html', {
+        'enquiry_id': enquiry_id,
+        'quotation_no': quotation_no,
+        'enquiry': enquiry,
+        'form': form,
+        'products': products,
+        'xpredict': xpredict_data,
+        'banks': banks,
+        'bank_data': bank_data,
+        'pricing_map_json': pricing_map_json,
+        'is_dealer': is_dealer,
+    })
+
+def generate_quote(request, enquiry_id, quote_type):
+    # Fetch all previous data related to this enquiry and quote_type
+    saved_data = SaveQuoteData.objects.filter(enquiry_id=enquiry_id, quote_type=quote_type).order_by('-id').first()
+    enquiry = get_object_or_404(Enquiry, id=enquiry_id)
+
+    print("Fetched Saved Data in `generate_quote`:", saved_data)
+    print("Items associated:", saved_data.items.all() if saved_data else "None")
+
+    if not saved_data:
+        return redirect('manage_quotation', enquiry_id=enquiry_id)
+
+    # Convert numeric fields properly, fallback to 0.00 if None
+    total_taxable_value = float(saved_data.total_taxable_value or 0.00)
+    cgst_amount = float(saved_data.cgst_amount or 0.00)
+    sgst_amount = float(saved_data.sgst_amount or 0.00)
+    igst_amount = float(saved_data.igst_amount or 0.00)
+
+    # Determine CGST/SGST/IGST breakdown
+    is_igst = igst_amount > 0
+    is_cgst_sgst = cgst_amount > 0 or sgst_amount > 0
+
+    return render(request, 'xp2/commercial_quote.html', {
+        'enquiry': enquiry,
+        'saved_data': saved_data,
+        'is_igst': is_igst,
+        'is_cgst_sgst': is_cgst_sgst,
+    })
+
+
+@login_required
+def potential_duplicates(request):
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    
+    if not (current_user.is_superuser or current_user.is_staff or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to access this page.")
+        
+    # Find all enquiries with the flag in remarks
+    duplicates = Enquiry.objects.filter(remarks__icontains="[SYSTEM FLAG: POTENTIAL DUPLICATE OF ENQ ID").order_by('-created_at')
+    
+    duplicate_pairs = []
+    import re
+    
+    for dup in duplicates:
+        # Extract the ID from the remarks string
+        match = re.search(r"POTENTIAL DUPLICATE OF ENQ ID (\d+)", dup.remarks)
+        if match:
+            target_id = match.group(1)
+            try:
+                target_enquiry = Enquiry.objects.get(id=target_id)
+                duplicate_pairs.append({
+                    'target': target_enquiry,
+                    'duplicate': dup
+                })
+            except Enquiry.DoesNotExist:
+                # The target was probably deleted, keep the pair with target=None or ignore
+                pass
+
+    return render(request, 'xp2/potential_duplicates.html', {
+        'duplicate_pairs': duplicate_pairs,
+    })
+
+
+@login_required
+def merge_enquiry(request, duplicate_id, target_id):
+    import re
+    current_user = request.user
+    has_profile = hasattr(current_user, 'userprofile')
+    is_xpredict = has_profile and current_user.userprofile.is_xpredict
+    
+    if not (current_user.is_superuser or current_user.is_staff or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to perform this action.")
+        
+    if request.method == "POST":
+        action = request.POST.get("action")
+        
+        try:
+            duplicate = Enquiry.objects.get(id=duplicate_id)
+            target = Enquiry.objects.get(id=target_id)
+            
+            if action == "merge":
+                # Move FollowUps
+                FollowUp.objects.filter(enquiry=duplicate).update(enquiry=target)
+                
+                # Move UploadedQuotes
+                UploadedQuote.objects.filter(enquiry=duplicate).update(enquiry=target)
+                
+                # Move FileUploadModel (ManyToMany)
+                for file_obj in duplicate.files.all():
+                    target.files.add(file_obj)
+                    
+                # Append Remarks
+                if duplicate.remarks:
+                    # Remove the system flag from duplicate
+                    clean_remarks = re.sub(r"\n\n\[SYSTEM FLAG: POTENTIAL DUPLICATE OF ENQ ID \d+\]", "", duplicate.remarks)
+                    if clean_remarks.strip():
+                        target.remarks = f"{target.remarks or ''}\n--- Merged Remarks from Duplicate ---\n{clean_remarks}"
+                        
+                # Ensure target is also cleaned of flags (important for reverse merging)
+                if target.remarks:
+                    target.remarks = re.sub(r"\n\n\[SYSTEM FLAG: POTENTIAL DUPLICATE OF ENQ ID \d+\]", "", target.remarks)
+                target.save()
+                        
+                # Delete duplicate
+                duplicate.delete()
+                messages.success(request, f"Successfully merged {duplicate.companyname} into Enquiry ID {target.id}.")
+                
+            elif action == "keep_separate":
+                # Remove the flag from remarks
+                import re
+                clean_remarks = re.sub(r"\n\n\[SYSTEM FLAG: POTENTIAL DUPLICATE OF ENQ ID \d+\]", "", duplicate.remarks)
+                duplicate.remarks = clean_remarks
+                duplicate.save()
+                messages.success(request, f"Duplicate flag removed for {duplicate.companyname}.")
+                
+        except Exception as e:
+            messages.error(request, f"Error resolving duplicate: {str(e)}")
+            
+    return redirect('potential_duplicates')
 
     return render(request, 'xp2/commercial_quote.html', {
         'enquiry_id': enquiry_id,
@@ -1884,7 +2219,7 @@ def Edit_commercial_quote(request, quotation_no):
                     hsncode = hsn_codes[i].strip() if i < len(hsn_codes) else ""
                     base_amount = base_amounts[i] if i < len(base_amounts) else 0
                     gst = (
-                        float(cgsts[i]) + float(sgsts[i]) + float(igsts[i])
+                        float(cgsts[i] or 0) + float(sgsts[i] or 0) + float(igsts[i] or 0)
                         if i < len(cgsts) and i < len(sgsts) and i < len(igsts)
                         else 0
                     )

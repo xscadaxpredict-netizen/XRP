@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<style>
+    .suggestion-box {
+        max-height: 220px;
+        overflow-y: auto;
+    }
+</style>
+<!-- Display Django messages -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+<div class="container-xl my-4">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title"> New Indent</h2>
+        </div>
+        <div class="card-body">
+            <form method="post" action="">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Indent Number</label>
+                    <input type="text" class="form-control" value="{{ next_indent_number }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><b>Department</b></label>
+
+                    <select name="department" class="form-select">
+                        {% for d in departments %}
+                        <option value="{{ d.id }}" {% if is_project_indent and d.id == selected_department.id%}selected{%endif %} {% if is_project_indent and d.id != selected_department.id %}disabled{%endif %}>
+                            {{ d.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Indent Details -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Indent Title</label>
+                        {% if is_project_indent %}
+                        <input type="text" name="title" class="form-control" value="{{ default_indent_title }}" required
+                            readonly>
+                        {% else %}
+                        <input type="text" name="title" class="form-control" placeholder="Enter Indent Title" required>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Required By Date</label>
+                        <input type="date" name="required_date" class="form-control" required>
+                    </div>
+                </div>
+
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3"
+                        placeholder="Enter description Or Reason for Raising Indent"></textarea>
+                </div>
+
+
+                <!-- Items Section -->
+                <h4 class="mb-3"> Items</h4>
+                <div id="items-container">
+                    <div class="row g-3 mb-3 item-row">
+                        {% if is_project_indent %}
+                        <div class="col-md-3">
+                            <label class="form-label">Related SFG</label>
+                            <select name="production_item[]" class="form-select">
+                                <option value="">-- Select SFG --</option>
+                                {% for sfg in sfg_items %}
+                                <option value="{{ sfg.id }}">{{ sfg.item_name }} (Req Qty: {{ sfg.quantity }} | Available Stock: {{ sfg.stock_qty|default:0 }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-3 position-relative">
+                            <label class="form-label">Item Name</label>
+                            <input type="text" name="item_name[]" class="form-control item-input"
+                                placeholder="Enter item name" autocomplete="off" required data-valid="false">
+
+                            <!-- Suggestion dropdown -->
+                            <div class="dropdown-menu w-100 suggestion-box"></div>
+
+                            <span class="badge bg-secondary stock-info text-white mt-1">Stock: --</span>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" name="quantity[]" class="form-control" placeholder="0" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Unit</label>
+                            <input type="text" name="unit[]" class="form-control" placeholder="pcs/kg" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label invisible">Remove</label>
+                            <button type="button" class="btn btn-danger remove-item w-100">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Item Button -->
+                <button type="button" class="btn btn-secondary mb-3" id="add-item">+ Add Item</button>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary w-100"> Save Indent</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const container = document.getElementById("items-container");
+
+        let stockData = {};
+        try {
+            stockData = JSON.parse('{{ stock_json|escapejs }}');
+        } catch (e) {
+            console.error("Failed to load stock data", e);
+        }
+
+        function getSelectedDeptId() {
+            const select = document.querySelector('select[name="department"]');
+            return select ? select.value : '';
+        }
+
+        const deptSelect = document.querySelector('select[name="department"]');
+        if (deptSelect) {
+            deptSelect.addEventListener('change', () => {
+                document.querySelectorAll('.item-input').forEach(input => {
+                    updateStock(input);
+                });
+            });
+        }
+
+    function updateStock(input) {
+        const row = input.closest(".item-row");
+        const badge = row.querySelector(".stock-info");
+        const name = input.value.trim();
+
+        if (!name) {
+            badge.textContent = "Stock: --";
+            badge.className = "badge bg-secondary text-white stock-info mt-1";
+            input.dataset.valid = "false";
+            toggleSaveButton();
+            return;
+        }
+
+        const deptId = getSelectedDeptId();
+        const deptStock = (deptId && stockData[deptId]) ? stockData[deptId] : {};
+
+        if (deptStock[name] !== undefined) {
+            badge.textContent = "Available Stock: " + deptStock[name];
+            badge.className = "badge bg-info text-white stock-info mt-1";
+            input.dataset.valid = "true";
+        } else {
+            badge.textContent = "Not in stock";
+            badge.className = "badge bg-danger text-white stock-info mt-1";
+            input.dataset.valid = "false";
+        }
+        toggleSaveButton();
+    }
+
+    function toggleSaveButton() {
+        const saveBtn = document.querySelector('button[type="submit"]');
+        if (!saveBtn) return;
+
+        const inputs = Array.from(document.querySelectorAll('.item-input'));
+        // Check if ANY input has a value but is invalid
+        const hasInvalidItem = inputs.some(input => {
+            const val = input.value.trim();
+            return val !== "" && input.dataset.valid === "false";
+        });
+
+        if (hasInvalidItem) {
+            saveBtn.disabled = true;
+            saveBtn.innerText = "Select valid items";
+            saveBtn.classList.add('btn-secondary');
+            saveBtn.classList.remove('btn-primary');
+        } else {
+            saveBtn.disabled = false;
+            saveBtn.innerText = "Save Indent";
+            saveBtn.classList.remove('btn-secondary');
+            saveBtn.classList.add('btn-primary');
+        }
+    }
+
+    function validateCombination(row) {
+        const sfgSelect = row.querySelector("select[name='production_item[]']");
+        const itemInput = row.querySelector(".item-input");
+
+        const sfgId = sfgSelect ? sfgSelect.value : "";
+        const itemName = itemInput.value.trim().toLowerCase();
+
+        if (!itemName) return;
+
+        const allRows = document.querySelectorAll(".item-row");
+        let duplicateFound = false;
+
+        allRows.forEach(r => {
+            if (r === row) return;
+
+            const otherSfgSelect = r.querySelector("select[name='production_item[]']");
+            const otherItemInput = r.querySelector(".item-input");
+
+            const otherSfgId = otherSfgSelect ? otherSfgSelect.value : "";
+            const otherItemName = otherItemInput.value.trim().toLowerCase();
+
+            if (sfgId === otherSfgId && itemName === otherItemName) {
+                duplicateFound = true;
+            }
+        });
+
+        if (duplicateFound) {
+            Swal.fire({
+                title: "Duplicate Item",
+                text: "item already selected if neccesary increase the quantity",
+                icon: "warning",
+                confirmButtonColor: "#3085d6"
+            });
+            itemInput.value = "";
+            updateStock(itemInput);
+        }
+    }
+
+    function showSuggestions(input) {
+        const query = input.value.toLowerCase();
+        const row = input.closest(".item-row");
+        const dropdown = row.querySelector(".suggestion-box");
+        dropdown.innerHTML = "";
+
+        const deptId = getSelectedDeptId();
+        const deptStock = (deptId && stockData[deptId]) ? stockData[deptId] : {};
+        const productNames = Object.keys(deptStock);
+
+        const matches = query
+            ? productNames.filter(p => p.toLowerCase().includes(query))
+            : productNames.slice(0, 10);   // show first 10 on focus/click if empty
+
+        if (!matches.length) {
+            dropdown.classList.remove("show");
+            return;
+        }
+
+        matches.forEach(name => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "dropdown-item";
+            btn.textContent = name;
+
+            btn.onclick = () => {
+                input.value = name;
+                updateStock(input);
+                validateCombination(row);
+                dropdown.classList.remove("show");
+            };
+
+            dropdown.appendChild(btn);
+        });
+
+        dropdown.classList.add("show");
+    }
+
+    // Attach validation to existing and new rows
+    container.addEventListener("change", function (e) {
+        if (e.target.name === "production_item[]") {
+            validateCombination(e.target.closest(".item-row"));
+        }
+    });
+
+    container.addEventListener("focusout", function (e) {
+        if (e.target.classList.contains("item-input")) {
+            validateCombination(e.target.closest(".item-row"));
+            setTimeout(() => {
+                const row = e.target.closest(".item-row");
+                if (row) {
+                    row.querySelector(".suggestion-box").classList.remove("show");
+                }
+            }, 150);
+        }
+    });
+
+    // 🔥 Open dropdown on focus AND click
+    container.addEventListener("focusin", function (e) {
+        if (e.target.classList.contains("item-input")) {
+            showSuggestions(e.target);
+        }
+    });
+
+    container.addEventListener("click", function (e) {
+        if (e.target.classList.contains("item-input")) {
+            showSuggestions(e.target);
+        }
+    });
+
+    // 🔥 Filter while typing
+    container.addEventListener("input", function (e) {
+        if (e.target.classList.contains("item-input")) {
+            showSuggestions(e.target);
+            updateStock(e.target); // Check validity on input
+        }
+    });
+
+    // Add new row
+    document.getElementById("add-item").addEventListener("click", function () {
+        const row = container.querySelector(".item-row").cloneNode(true);
+        row.querySelectorAll("input").forEach(i => {
+            i.value = "";
+            if (i.classList.contains("item-input")) i.dataset.valid = "false";
+        });
+
+        // 🔥 Reset SFG dropdown if it exists
+        const sfgSelect = row.querySelector("select[name='production_item[]']");
+        if (sfgSelect) sfgSelect.selectedIndex = 0;
+
+        row.querySelector(".stock-info").textContent = "Stock: --";
+        row.querySelector(".suggestion-box").innerHTML = "";
+        container.appendChild(row);
+    });
+
+
+    // Remove row (but keep at least one)
+    container.addEventListener("click", function (e) {
+        if (e.target.classList.contains("remove-item")) {
+            const rows = container.querySelectorAll(".item-row");
+
+            if (rows.length > 1) {
+                e.target.closest(".item-row").remove();
+            } else {
+                alert("At least one item is required.");
+            }
+        }
+    });
+        
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{% endblock %}

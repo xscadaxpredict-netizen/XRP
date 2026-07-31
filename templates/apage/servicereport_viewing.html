@@ -2,78 +2,171 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container-fluid mt-5">
-    <h2>Service Reports</h2>
-    <div class="row row-cards mb-4">
-      <div class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <form action="{% url 'servicereport' %}" method="GET" class="row g-3 align-items-center">
-    
-              <!-- LEFT: Create + Export -->
-              <div class="col-lg-4 col-md-12 d-flex align-items-center gap-2">
-                <a href="{% url 'service_report_new' %}" class="btn btn-success">
-                  Create Report
-                </a>
-    
-                <div class="dropdown">
-                  <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    Export
-                  </button>
-                  <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{% url 'export_service_reports_pdf' %}">Export to PDF</a></li>
-                    <li><a class="dropdown-item" href="{% url 'export_service_reports_csv' %}">Export to CSV</a></li>
-                    <li><a class="dropdown-item" href="{% url 'export_service_reports_xlsx' %}">Export to XLSX</a></li>
-                  </ul>
-                </div>
-              </div>
-    
-              <!-- MIDDLE: Filters -->
-              <div class="col-lg-4 col-md-12 d-flex gap-2">
-                {% if user_role == 'Admin' %}
-                <select name="user" class="form-select">
-                  <option value="">All Users</option>
-                  {% for u in users %}
-                    <option value="{{ u.id }}"
-                      {% if selected_user == u.id|stringformat:"s" %}selected{% endif %}>
-                      {{ u.first_name }}
-                    </option>
-                  {% endfor %}
-                </select>
-                {% endif %}
-    
-                <select name="site" class="form-select">
-                  <option value="">All Sites</option>
-                  {% for s in sites %}
-                    <option value="{{ s.id }}"
-                      {% if selected_site == s.id|stringformat:"s" %}selected{% endif %}>
-                      {{ s.name }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-    
-              <!-- RIGHT: Search -->
-              <div class="col-lg-4 col-md-12 d-flex">
+    <form action="{% url 'servicereport' %}" method="GET">
+        <!-- HEADER ROW -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="mb-0">Service Reports</h2>
+            <div class="d-flex gap-2">
                 <input type="text"
                        name="search"
-                       class="form-control me-2"
+                       class="form-control"
                        value="{{ search_query }}"
-                       placeholder="Search reports...">
-    
-                <button type="submit" class="btn btn-primary me-2">
-                  Search
-                </button>
-    
+                       placeholder="Search reports..."
+                       style="min-width: 250px;">
                 <a href="{% url 'servicereport' %}" class="btn btn-secondary">
                   Clear
                 </a>
+            </div>
+        </div>
+        
+        <!-- FILTERS CARD -->
+        <div class="row row-cards mb-4">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex flex-nowrap align-items-center overflow-auto pb-1">
+        
+                  <a href="{% url 'service_report_new' %}" class="btn btn-success text-nowrap me-2">
+                    Create Report
+                  </a>
+      
+                  <div class="dropdown me-2">
+                    <button class="btn btn-info dropdown-toggle text-nowrap" type="button" data-bs-toggle="dropdown">
+                      Export
+                    </button>
+                    <ul class="dropdown-menu">
+                      <li><a class="dropdown-item" href="{% url 'export_service_reports_pdf' %}">Export to PDF</a></li>
+                      <li><a class="dropdown-item" href="{% url 'export_service_reports_csv' %}">Export to CSV</a></li>
+                      <li><a class="dropdown-item" href="{% url 'export_service_reports_xlsx' %}">Export to XLSX</a></li>
+                    </ul>
+                  </div>
+
+                  <button type="button" class="btn btn-outline-secondary text-nowrap me-2" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    <i class="bi bi-funnel"></i> Filters
+                  </button>
+
+                  <a href="#" data-bs-toggle="modal" data-bs-target="#downloadModal" class="btn btn-warning text-nowrap">
+                    <i class="bi bi-download"></i> Download Reports
+                  </a>
+                  
+                </div>
               </div>
-    
-            </form>
+            </div>
           </div>
+        </div>
+
+        <!-- Filter Modal -->
+        <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">Filter Service Reports</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                
+                {% if user_role == 'Admin' %}
+                <div class="mb-3">
+                  <label class="form-label fw-bold">User</label>
+                  <select name="user" class="form-select">
+                    <option value="">All Users</option>
+                    {% for u in users %}
+                      <option value="{{ u.id }}"
+                        {% if selected_user == u.id|stringformat:"s" %}selected{% endif %}>
+                        {{ u.first_name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Site</label>
+                  <select name="site" class="form-select">
+                    <option value="">All Sites</option>
+                    {% for s in sites %}
+                      <option value="{{ s.id }}"
+                        {% if selected_site == s.id|stringformat:"s" %}selected{% endif %}>
+                        {{ s.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label fw-bold">From Date</label>
+                  <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-bold">To Date</label>
+                  <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-light" onclick="document.querySelector('#filterModal [name=start_date]').value=''; document.querySelector('#filterModal [name=end_date]').value=''; document.querySelector('#filterModal [name=site]').value=''; if(document.querySelector('#filterModal [name=user]')) document.querySelector('#filterModal [name=user]').value='';">Clear All</button>
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+    </form>
+    
+    <!-- Download Reports Modal -->
+    <div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form action="{% url 'bulk_download_service_reports' %}" method="GET">
+            <div class="modal-header">
+              <h5 class="modal-title" id="downloadModalLabel">Download Reports</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              
+              <p class="text-muted small mb-4">Select the filters below to download all matching service reports as a ZIP archive. Make sure to leave options blank to include "All".</p>
+
+              {% if user_role == 'Admin' %}
+              <div class="mb-3">
+                <label class="form-label fw-bold">User</label>
+                <select name="user" class="form-select">
+                  <option value="">All Users</option>
+                  {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.first_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">Site</label>
+                <select name="site" class="form-select">
+                  <option value="">All Sites</option>
+                  {% for s in sites %}
+                    <option value="{{ s.id }}">{{ s.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold">From Date</label>
+                <input type="date" name="start_date" class="form-control">
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold">To Date</label>
+                <input type="date" name="end_date" class="form-control">
+              </div>
+
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-light" onclick="document.querySelector('#downloadModal [name=start_date]').value=''; document.querySelector('#downloadModal [name=end_date]').value=''; document.querySelector('#downloadModal [name=site]').value=''; if(document.querySelector('#downloadModal [name=user]')) document.querySelector('#downloadModal [name=user]').value='';">Clear All</button>
+              <button type="submit" class="btn btn-warning"><i class="bi bi-file-earmark-zip me-1"></i> Download ZIP</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
+
 
     <div class="page-body">
         <div class="row row-cards">
@@ -115,7 +208,7 @@
                                         <a href="{% url 'service_report_edit' report.id %}" class="btn btn-primary btn-sm">Edit</a>
                                       </div>
                                     </td>
-                                    <td>
+                                    <td id="status-col-{{ report.id }}">
                                       {% if report.status == 'rejected' %}
                                       <span class="text-danger" style="cursor: pointer;" data-bs-toggle="collapse"
                                         data-bs-target="#reason-{{ report.id }}">
@@ -129,14 +222,14 @@
                                       {% endif %}
                                     </td>
                                     {% if user_role == 'Admin' %}
-                                    <td>
+                                    <td id="action-col-{{ report.id }}">
                                       {% if report.status == 'pending' %}
                                       <div class="d-flex gap-2">
-                                        <a href="{% url 'update_service_report_status' report.pk 'approve' %}"
+                                        <button type="button" 
                                           class="btn btn-success btn-sm"
-                                          onclick="return confirm('Are you sure you want to approve this service report?');">
+                                          onclick="approveReport({{ report.pk }})">
                                           Approve
-                                        </a>
+                                        </button>
                                         <button type="button" class="btn btn-danger btn-sm"
                                           onclick="openRejectModal({{ report.pk }})">Reject</button>
                                       </div>
@@ -194,7 +287,38 @@
       rejectModal.show();
     }
     
-    // On form submit
+    // AJAX Approve
+    function approveReport(reportId) {
+      if (!confirm('Are you sure you want to approve this service report?')) return;
+      
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      
+      fetch(`/service-report/update-status/${reportId}/approve/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Update Status Col
+          document.getElementById(`status-col-${reportId}`).innerHTML = 'Approved';
+          // Update Action Col
+          document.getElementById(`action-col-${reportId}`).innerHTML = '<button class="btn btn-secondary btn-sm" disabled>Approved</button>';
+        } else {
+          alert("Error: " + data.message);
+        }
+      })
+      .catch(error => {
+        console.error("Approval failed:", error);
+        alert("An error occurred while approving the report.");
+      });
+    }
+
+    // AJAX Reject
     document.getElementById('rejectForm').addEventListener('submit', function (e) {
       e.preventDefault();
       const reportId = document.getElementById('rejectReportId').value;
@@ -206,13 +330,38 @@
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({ reason: reason }),
       })
-      .then(response => {
-        if (response.redirected) {
-          window.location.href = response.url;  // Refresh the page
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Hide modal
+          var modalElement = document.getElementById('rejectModal');
+          var modalInstance = bootstrap.Modal.getInstance(modalElement);
+          modalInstance.hide();
+          
+          // Update Status Col
+          const statusHtml = `
+            <span class="text-danger" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#reason-${reportId}">
+              Rejected (click for reason)
+            </span>
+            <div id="reason-${reportId}" class="collapse mt-1">
+              <small class="text-muted">${reason}</small>
+            </div>
+          `;
+          document.getElementById(`status-col-${reportId}`).innerHTML = statusHtml;
+          
+          // Update Action Col
+          document.getElementById(`action-col-${reportId}`).innerHTML = '<button class="btn btn-secondary btn-sm" disabled>Rejected</button>';
+        } else {
+          alert("Error: " + (data.message || "Unknown error"));
         }
+      })
+      .catch(error => {
+        console.error("Rejection failed:", error);
+        alert("An error occurred while rejecting the report.");
       });
     });
     </script>

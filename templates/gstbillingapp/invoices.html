@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load static %}
+{% load custom_tags %}
+
+{% block title %}Invoices | XsHoT ERP{% endblock %}
+
+{% block includecss %}
+<link rel="stylesheet" href="{% static 'gstbillingapp/DataTables/jquery.dataTables.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-4">Invoices</h3>
+
+<!-- Filter Bar -->
+<div class="xshot-filter-bar mb-4">
+    <a href="{% url 'invoice_create' %}" class="btn btn-primary rounded-pill btn-md d-inline-flex align-items-center gap-1">
+        <i class="ti ti-plus"></i> New Invoice
+    </a>
+    <div class="search-box">
+        <i class="ti ti-search"></i>
+        <input type="text" id="invoice-search" placeholder="Search..." class="form-control form-control-sm">
+    </div>
+</div>
+
+<!-- Table Card -->
+<div class="card xshot-table-card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table mb-0" id="invoice-table">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>GST No</th>
+                        <th>Phone</th>
+                        <th>Amount (₹)</th>
+                        <th>IGST</th>
+                        <th>CGST</th>
+                        <th>SGST</th>
+                        <th>Total (₹)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr>
+                        <td class="fw-semibold text-primary">XPL{{ invoice.invoice_number }}</td>
+                        <td>{{ invoice.invoice_date }}</td>
+                        <td>{{ invoice.invoice_customer }}</td>
+                        <td><span class="text-muted small">{{ invoice.invoice_customer_gst }}</span></td>
+                        <td>{{ invoice.invoice_customer_phone }}</td>
+                        <td>{{ invoice.invoice_amt_without_gst }}</td>
+                        <td>{{ invoice.invoice_amt_igst }}</td>
+                        <td>{{ invoice.invoice_amt_cgst }}</td>
+                        <td>{{ invoice.invoice_amt_sgst }}</td>
+                        <td class="fw-bold">{{ invoice.invoice_amt_with_gst }}</td>
+                        <td style="white-space:nowrap;">
+                            <a href="{% url 'invoice_viewer' invoice.id %}"
+                                class="btn btn-sm btn-outline-primary rounded-pill me-1" title="View">
+                                <i class="ti ti-eye me-1"></i> View
+                            </a>
+                            <a href="{% url 'invoice_edit' invoice.id %}"
+                                class="btn btn-sm btn-outline-warning rounded-pill me-1" title="Edit">
+                                <i class="ti ti-edit me-1"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" title="Delete"
+                                data-bs-toggle="modal" data-bs-target="#invoiceDeleteModal"
+                                data-invoice-id="{{ invoice.id }}"
+                                data-invoice-number="XPL{{ invoice.invoice_number }}, for {{ invoice.invoice_customer }}">
+                                <i class="ti ti-trash me-1"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="invoiceDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="ti ti-trash text-danger" style="font-size:1.3rem;"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">Delete Invoice</h5>
+                        <p class="text-muted small mb-0">This action cannot be undone</p>
+                    </div>
+                </div>
+            </div>
+            <form method="POST" action="{% url 'invoice_delete' %}">
+                {% csrf_token %}
+                <div class="modal-body pt-3">
+                    <p>Are you sure you want to delete <strong><span class="invoice-number"></span></strong>?</p>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="inventory-del" name="inventory-del"
+                            value="inventory-del" checked>
+                        <label class="form-check-label" for="inventory-del">Remove inventory deductions also</label>
+                    </div>
+                    <input type="hidden" name="invoice_id">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill"
+                        data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger rounded-pill">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block includejs %}
+<script src="{% static 'gstbillingapp/DataTables/jquery.dataTables.min.js' %}"></script>
+<script>
+    $('#invoiceDeleteModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var invoice_id = button.data('invoice-id');
+        var invoice_number = button.data('invoice-number');
+        var modal = $(this);
+        modal.find('[name="invoice_id"]').val(invoice_id);
+        modal.find('.invoice-number').html(invoice_number);
+    });
+    $(document).ready(function () {
+        var dt = $('#invoice-table').DataTable({
+            "order": [],
+            "pageLength": 25,
+            "columnDefs": [{ "targets": 10, "orderable": false, "searchable": false }]
+        });
+        $('#invoice-search').on('keyup', function () {
+            dt.search(this.value).draw();
+        });
+    });
+</script>
+{% endblock %}

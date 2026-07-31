@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-xl my-4">
+    <div class="page-header d-print-none mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">Vendor Payments Dashboard</h2>
+                <div class="text-muted mt-1">Manage outstanding balances and credit priorities</div>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+                <div class="btn-list">
+                    <a href="{% url 'weekly_payment_forecast' %}" class="btn btn-outline-primary d-none d-sm-inline-block">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 11l0 6" /><path d="M11 11h2" /><path d="M12 7h0" /><path d="M5 12l2 2l4 -4" /><path d="M15 12l2 2l4 -4" /></svg>
+                        Weekly Outlook
+                    </a>
+                    <a href="{% url 'vendor_list' %}" class="btn btn-primary d-none d-sm-inline-block">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11l-4 4l4 4m-4 -4h11a4 4 0 0 0 0 -8h-1" /></svg>
+                        Manage Vendors
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row row-cards">
+        <div class="col-12">
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Vendor Name</th>
+                                <th>Credit Period</th>
+                                <th>Outstanding Balance</th>
+                                <th>Unattended POs</th>
+                                <th class="w-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in vendor_data %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex py-1 align-items-center">
+                                        <span class="avatar me-2" style="background-image: url('https://ui-avatars.com/api/?name={{ item.vendor.name|urlencode }}&background=0D6EFD&color=fff')"></span>
+                                        <div class="flex-fill">
+                                            <div class="font-weight-medium">{{ item.vendor.name }}</div>
+                                            <div class="text-muted"><a href="#" class="text-reset">{{ item.vendor.contact_email|default:"No email" }}</a></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {{ item.vendor.credit_period_days }} Days
+                                </td>
+                                <td class="text-secondary text-nowrap">
+                                    ₹{{ item.total_pending|floatformat:2 }}
+                                </td>
+                                <td>
+                                    {% if item.unattended_count > 0 %}
+                                        <span class="badge bg-red-lt">{{ item.unattended_count }} Overdue</span>
+                                    {% else %}
+                                        <span class="badge bg-green-lt">Up to Date</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-list justify-content-end">
+                                        <a href="{% url 'vendor_po_payment_checkout' item.vendor.id %}" class="btn btn-primary btn-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                                            Process Payment
+                                        </a>
+                                        <a href="{% url 'vendor_payment_history' item.vendor.id %}" class="btn btn-outline-secondary btn-sm" title="View Transaction History">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-history" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                               <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                               <path d="M12 8l0 4l2 2"></path>
+                                               <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"></path>
+                                            </svg>
+                                            History
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="empty">
+                                        <p class="empty-title">No pending payments</p>
+                                        <p class="empty-subtitle text-muted">
+                                            All vendor accounts are currently balanced.
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

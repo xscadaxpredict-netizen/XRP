@@ -142,6 +142,7 @@ class SubModuleVisibility(models.Model):
     class Meta:
         verbose_name = "SubModule Visibility"
         verbose_name_plural = "SubModule Visibility"
+        unique_together = ('user', 'submodule')
 
     def __str__(self):
         return f"{self.user.username} - {self.submodule.name} - Visible: {self.is_visible}"

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block content %}
+  <!-- Django messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+<div class="container-xl my-4">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="card-title mb-0">
+        <i class="ti ti-package-export me-2"></i> Issue Materials for Order #{{ production_order.order_number }}
+      </h3>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Production Order</label>
+          {{ form.production_order|add_class:"form-select" }}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Stock Item</label>
+          {{ form.stock_item|add_class:"form-select" }}
+          <small id="stock-quantity" class="text-muted d-block mt-1">Select an item to view stock</small>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Issued Quantity</label>
+          {{ form.issued_qty|add_class:"form-control" }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          <i class="ti ti-check me-1"></i> Issue
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- JS to fetch stock quantity -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const stockSelect = document.getElementById("id_stock_item");
+  const stockQuantityText = document.getElementById("stock-quantity");
+
+  stockSelect.addEventListener("change", function () {
+    const stockId = this.value;
+    if (stockId) {
+      fetch(`/stock/${stockId}/quantity/`)
+        .then(response => response.json())
+        .then(data => {
+          stockQuantityText.textContent = `Available Stock: ${data.quantity}`;
+        })
+        .catch(error => {
+          stockQuantityText.textContent = "Error fetching stock quantity";
+        });
+    } else {
+      stockQuantityText.textContent = "Select an item to view stock";
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -20,6 +20,7 @@ def no_future_dates(value):
 class Site(models.Model):
     name = models.CharField(max_length=100)
     zone = models.ForeignKey(Zone, on_delete=models.CASCADE , null=True, blank=True)
+    sim_card_number = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -601,6 +602,20 @@ class SiteAMC(models.Model):
 
     def __str__(self):
         return f"AMC for {self.site.name}"
+
+class SiteAMCHistory(models.Model):
+    amc = models.ForeignKey(SiteAMC, on_delete=models.CASCADE, related_name='history')
+    amc_start_date = models.DateField(null=True, blank=True)
+    amc_end_date = models.DateField(null=True, blank=True)
+    proof_file = models.FileField(upload_to='amc_proofs/history/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"History for {self.amc.site.name} on {self.created_at.strftime('%Y-%m-%d')}"
+
 
 class Bike(models.Model):
     registration_number = models.CharField(max_length=50, unique=True)

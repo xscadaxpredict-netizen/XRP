@@ -18,6 +18,9 @@ urlpatterns = [
     
     path('Home', views.Home, name='Home'),
     path('enquiry/', views.enquiry_view, name='newenquirypage'),
+    path('potential-duplicates/', views.potential_duplicates, name='potential_duplicates'),
+    path('merge-enquiry/<int:duplicate_id>/<int:target_id>/', views.merge_enquiry, name='merge_enquiry'),
+    path('api/check-duplicate/', views.check_duplicate_api, name='check_duplicate_api'),
     path('enqhome/', views.enq_home, name='enquries'),
     path('add/', views.add_data, name='add_data'),
     path('enquiry/<int:id>/details/', views.enquiry_details, name='enquiry_details'),

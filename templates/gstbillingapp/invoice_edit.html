@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+{% load static %}
+<!doctype html>
+
+{% block content %}
+
+<h2>Edit Invoice</h2>
+
+<form method="POST" id="invoice-form">
+
+    {% csrf_token %}
+
+    <!-- INVOICE DETAILS -->
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th colspan="4" class="table-active">Invoice Details</th>
+            </tr>
+        </thead>
+
+        <tbody class="two-col-form">
+            <tr>
+                <th>Invoice Number</th>
+                <td>
+                    <div class="input-group">
+                        <span class="input-group-text fw-bold">XPL</span>
+                        <input name="invoice-number" type="number" class="form-control" value="{{ invoice.invoice_number }}" readonly>
+                    </div>
+                </td>
+
+                <th>Date</th>
+                <td>
+                    <input name="invoice-date" type="date" class="form-control"
+                        value="{{ invoice.invoice_date|date:'Y-m-d' }}">
+                </td>
+            </tr>
+
+            <tr>
+                <th>TIN Number</th>
+                <td>
+                    <input name="supplier_tin_number" id="supplier_tin_number" class="form-control"
+                        value="{{ invoice_data.business_tin_number }}">
+                </td>
+
+                <th>Pan Number</th>
+                <td>
+                    <input name="sup_pan_number" id="sup_pan_number" class="form-control"
+                        value="{{ invoice_data.sup_pan_number }}">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- CUSTOMER DETAILS -->
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th colspan="4" class="table-active">Customer Details</th>
+            </tr>
+        </thead>
+
+        <tbody class="two-col-form">
+
+            <tr>
+                <th scope="row">Customer Name</th>
+                <td class="form-input-td customer_search_area">
+                    <input autocomplete="off" name="customer-name" id="customer-name-input"
+                        class="form-control customer_search_input" value="{{ invoice_data.customer_name }}" required>
+                    <div id="customer_search_bar"></div>
+                </td>
+
+                <th scope="row">Customer Address</th>
+                <td class="form-input-td">
+                    <input autocomplete="off" name="customer-address" id="customer-address-input" class="form-control"
+                        value="{{ invoice_data.customer_address }}" required>
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">Customer Mobile Number</th>
+                <td class="form-input-td">
+                    <input autocomplete="off" name="customer-phone" id="customer-phone-input" class="form-control"
+                        value="{{ invoice_data.customer_phone }}">
+                </td>
+
+                <th scope="row">Customer GST</th>
+                <td class="form-input-td">
+                    <input autocomplete="off" name="customer-gst" id="customer-gst-input" class="form-control"
+                        value="{{ invoice_data.customer_gst }}">
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">Customer PAN Number</th>
+                <td class="form-input-td">
+                    <input name="buyer_pan_number" id="customer-pan-input" class="form-control"
+                        value="{{ invoice_data.customer_pan }}">
+                </td>
+            </tr>
+
+        </tbody>
+    </table>
+
+    <!-- SAME AS BILLING -->
+    <div class="form-check my-3">
+        <input class="form-check-input" type="checkbox" id="same-as-billing-checkbox">
+        <label class="form-check-label">Ship to same as Bill To</label>
+    </div>
+
+    <!-- SHIPPING -->
+    <div id="shipping-fields">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th colspan="4" class="table-active">Shipping Details</th>
+                </tr>
+            </thead>
+
+            <tbody class="two-col-form">
+
+                <tr>
+                    <th scope="row">Shipping Name</th>
+                    <td class="form-input-td">
+                        <input name="shipping-name" id="shipping-name-input" class="form-control"
+                            value="{{ invoice_data.shipping_name }}">
+                    </td>
+
+                    <th scope="row">Shipping Address</th>
+                    <td class="form-input-td">
+                        <input name="shipping-address" id="shipping-address-input" class="form-control"
+                            value="{{ invoice_data.shipping_address }}">
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">Shipping Mobile Number</th>
+                    <td class="form-input-td">
+                        <input name="shipping-phone" id="shipping-phone-input" class="form-control"
+                            value="{{ invoice_data.shipping_phone }}">
+                    </td>
+
+                    <th scope="row">Shipping GST</th>
+                    <td class="form-input-td">
+                        <input name="shipping-gst" id="shipping-gst-input" class="form-control"
+                            value="{{ invoice_data.shipping_gst }}">
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">Shipping PAN Number</th>
+                    <td class="form-input-td">
+                        <input name="shipping_tin_number" id="shipping-tin-input" class="form-control"
+                            value="{{ invoice_data.shipping_tin_number }}">
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PO NUMBER -->
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <th>PO Number</th>
+
+                <td>
+                    <input class="form-check-input" type="checkbox" id="use-input-checkbox">
+                    <label for="use-input-checkbox">Enter PO Manually</label>
+                </td>
+
+                <td>
+                    <select id="vehicle-number-dropdown" name="vehicle-number-dropdown" class="form-control">
+                        <option value="">Select PO Number</option>
+                    </select>
+
+                    <input type="text" id="new-po-input" name="vehicle-number" class="form-control"
+                        value="{{ invoice_data.vehicle_number }}">
+                </td>
+
+                <td class="ms-3">
+                    <input class="form-check-input" name="igstcheck" type="checkbox" {% if invoice_data.igstcheck %}checked{% endif %}>
+                    <label>IGST</label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Project Description</th>
+                <td class="form-input-td" colspan="3">
+                    <input name="project_description" type="text" class="form-control" placeholder="Project Description"
+                        value="{{ invoice_data.project_description }}">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- BANK -->
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <th>Select Bank *</th>
+                <td>
+                    <select name="bank_id" id="bank_id" class="form-select custom-dropdown" required>
+                        {% for bank in banks %}
+                        <option value="{{ bank.id }}" {% if invoice.bank and bank.id == invoice.bank.id %}selected{% endif %}>
+                            {{ bank.bank_name }} - {{ bank.account_number }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Cumulative Billing (Milestone Billing) UI -->
+    <div class="form-check mb-2 mt-3">
+        <input type="checkbox" class="form-check-input" id="toggleCumulativeBillingCheckbox" name="is_cumulative_billing" value="true" {% if invoice.is_cumulative_billing %}checked{% endif %}>
+        <label class="form-check-label fw-bold" for="toggleCumulativeBillingCheckbox">Enable Cumulative (Milestone) Billing</label>
+    </div>
+    <table class="table table-bordered mt-2" id="cumulativeBillingSection" style="{% if invoice.is_cumulative_billing %}display: table;{% else %}display: none;{% endif %}">
+        <thead>
+            <tr>
+                <th class="table-active" scope="col" colspan="2">Milestone Billing Summary</th>
+            </tr>
+        </thead>
+        <tbody class="two-col-form">
+            <tr>
+                <th scope="row">Contract Value</th>
+                <td class="form-input-td">
+                    <input type="number" step="any" min="0" class="form-control cumulative-input" name="total_project_value" id="total_project_value" value="{{ invoice.total_project_value|default:'0' }}" placeholder="e.g. 100000">
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Already Claimed</th>
+                <td class="form-input-td">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="previous_invoice_number" id="previous_invoice_number" value="{{ invoice.previous_invoice_number|default:'' }}" placeholder="Inv No. (e.g. XPL123)">
+                        <input type="number" step="any" min="0" class="form-control cumulative-input w-50" name="previously_billed" id="previously_billed" value="{{ invoice.previously_billed|default:'0' }}" placeholder="Amt">
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Now Claiming</th>
+                <td class="form-input-td">
+                    <input type="number" step="any" min="0" class="form-control cumulative-input" name="present_quote_amount" id="present_quote_amount" value="{{ invoice.present_quote_amount|default:'0' }}" readonly>
+                    <small class="text-muted">Auto-pulled from invoice total</small>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Balance</th>
+                <td class="form-input-td">
+                    <input type="number" step="any" class="form-control text-danger fw-bold" id="remaining_balance" value="{{ invoice.remaining_balance|default:'0' }}" readonly>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TERMS -->
+    <table class="table table-bordered mt-2" id="termsTable">
+        <thead>
+            <tr>
+                <th colspan="4" class="table-active">Terms and Conditions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="4">
+                    <textarea name="terms_and_conditions" class="form-control"
+                        rows="3">{{ invoice_data.terms_and_conditions }}</textarea>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="form-check mb-4">
+        <input type="checkbox" class="form-check-input" id="toggleTermsCheckbox" checked>
+        <label class="form-check-label fw-bold">Show Terms and Conditions</label>
+    </div>
+
+
+    <!-- ITEMS (UNCHANGED) -->
+    <table class="table table-bordered" id="invoice-form-items-table">
+        <thead>
+            <tr>
+                <th class="table-active" colspan="14">Items</th>
+            </tr>
+
+            <tr>
+                <th>Sl No.</th>
+                <th style="min-width: 150px;">Product</th>
+                <th style="min-width: 120px;">HSN / SAC</th>
+                <th style="min-width: 120px;">Unit</th>
+                <th style="min-width: 120px;">Qty</th>
+                <th style="min-width: 120px;">Rate with GST</th>
+                <th style="min-width: 100px;">GST %</th>
+                <th style="min-width: 120px;">Rate without GST</th>
+                <th style="min-width: 120px;">Amt without GST</th>
+                <th style="min-width: 100px;">SGST</th>
+                <th style="min-width: 100px;">CGST</th>
+                <th style="min-width: 100px;">IGST</th>
+                <th style="min-width: 120px;">Amt with GST</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody id="invoice-form-items-table-body">
+
+            {% for item in invoice_data.items %}
+            <tr>
+                <td class="invoice-item-slno">{{ forloop.counter }}</td>
+
+                <td>
+                    <select name="invoice-product" class="form-control product_search_input"
+                        placeholder="Select or Add Product">
+                        <option value="{{ item.invoice_product }}">{{ item.invoice_product }}</option>
+                    </select>
+                </td>
+                <td><input name="invoice-hsn" class="form-control" value="{{ item.invoice_hsn }}"></td>
+                <td><input name="invoice-unit" class="form-control" value="{{ item.invoice_unit }}"></td>
+                <td><input type="number" step="any" min="0" name="invoice-qty" class="form-control"
+                        value="{{ item.invoice_qty }}"></td>
+                <td><input type="number" step="any" min="0" name="invoice-rate-with-gst" class="form-control"
+                        value="{{ item.invoice_rate_with_gst }}">
+                </td>
+                <td><input type="number" step="any" min="0" name="invoice-gst-percentage" class="form-control"
+                        value="{{ item.invoice_gst_percentage }}">
+                </td>
+
+                <td><input type="number" step="any" min="0" name="invoice-rate-without-gst" class="form-control"
+                        value="{{ item.invoice_rate_without_gst }}" readonly></td>
+                <td><input type="number" step="any" min="0" name="invoice-amt-without-gst" class="form-control"
+                        value="{{ item.invoice_amt_without_gst }}" readonly></td>
+                <td><input type="number" step="any" min="0" name="invoice-amt-sgst" class="form-control"
+                        value="{{ item.invoice_amt_sgst }}" readonly>
+                </td>
+                <td><input type="number" step="any" min="0" name="invoice-amt-cgst" class="form-control"
+                        value="{{ item.invoice_amt_cgst }}" readonly>
+                </td>
+                <td><input type="number" step="any" min="0" name="invoice-amt-igst" class="form-control"
+                        value="{{ item.invoice_amt_igst }}" readonly>
+                </td>
+                <td><input type="number" step="any" min="0" name="invoice-amt-with-gst" class="form-control"
+                        value="{{ item.invoice_amt_with_gst }}" readonly></td>
+                <td class="text-center align-middle">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-invoice-row" tabindex="-1"
+                        title="Delete Row">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+
+        </tbody>
+
+        <tr>
+            <td colspan="8" class="text-right"><strong>TOTAL:</strong></td>
+
+            <td><input type="number" step="any" min="0" name="invoice-total-amt-without-gst" class="form-control"
+                    value="{{ invoice_data.invoice_total_amt_without_gst }}" readonly></td>
+            <td><input type="number" step="any" min="0" name="invoice-total-amt-sgst" class="form-control"
+                    value="{{ invoice_data.invoice_total_amt_sgst }}" readonly></td>
+            <td><input type="number" step="any" min="0" name="invoice-total-amt-cgst" class="form-control"
+                    value="{{ invoice_data.invoice_total_amt_cgst }}" readonly></td>
+            <td><input type="number" step="any" min="0" name="invoice-total-amt-igst" class="form-control"
+                    value="{{ invoice_data.invoice_total_amt_igst }}" readonly></td>
+            <td><input type="number" step="any" min="0" name="invoice-total-amt-with-gst" class="form-control"
+                    value="{{ invoice_data.invoice_total_amt_with_gst }}" readonly></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <button type="button" class="btn btn-primary" id="invoice-form-addrow">+</button>
+    <button type="submit" class="btn btn-success">Update Invoice</button>
+
+</form>
+
+<script>
+    document.getElementById('same-as-billing-checkbox').addEventListener('change', function () {
+        const isChecked = this.checked;
+
+        if (isChecked) {
+            document.getElementById('shipping-name-input').value = document.getElementById('customer-name-input').value;
+            document.getElementById('shipping-address-input').value = document.getElementById('customer-address-input').value;
+            document.getElementById('shipping-phone-input').value = document.getElementById('customer-phone-input').value;
+            document.getElementById('shipping-gst-input').value = document.getElementById('customer-gst-input').value;
+            if(document.getElementById('customer-pan-input')) {
+                document.getElementById('shipping-tin-input').value = document.getElementById('customer-pan-input').value;
+            }
+        } else {
+            document.getElementById('shipping-name-input').value = '';
+            document.getElementById('shipping-address-input').value = '';
+            document.getElementById('shipping-phone-input').value = '';
+            document.getElementById('shipping-gst-input').value = '';
+            document.getElementById('shipping-tin-input').value = '';
+        }
+    });
+
+    document.getElementById("toggleTermsCheckbox").addEventListener("change", function () {
+        let termsTable = document.getElementById("termsTable");
+        termsTable.style.display = this.checked ? "table" : "none";
+    });
+
+    // Cumulative Billing Logic
+    const cumulativeCheckbox = document.getElementById("toggleCumulativeBillingCheckbox");
+    const cumulativeSection = document.getElementById("cumulativeBillingSection");
+    const totalProjectValue = document.getElementById("total_project_value");
+    const previouslyBilled = document.getElementById("previously_billed");
+    const presentQuoteAmount = document.getElementById("present_quote_amount");
+    const remainingBalance = document.getElementById("remaining_balance");
+    const invoiceTotalInput = document.querySelector("input[name='invoice-total-amt-with-gst']");
+
+    function updateCumulativeCalculations() {
+        if (cumulativeCheckbox.checked) {
+            const total = parseFloat(totalProjectValue.value) || 0;
+            const prev = parseFloat(previouslyBilled.value) || 0;
+            const current = parseFloat(invoiceTotalInput.value) || 0;
+            
+            presentQuoteAmount.value = current.toFixed(2);
+            const remaining = total - prev - current;
+            remainingBalance.value = remaining.toFixed(2);
+        }
+    }
+
+    cumulativeCheckbox.addEventListener("change", function() {
+        cumulativeSection.style.display = this.checked ? "table" : "none";
+        updateCumulativeCalculations();
+    });
+
+    totalProjectValue.addEventListener("input", updateCumulativeCalculations);
+    previouslyBilled.addEventListener("input", updateCumulativeCalculations);
+    
+    // Set up an observer or interval to watch for invoice total changes
+    setInterval(function() {
+        if (cumulativeCheckbox.checked) {
+            const currentTotal = parseFloat(invoiceTotalInput.value) || 0;
+            const displayedQuote = parseFloat(presentQuoteAmount.value) || 0;
+            if (currentTotal !== displayedQuote) {
+                updateCumulativeCalculations();
+            }
+        }
+    }, 500);
+</script>
+
+{% endblock %}
+
+{% block includejs %}
+
+<script src="{% static 'gstbillingapp/js/fuse-3.4.6.min.js' %}"></script>
+<script src="{% static 'gstbillingapp/js/main.js' %}"></script>
+
+{% endblock %}

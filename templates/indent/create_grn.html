@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Display Django messages -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="container my-4">
+    <h2>Create GRN for PO {{ po.po_number }}</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label">GRN Number</label>
+            <input type="text" name="grn_number" class="form-control" value="{{ auto_grn_number }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Received Date</label>
+            <input type="date" name="received_date" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Attachment (Optional)</label>
+            <input type="file" name="attachment" class="form-control">
+        </div>
+
+        <h4>Received Items</h4>
+
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Item</th>
+                    <th>PO Quantity</th>
+                    <th>Already Received</th>
+                    <th>Pending</th>
+                    <th>Receive Now</th>
+                    <th>Accepted Qty</th>
+                    <th>Rejected Qty</th>
+                    <th>Rejection Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in po_items %}
+                <tr>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.already_received }}</td>
+                    <td class="text-danger fw-bold">{{ item.pending }}</td>
+                    <td>
+                        <input type="number" name="received_qty_{{ item.id }}" class="form-control" min="0" required>
+                    </td>
+                    <td>
+                        <input type="number" name="accepted_qty_{{ item.id }}" class="form-control" min="0" value="0"
+                            required>
+                    </td>
+                    <td>
+                        <input type="number" name="rejected_qty_{{ item.id }}" class="form-control text-danger fw-bold"
+                            min="0" value="0">
+                    </td>
+                    <td>
+                        <input type="text" name="rejection_reason_{{ item.id }}" class="form-control"
+                            placeholder="Reason (if rejected)">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="submit" class="btn btn-primary">Save GRN</button>
+    </form>
+</div>
+
+<script>
+    // Auto-calculate accepted/rejected quantities
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach((row, index) => {
+            const cells = row.querySelectorAll('td');
+            const itemId = row.querySelector('input[name^="received_qty_"]').name.split('_').pop();
+
+            const receivedInput = document.querySelector(`input[name="received_qty_${itemId}"]`);
+            const acceptedInput = document.querySelector(`input[name="accepted_qty_${itemId}"]`);
+            const rejectedInput = document.querySelector(`input[name="rejected_qty_${itemId}"]`);
+
+            // When received or accepted changes, calculate rejected
+            function updateRejected() {
+                const received = parseFloat(receivedInput.value) || 0;
+                const accepted = parseFloat(acceptedInput.value) || 0;
+                const rejected = Math.max(0, received - accepted);
+                rejectedInput.value = rejected;
+            }
+
+            // When received or rejected changes, calculate accepted
+            function updateAccepted() {
+                const received = parseFloat(receivedInput.value) || 0;
+                const rejected = parseFloat(rejectedInput.value) || 0;
+                const accepted = Math.max(0, received - rejected);
+                acceptedInput.value = accepted;
+            }
+
+            // Auto-fill accepted when received is entered
+            receivedInput.addEventListener('input', function () {
+                if (!acceptedInput.value || acceptedInput.value === '0') {
+                    acceptedInput.value = this.value;
+                }
+                updateRejected();
+            });
+
+            // Calculate rejected when accepted changes
+            acceptedInput.addEventListener('input', updateRejected);
+
+            // Calculate accepted when rejected changes
+            rejectedInput.addEventListener('input', updateAccepted);
+        });
+    });
+</script>
+{% endblock %}

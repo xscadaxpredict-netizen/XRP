@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard | XsHoT ERP{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card bg-primary text-white">
+            <div class="card-body p-5">
+                <h1 class="h1 fw-bold mb-2">
+                    Welcome to XsHoT ERP
+                </h1>
+                <p class="mb-4 text-white-50">GST Billing &amp; Inventory Management — simple, fast, and reliable for
+                    your business.</p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="{% url 'invoice_create' %}" class="btn btn-light fw-semibold px-4">
+                        <i class="ti ti-file-plus me-2"></i>Create Invoice
+                    </a>
+                    <a href="{% url 'invoices' %}" class="btn btn-outline-light fw-semibold px-4">
+                        <i class="ti ti-files me-2"></i>View All Invoices
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Access Cards -->
+<div class="row row-cards mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'invoice_create' %}" class="text-decoration-none">
+            <div class="card card-sm">
+                <div class="card-body text-center py-4">
+                    <span class="avatar avatar-md mb-3 bg-primary-lt">
+                        <i class="ti ti-file-plus fs-2"></i>
+                    </span>
+                    <h5 class="fw-bold mb-1">New Invoice</h5>
+                    <p class="text-secondary small mb-0">Create a GST invoice</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'credit_note_create' %}" class="text-decoration-none">
+            <div class="card card-sm">
+                <div class="card-body text-center py-4">
+                    <span class="avatar avatar-md mb-3 bg-info-lt">
+                        <i class="ti ti-receipt-refund fs-2"></i>
+                    </span>
+                    <h5 class="fw-bold mb-1">Credit Note</h5>
+                    <p class="text-secondary small mb-0">Issue a credit note</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'customers' %}" class="text-decoration-none">
+            <div class="card card-sm">
+                <div class="card-body text-center py-4">
+                    <span class="avatar avatar-md mb-3 bg-success-lt">
+                        <i class="ti ti-users fs-2"></i>
+                    </span>
+                    <h5 class="fw-bold mb-1">Customers</h5>
+                    <p class="text-secondary small mb-0">Manage customer records</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'products' %}" class="text-decoration-none">
+            <div class="card card-sm">
+                <div class="card-body text-center py-4">
+                    <span class="avatar avatar-md mb-3 bg-warning-lt">
+                        <i class="ti ti-box fs-2"></i>
+                    </span>
+                    <h5 class="fw-bold mb-1">Products</h5>
+                    <p class="text-secondary small mb-0">Manage your catalogue</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

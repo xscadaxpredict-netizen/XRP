@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | XsHoT ERP</title>
+
+    <!-- Tabler CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+    <!-- Tabler Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'gstbillingapp/custom.css' %}">
+</head>
+<body class="d-flex flex-column bg-white">
+    <div class="page page-center">
+        <div class="container container-tight py-4">
+            <div class="text-center mb-4">
+                <div class="auth-brand-logo mx-auto">
+                    <img src="{% static 'gstbillingapp/images/xlogo.jpeg' %}" alt="Xpredicts Labs Logo">
+                </div>
+            </div>
+            
+            <div class="card card-md shadow-sm border-0">
+                <div class="card-body">
+                    <h2 class="h2 text-center mb-1">Welcome Back</h2>
+                    <p class="text-secondary text-center mb-4">XsHoT GST Billing & Inventory</p>
+
+                    {% if error_message %}
+                        <div class="alert alert-danger" role="alert">
+                            <div class="d-flex">
+                                <div><i class="ti ti-alert-circle me-2"></i></div>
+                                <div>{{ error_message }}</div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" autocomplete="off">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control" placeholder="Enter username" required autocomplete="username">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Password
+                                <span class="form-label-description">
+                                    <a href="{% url 'password_reset' %}">Forgot password?</a>
+                                </span>
+                            </label>
+                            <div class="input-group input-group-flat">
+                                <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required autocomplete="current-password">
+                                <span class="input-group-text">
+                                    <a href="#" class="link-secondary" onclick="togglePassword(event, this)">
+                                        <i class="ti ti-eye"></i>
+                                    </a>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-check">
+                                <input type="checkbox" class="form-check-input">
+                                <span class="form-check-label">Remember me</span>
+                            </label>
+                        </div>
+                        
+                        <div class="form-footer">
+                            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center text-secondary mt-3">
+                © 2026 Xpredict Labs Pvt Ltd
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabler Core -->
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+    <script>
+        function togglePassword(e, element) {
+            e.preventDefault();
+            const passwordInput = document.getElementById("password");
+            const icon = element.querySelector("i");
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                icon.classList.remove("ti-eye");
+                icon.classList.add("ti-eye-off");
+            } else {
+                passwordInput.type = "password";
+                icon.classList.remove("ti-eye-off");
+                icon.classList.add("ti-eye");
+            }
+        }
+    </script>
+</body>
+</html>

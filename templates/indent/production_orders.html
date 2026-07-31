@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-4">Production Orders</h3>
+
+<!-- Production Orders Table -->
+<table class="table table-vcenter table-striped table-hover">
+  <thead>
+    <tr>
+      <th class="text-center">ID</th>
+      <th>Enquiry</th>
+      <th>BOM</th>
+      <th>Status</th>
+      <th class="text-center">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+    <tr id="po-{{ order.id }}">
+      <td class="text-center">{{ order.id }}</td>
+      <td>{{ order.enquiry.name }}</td>
+      <td>{{ order.bom.name }}</td>
+      <td>
+        <span class="badge bg-{{ order.get_status_badge_class }}" id="status-{{ order.id }}">
+          {{ order.get_status_display }}
+        </span>
+      </td>
+      <td class="text-center">
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createIndentModal"
+                onclick="setPOForIndent({{ order.id }})">
+          Raise Indent
+        </button>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5" class="text-center text-muted">No production orders found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Department-wise Indent Section -->
+<h4 class="mt-5">Indents for Production Orders</h4>
+<table class="table table-vcenter table-striped table-hover">
+  <thead>
+    <tr>
+      <th class="text-center">ID</th>
+      <th>Production Order</th>
+      <th>Department</th>
+      <th>Status</th>
+      <th class="text-center">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for indent in indents %}
+    <tr id="indent-{{ indent.id }}">
+      <td class="text-center">{{ indent.id }}</td>
+      <td>{{ indent.production_order.id }}</td>
+      <td>{{ indent.department.name }}</td>
+      <td>
+        <span class="badge bg-{{ indent.get_status_badge_class }}" id="indent-status-{{ indent.id }}">
+          {{ indent.get_status_display }}
+        </span>
+      </td>
+      <td class="text-center">
+        <button class="btn btn-sm btn-secondary" onclick="openIndentStatusModal({{ indent.id }})">Update</button>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5" class="text-center text-muted">No indents raised yet.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Create Indent Modal -->
+<div class="modal fade" id="createIndentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5>Create Indent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="selectedPOId" value="">
+        <label class="form-label">Department</label>
+        <select id="departmentSelect" class="form-select">
+          {% for dept in departments %}
+          <option value="{{ dept.id }}">{{ dept.name }}</option>
+          {% endfor %}
+        </select>
+        <label class="form-label mt-2">Item</label>
+        <input type="text" id="itemInput" class="form-control" placeholder="General">
+        <label class="form-label mt-2">Quantity</label>
+        <input type="number" id="qtyInput" class="form-control" value="1" min="1">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="createIndent()">Save Indent</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Update Indent Status Modal -->
+<div class="modal fade" id="indentStatusModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5>Update Indent Status</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <select id="indentStatusSelect" class="form-select">
+          <option value="raised">Raised</option>
+          <option value="approved">Approved</option>
+          <option value="purchased">Purchased</option>
+          <option value="received">Received</option>
+          <option value="issued">Issued</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="saveIndentStatusBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const csrftoken = '{{ csrf_token }}';
+let currentIndentId = null;
+
+function setPOForIndent(poId) {
+  document.getElementById("selectedPOId").value = poId;
+}
+
+function createIndent() {
+  const poId = document.getElementById("selectedPOId").value;
+  const deptId = document.getElementById("departmentSelect").value;
+  const item = document.getElementById("itemInput").value || "General";
+  const qty = parseInt(document.getElementById("qtyInput").value) || 1;
+
+  fetch(`/production-orders/${poId}/indent/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+    body: JSON.stringify({ department_id: deptId, item: item, qty: qty })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.success) {
+      alert(`Indent ${data.indent_id} created for PO ${poId}`);
+      location.reload();
+    } else {
+      alert(data.error || "Failed to create indent");
+    }
+  });
+}
+
+function openIndentStatusModal(indentId) {
+  currentIndentId = indentId;
+  const currentStatus = document.getElementById(`indent-status-${indentId}`).innerText.trim().toLowerCase();
+  document.getElementById("indentStatusSelect").value = currentStatus;
+  new bootstrap.Modal(document.getElementById('indentStatusModal')).show();
+}
+
+document.getElementById("saveIndentStatusBtn").addEventListener("click", function() {
+  const status = document.getElementById("indentStatusSelect").value;
+  fetch(`/production/update-indent-status/${currentIndentId}/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+    body: JSON.stringify({ status })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.success) {
+      const badge = document.getElementById(`indent-status-${currentIndentId}`);
+      badge.innerText = data.status_display;
+      badge.className = `badge bg-${data.status_badge_class}`;
+      bootstrap.Modal.getInstance(document.getElementById('indentStatusModal')).hide();
+    } else {
+      alert(data.error || "Failed to update indent status");
+    }
+  });
+});
+</script>
+
+{% endblock %}

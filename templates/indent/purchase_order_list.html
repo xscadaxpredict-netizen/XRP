@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Display Django messages -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+  {{ message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+<div class="container-xl my-4">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h2 class="card-title mb-0">
+        Purchase Orders
+        {% if project %} for {{ project.name }}{% endif %}
+        {% if department %} - {{ department.name }}{% endif %}
+      </h2>
+      <a href="{% url 'email_log_list' %}" class="btn btn-outline-primary">📨 View All Sent Emails</a>
+    </div>
+    <div class="card-body table-responsive">
+      <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Created At</th>
+            <th>PO Number</th>
+            <th>Vendor</th>
+            <th>Indent</th>
+            <th>Items</th>
+            <th>Last Bought Value</th>
+            <th>Performa Invoice</th>
+            <th>Expected Delivery</th>
+            <th>PO Download</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for po in pos %}
+          <tr>
+            <td>{{ po.created_at|date:"d M Y" }}</td>
+            <td>{{ po.po_number }}</td>
+            <td>{{ po.vendor }}</td>
+            <td>#{{ po.indent.id }} - {{ po.indent.title }}</td>
+            <td>
+              {{ po.items.count }} -
+              {% for item in po.items.all %}
+              {{ item.product_name }}{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </td>
+
+            <td>
+              {% if po.last_bought_value %}
+              ₹{{ po.last_bought_value }}
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if po.attachments.exists %}
+              <div class="d-flex flex-column gap-1">
+                {% for att in po.attachments.all %}
+                <div class="d-flex gap-2 align-items-center">
+                  <a href="{{ att.file.url }}" target="_blank" class="btn btn-sm btn-primary">
+                    Preview
+                  </a>
+                  <a href="{{ att.file.url }}" download class="btn btn-sm btn-success">
+                    Download
+                  </a>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span class="text-muted">No File</span>
+              {% endif %}
+            </td>
+            <td>{{ po.expected_delivery|date:"d M Y" }}</td>
+            <td>
+              {% if po.status == 'approved' %}
+              <a href="{% url 'purchase_order_print' po.id %}" class="btn btn-outline-primary btn-sm" target="_blank">
+                Print PO
+              </a>
+              {% elif po.status == 'received' %}
+              <span class="text-muted">Received</span>
+
+              {% else %}
+              <span class="text-muted">Wait for Approve</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if po.status == 'pending' %}
+                {% if is_admin or is_accounts %}
+                <a href="{% url 'purchase_order_approve' po.id %}" class="btn btn-success btn-sm">Approve</a>
+  
+                <button type="button" class="btn btn-danger btn-sm ms-1" data-bs-toggle="modal"
+                  data-bs-target="#rejectModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}">
+                  Reject
+                </button>
+                {% else %}
+                <span class="badge bg-warning text-dark">Pending Approval</span>
+                {% endif %}
+              {% elif po.status == 'approved' %}
+              {% if po.sent_to_vendor %}
+              <span class="badge bg-primary text-white">Sent to Vendor</span>
+              <a href="{% url 'email_log_list' %}?po_id={{ po.id }}" class="btn btn-sm btn-outline-secondary ms-1"
+                title="View Email Logs">
+                Logs
+              </a>
+              {% else %}
+              <button type="button" class="btn btn-info btn-sm send-vendor-btn" data-bs-toggle="modal"
+                data-bs-target="#sendVendorModal" data-po-id="{{ po.id }}" data-po-number="{{ po.po_number }}"
+                data-vendor-email="{{ po.vendor.contact_email|default:'' }}"
+                data-vendor-phone="{{ po.vendor.contact_number|default:'' }}"
+                data-po-print-url="{% url 'purchase_order_print' po.id %}">
+                Send to Vendor
+              </button>
+              {% endif %}
+              {% elif po.status == 'rejected' %}
+              <span class="badge bg-danger text-white">Rejected</span><br>
+              <small class="text-muted">{{ po.reject_reason }}</small>
+              {% else %}
+              <span class="badge bg-secondary text-white">{{ po.get_status_display }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted">No purchase orders found</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="rejectForm">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rejectModalLabel">Reject Purchase Order</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Rejecting PO: <strong id="modalPoNumber"></strong> (ID: <span id="modalPoId"></span>)</p>
+          <div class="mb-3">
+            <label for="reject_reason" class="form-label">Reject Reason</label>
+            <textarea class="form-control" id="reject_reason" name="reject_reason" rows="4" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Reject</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Send Vendor Option Modal -->
+<div class="modal fade" id="sendVendorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Send PO: <span id="sendVendorPoNumber"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p>Select how you want to send this Purchase Order to the vendor.</p>
+        <div class="d-grid gap-3">
+          <button class="btn btn-outline-primary btn-lg" id="btnSendEmail">
+            Send via Email
+          </button>
+          <button class="btn btn-outline-success btn-lg" id="btnSendWhatsApp">
+            Send via WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Email Composition Modal -->
+<div class="modal fade" id="emailComposeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="emailComposeForm" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="send_to_vendor_id" id="emailPoId">
+      <input type="hidden" name="send_via_email" value="true">
+
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Compose Email</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="emailTo" class="form-label">To:</label>
+            <input type="email" class="form-control" id="emailTo" name="email_to" required>
+          </div>
+          <div class="mb-3">
+            <label for="emailSubject" class="form-label">Subject:</label>
+            <input type="text" class="form-control" id="emailSubject" name="email_subject" required>
+          </div>
+          <div class="mb-3">
+            <label for="emailBody" class="form-label">Message:</label>
+            <textarea class="form-control" id="emailBody" name="email_body" rows="6"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="emailAttachment" class="form-label">Attachment:</label>
+            <input type="file" class="form-control" id="emailAttachment" name="email_attachment">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">PO Preview:</label>
+            <div class="border rounded" style="height: 400px; overflow: hidden;">
+              <iframe id="emailPoPreview" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <div class="d-flex justify-content-between mt-1">
+              <small class="text-muted">This document will be attached automatically.</small>
+              <a href="#" id="emailPreviewLink" target="_blank" class="small">Open in New Tab</a>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-toggle="modal"
+            data-bs-target="#sendVendorModal">Back</button>
+          <button type="submit" class="btn btn-primary">Send Email</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- WhatsApp Composition Modal -->
+<div class="modal fade" id="whatsappComposeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="whatsappComposeForm" target="_blank">
+      {% csrf_token %}
+      <input type="hidden" name="send_to_vendor_id" id="whatsappPoId">
+      <input type="hidden" name="send_via_whatsapp" value="true">
+
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Compose WhatsApp Message</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="whatsappNumber" class="form-label">Phone Number:</label>
+            <input type="text" class="form-control" id="whatsappNumber" name="whatsapp_number" required>
+            <small class="text-muted">Ensure number includes country code without + (e.g. 919876543210)</small>
+          </div>
+          <div class="mb-3">
+            <label for="whatsappMessage" class="form-label">Message:</label>
+            <textarea class="form-control" id="whatsappMessage" name="whatsapp_message" rows="4" required></textarea>
+            <small class="text-danger">Note: You must manually attach the PO PDF in WhatsApp.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-toggle="modal"
+            data-bs-target="#sendVendorModal">Back</button>
+          <button type="submit" class="btn btn-success" id="btnOpenWhatsApp">Open WhatsApp & Log</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Existing Reject Modal Logic
+    var rejectModal = document.getElementById('rejectModal')
+    if (rejectModal) {
+      rejectModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget
+        if (!button) return;
+
+        var poId = button.getAttribute('data-po-id')
+        var poNumber = button.getAttribute('data-po-number')
+
+        var modalNumberElem = rejectModal.querySelector('#modalPoNumber')
+        var modalIdElem = rejectModal.querySelector('#modalPoId')
+        if (modalNumberElem) modalNumberElem.textContent = poNumber
+        if (modalIdElem) modalIdElem.textContent = poId
+
+        var form = rejectModal.querySelector('#rejectForm')
+        if (form) {
+          form.action = `/purchase_order/${poId}/reject/`
+          if (form.reject_reason) form.reject_reason.value = ''
+        }
+      })
+    }
+
+    // New Send Vendor Modal Logic
+    var sendVendorModal = document.getElementById('sendVendorModal')
+    var emailComposeModal = document.getElementById('emailComposeModal')
+
+    var currentPoData = {}
+
+    if (sendVendorModal) {
+      sendVendorModal.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget
+        if (button) {
+          currentPoData = {
+            id: button.getAttribute('data-po-id'),
+            number: button.getAttribute('data-po-number'),
+            email: button.getAttribute('data-vendor-email'),
+            phone: button.getAttribute('data-vendor-phone'),
+            printUrl: button.getAttribute('data-po-print-url')
+          }
+        }
+
+        var poNumElem = sendVendorModal.querySelector('#sendVendorPoNumber')
+        if (poNumElem) poNumElem.textContent = currentPoData.number
+      })
+    }
+
+    // WhatsApp Handler (Button to open Compose Modal)
+    var btnWhatsApp = document.getElementById('btnSendWhatsApp')
+    if (btnWhatsApp) {
+      btnWhatsApp.addEventListener('click', function () {
+        var whatsappModalInstance = new bootstrap.Modal(whatsappComposeModal)
+        var sendVendorModalInstance = bootstrap.Modal.getInstance(sendVendorModal)
+
+        sendVendorModalInstance.hide()
+        whatsappModalInstance.show()
+
+        // Populate WhatsApp Form
+        document.getElementById('whatsappPoId').value = currentPoData.id
+        document.getElementById('whatsappNumber').value = currentPoData.phone
+        document.getElementById('whatsappMessage').value = `Hello, please find the attached Purchase Order ${currentPoData.number}.`
+      })
+    }
+
+    // Handle "Open WhatsApp & Log" Click (Form Submit)
+    var whatsappForm = document.getElementById('whatsappComposeForm');
+    if (whatsappForm) {
+      whatsappForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        var number = document.getElementById('whatsappNumber').value;
+        var message = document.getElementById('whatsappMessage').value;
+        var text = encodeURIComponent(message);
+        var url = `https://wa.me/${number}?text=${text}`;
+
+        // Open WhatsApp in new tab
+        window.open(url, '_blank');
+
+        // Submit form programmically to current page to log and update status
+        whatsappForm.removeAttribute('target');
+        whatsappForm.submit();
+      });
+    }
+
+    // Email Handler
+    var btnEmail = document.getElementById('btnSendEmail')
+    if (btnEmail) {
+      btnEmail.addEventListener('click', function () {
+        var emailModalInstance = new bootstrap.Modal(emailComposeModal)
+        var sendVendorModalInstance = bootstrap.Modal.getInstance(sendVendorModal)
+
+        sendVendorModalInstance.hide()
+        emailModalInstance.show()
+
+        // Populate Email Form
+        document.getElementById('emailPoId').value = currentPoData.id
+        document.getElementById('emailTo').value = currentPoData.email
+        document.getElementById('emailSubject').value = `Purchase Order - ${currentPoData.number}`
+        document.getElementById('emailBody').value = `Dear Vendor,\n\nPlease find attached the Purchase Order ${currentPoData.number}.\n\nRegards,\nXpredict Automation Solutions`
+
+        // Update Preview
+        const previewUrl = currentPoData.printUrl;
+        document.getElementById('emailPoPreview').src = previewUrl;
+        document.getElementById('emailPreviewLink').href = previewUrl;
+      })
+    }
+  })
+</script>
+
+{% endblock %}

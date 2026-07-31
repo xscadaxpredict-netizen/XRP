@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css" rel="stylesheet">
+
+<div class="page-wrapper">
+    <div class="container-xl">
+
+        <!-- PAGE HEADER -->
+        <div class="page-header d-print-none mb-4">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h2 class="page-title">Manufacturing Dashboard</h2>
+                    <div class="text-muted">Overall production, materials & project insights</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div class="row row-cards">
+
+            <!-- Active Production Requirements -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <span class="bg-primary text-white avatar me-3">
+                                🏭
+                            </span>
+                            <div>
+                                <div class="text-muted">Production Requirements</div>
+                                <div class="h1 mb-0">{{ active_reqs }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items In Production -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <span class="bg-warning text-white avatar me-3">⚙️</span>
+                            <div>
+                                <div class="text-muted">Items In Production</div>
+                                <div class="h1 mb-0">{{ in_production }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Approvals -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <span class="bg-danger text-white avatar me-3">⏳</span>
+                            <div>
+                                <div class="text-muted">Pending Indent Approvals</div>
+                                <div class="h1 mb-0">{{ pending_indents }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completed Items -->
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <span class="bg-success text-white avatar me-3">✔️</span>
+                            <div>
+                                <div class="text-muted">Completed Production</div>
+                                <div class="h1 mb-0">{{ completed_items }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CHART ROW -->
+        <div class="row row-cards mt-4">
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Production Load Trend</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="chart-production-load"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Indent Creation Trend</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="chart-indent-trend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DEPARTMENT STATUS -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 class="card-title">Department Production Status</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Department</th>
+                            <th>Pending</th>
+                            <th>Completed</th>
+                            <th>Overdue</th>
+                            <th>GRN Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dept in department_status %}
+                        <tr>
+                            <td>{{ dept.name }}</td>
+                            <td>{{ dept.pending }}</td>
+                            <td class="text-success">{{ dept.completed }}</td>
+                            <td class="text-danger">{{ dept.overdue }}</td>
+                            <td>
+                                <div class="progress progress-md">
+                                    <div class="progress-bar bg-success" style="width: {{ dept.grn_progress }}%;"></div>
+                                </div>
+                                <small>{{ dept.grn_progress }}%</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- STOCK SHORTAGES -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 class="card-title">Material Shortages</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Required</th>
+                            <th>Available</th>
+                            <th>Shortage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in shortages %}
+                        <tr>
+                            <td>{{ s.item }}</td>
+                            <td>{{ s.required }}</td>
+                            <td>{{ s.available }}</td>
+                            <td class="text-danger fw-bold">{{ s.shortage }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted">No shortages</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- GRN TIMELINE -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 class="card-title">GRN Processing Timeline</h3>
+            </div>
+            <div class="card-body">
+                <div id="chart-grn-timeline"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    const prodLoad = {{ prod_load|safe }};
+    const indentTrend = {{ indent_trend|safe }};
+    const grnTimeline = {{ grn_timeline|safe }};
+
+    // Area Charts
+    new ApexCharts(document.querySelector("#chart-production-load"), {
+        chart: { type: "area", height: 220 },
+        series: [{ name: "Production Load", data: prodLoad }],
+        xaxis: { categories: ["Jan","Feb","Mar","Apr","May","Jun","Jul"] }
+    }).render();
+
+    new ApexCharts(document.querySelector("#chart-indent-trend"), {
+        chart: { type: "line", height: 220 },
+        stroke: { curve: "smooth" },
+        series: [{ name: "Indents", data: indentTrend }]
+    }).render();
+
+    // GRN TIMELINE RANGE-BAR
+    new ApexCharts(document.querySelector("#chart-grn-timeline"), {
+        chart: { type: 'rangeBar', height: 260 },
+        series: [{ data: grnTimeline }],
+        plotOptions: { bar: { horizontal: true } }
+    }).render();
+
+});
+</script>
+{% endblock %}

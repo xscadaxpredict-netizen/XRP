@@ -1,0 +1,16 @@
+{# templates/department_node_vertical.html #}
+<li class="{% if not dept.parent %}root{% endif %}">
+    <a class="node {% if not dept.parent %}stretched{% endif %}"
+       href="{% url 'department_detail'  %}">
+       {{ dept.code|default:dept.name }}
+    </a>
+  
+    {% if dept.children.exists %}
+      <ul>
+        {% for child in dept.children.all %}
+          {% include "department_node_vertical.html"  %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+  

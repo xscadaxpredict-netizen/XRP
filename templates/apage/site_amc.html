@@ -83,6 +83,7 @@
                   <th>End Date</th>
                   <th>Proof</th>
                   <th>Last Updated</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -91,7 +92,11 @@
                   <td class="font-weight-bold text-azure">{{ amc.site.name }}</td>
                   <td>
                     {% if amc.has_amc %}
-                      <span class="badge bg-success-lt p-2">Active</span>
+                        {% if amc.amc_end_date and amc.amc_end_date < today %}
+                            <span class="badge bg-danger-lt p-2">Expired</span>
+                        {% else %}
+                            <span class="badge bg-success-lt p-2">Active</span>
+                        {% endif %}
                     {% else %}
                       <span class="badge bg-warning-lt p-2">None</span>
                     {% endif %}
@@ -112,6 +117,10 @@
                     {% endif %}
                   </td>
                   <td class="text-muted">{{ amc.updated_at|date:"M d, Y" }}</td>
+                  <td>
+                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="renewAMC('{{ amc.site.id }}', '{{ amc.amc_start_date|date:'Y-m-d'|default:'' }}', '{{ amc.amc_end_date|date:'Y-m-d'|default:'' }}')">Renew / Update</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary ms-1" data-bs-toggle="modal" data-bs-target="#historyModal-{{ amc.id }}">View History</button>
+                  </td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -127,8 +136,66 @@
   </div>
 </div>
 
+
+{% for amc in amcs %}
+<div class="modal fade" id="historyModal-{{ amc.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">AMC History for {{ amc.site.name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead class="bg-light">
+              <tr>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Proof</th>
+                <th>Archived On</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for hist in amc.history.all %}
+              <tr>
+                <td>{{ hist.amc_start_date|default:"-" }}</td>
+                <td>{{ hist.amc_end_date|default:"-" }}</td>
+                <td>
+                  {% if hist.proof_file %}
+                    <a href="{{ hist.proof_file.url }}" target="_blank" class="btn btn-sm btn-outline-info">View</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>{{ hist.created_at|date:"M d, Y H:i" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">No past history found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+    function renewAMC(siteId, startDate, endDate) {
+      document.querySelector('select[name="site_id"]').value = siteId;
+      document.querySelector('input[name="has_amc"]').checked = true;
+      document.querySelector('input[name="start_date"]').value = startDate;
+      document.querySelector('input[name="end_date"]').value = endDate;
+      document.getElementById('amcFields').style.display = 'block';
+      document.getElementById('amcDates').style.display = 'flex';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
     const amcToggle = document.getElementById('hasAmcToggle');
     const amcFields = document.getElementById('amcFields');
     

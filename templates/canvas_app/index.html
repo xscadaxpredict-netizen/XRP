@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fabric.js BOM Builder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        #canvas-container { border: 1px solid #ccc; display: inline-block; }
+        #items-list { margin-top: 20px; }
+        button { margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<h2>Drag & Drop BOM Builder</h2>
+
+<div id="canvas-container">
+    <canvas id="c" width="600" height="400" style="border:1px solid #000"></canvas>
+</div>
+
+<div id="items-list">
+    <h3>Available Items</h3>
+    <button onclick="addItem('Steel', '10x10')">Steel 10x10</button>
+    <button onclick="addItem('Steel', '20x20')">Steel 20x20</button>
+    <button onclick="addItem('Aluminium', '10x10')">Aluminium 10x10</button>
+</div>
+
+<br>
+<button onclick="generateBOM()">Generate BOM</button>
+
+<pre id="bom-output"></pre>
+
+<script>
+    const canvas = new fabric.Canvas('c');
+
+    function addItem(material, size) {
+        let rect = new fabric.Rect({
+            left: Math.random() * 300,
+            top: Math.random() * 200,
+            fill: material === "Steel" ? "grey" : "lightblue",
+            width: parseInt(size.split('x')[0]),
+            height: parseInt(size.split('x')[1]),
+            hasControls: true,
+            hasBorders: true
+        });
+
+        rect.material = material;
+        rect.size = size;
+
+        canvas.add(rect);
+    }
+
+    function generateBOM() {
+        let items = [];
+        canvas.getObjects().forEach(obj => {
+            if (obj.material && obj.size) {
+                items.push({
+                    material: obj.material,
+                    size: obj.size
+                });
+            }
+        });
+
+        fetch("/generate-bom/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("bom-output").textContent = JSON.stringify(data.bom, null, 2);
+        });
+    }
+</script>
+
+</body>
+</html>

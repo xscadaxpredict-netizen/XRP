@@ -1,0 +1,200 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=800" />
+  <title>Purchase Order Preview</title>
+
+  <link href="https://unpkg.com/@tabler/core@latest/dist/css/tabler.min.css" rel="stylesheet" />
+
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 0;
+    }
+
+    html,
+    body {
+      background: #f6f8fb;
+      margin: 0;
+      padding: 0;
+    }
+
+    .po-box {
+      width: 185mm;
+      min-height: 251mm;
+      margin: 32px auto;
+      background: #fff;
+      border-radius: 0.45rem;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.07);
+      padding: 28px;
+    }
+
+    .po-header {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #e0e6ed;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+
+    .section h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .address-p {
+      line-height: 1.6;
+      margin-bottom: 0;
+    }
+
+    .po-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      font-size: 12.5px;
+    }
+
+    .po-table th,
+    .po-table td {
+      border: 1px solid #b6bcc6;
+      padding: 7px 4px;
+      text-align: center;
+    }
+
+    .po-table th {
+      background: #eff3fb;
+      font-weight: 700;
+    }
+
+    .po-table td.product {
+      text-align: left;
+    }
+
+    .signature {
+      text-align: right;
+      margin-top: 80px;
+      font-size: 15px;
+    }
+
+    @media print {
+
+      body,
+      .po-box {
+        background: none;
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .print-btn {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="po-box">
+
+    <!-- HEADER -->
+    <div class="po-header">
+      <img src="{% static 'xlogo.jpeg' %}" width="120">
+      <div style="text-align:right; font-size:16px;">
+        <strong>Date:</strong> {{ po.created_at|date:"d M, Y" }}<br>
+        <strong>Purchase Order No:</strong> {{ po.po_number }}
+      </div>
+    </div>
+
+    <!-- FROM -->
+    <div class="section">
+      <h3>From:</h3>
+      <p class="address-p">
+        {{ company.name }}<br>
+        {{ company.address }}<br>
+        Phone: {{ company.phone }}<br>
+        Email: {{ company.email }}<br>
+        GST: {{ company.gst }}<br>
+        PAN: {{ company.pan }}
+      </p>
+    </div>
+
+    <!-- BILL / SHIP -->
+    <table style="width:100%; margin-top:20px;">
+      <tr>
+        <td style="width:50%; vertical-align:top;">
+          <div class="section">
+            <h3>Bill To:</h3>
+            <p class="address-p">
+              <strong>{{ vendor.name }}</strong><br>
+              {{ vendor.address|default:"" }}<br>
+              GST: {{ vendor.gst_number|default:"-" }}<br>
+              PAN: {{ vendor.pan_number|default:"-" }}<br>
+              Phone: {{ vendor.contact_number|default:"-" }}<br>
+              Email: {{ vendor.contact_email|default:"-" }}
+            </p>
+          </div>
+        </td>
+        <td style="width:50%; vertical-align:top; border-left: 1px solid #eee; padding-left: 20px;">
+          <div class="section">
+            <h3>Vendor Bank Details:</h3>
+            <p class="address-p">
+              Bank: {{ vendor.bank_name|default:"-" }}<br>
+              A/c No: {{ vendor.bank_account_no|default:"-" }}<br>
+              IFSC: {{ vendor.ifsc_code|default:"-" }}
+            </p>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- ITEMS TABLE -->
+    <table class="po-table">
+      <thead>
+        <tr>
+          <th>SL</th>
+          <th class="product">Product</th>
+          <th>Unit Price</th>
+          <th>Qty</th>
+
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td class="product">{{ item.product_name }}</td>
+          <td>{{ item.unit_price|floatformat:2 }}</td>
+          <td>{{ item.quantity }}</td>
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- TOTAL -->
+    <div style="margin-top:20px; text-align:right; font-size:14px;">
+      <strong>Total:</strong> ₹{{ po.total_amount }}
+    </div>
+
+    <!-- SIGNATURE -->
+    <div class="signature">
+      <strong>Authorized Signatory</strong>
+    </div>
+
+    <footer style="text-align:center; font-size:12px; margin-top:30px;">
+      © {{ company.name }}
+    </footer>
+
+  </div>
+
+  <div class="text-center mt-4 print-btn">
+    <button class="btn btn-primary" onclick="window.print()">Print Purchase Order</button>
+  </div>
+
+</body>
+
+</html>

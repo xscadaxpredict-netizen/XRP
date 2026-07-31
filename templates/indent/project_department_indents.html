@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+
+  <h3>{{ department.name }} — Indents for {{ project.name }}</h3>
+
+  <table class="table table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Indent No</th>
+        <th>Title</th>
+        <th>Status</th>
+        <th>Created At</th>
+        <th>Required By</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for indent in indents %}
+      <tr>
+        <td>{{ indent.indent_number }}</td>
+        <td>{{ indent.title }}</td>
+        <td>{{ indent.status }}</td>
+        <td>{{ indent.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ indent.required_date|date:"Y-m-d"|default:"-" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          No indents raised by this department for this project.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+{% endblock %}

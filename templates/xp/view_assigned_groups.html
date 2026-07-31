@@ -4,6 +4,7 @@
 
 <!-- Include Bootstrap Icons CDN to guarantee icons load -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 <style>
   .dashboard-transition-container {
@@ -23,13 +24,39 @@
   .table-hover tbody tr:hover {
     background-color: rgba(13, 110, 253, 0.03) !important;
   }
+
+  /* Match Bootstrap select styling */
+  .select2-container .select2-selection--single {
+    height: 42px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 8px !important; /* matches rounded-pill if we wanted, but let's use 8px */
+    padding: 8px 12px !important;
+    background-color: #fff !important;
+  }
+
+  .select2-selection__rendered {
+    line-height: 26px !important;
+    color: #495057 !important;
+  }
+
+  .select2-container--default .select2-selection--single {
+    box-shadow: none !important;
+  }
+
+  .select2-selection__arrow {
+    height: 42px !important;
+  }
+
 </style>
 
 <div class="container-fluid py-5 px-4 dashboard-transition-container" id="dashboard-container" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); min-height: 100vh;">
 
   <!-- Page Header -->
-  <div class="mb-4">
+  <div class="mb-4 d-flex justify-content-between align-items-center">
     <h1 class="h2 fw-bold text-dark mb-0">Assigned Advance Groups</h1>
+    <a href="{% url 'site_expenses_report' %}" class="btn btn-primary shadow-sm transition-link">
+      <i class="bi bi-bar-chart-fill me-1"></i> View Site Expenses
+    </a>
   </div>
 
   <!-- Controls Card (Export and Filters) -->
@@ -138,27 +165,52 @@
     <div class="card-header bg-primary text-white p-4 border-0" style="background: linear-gradient(135deg, #003366 0%, #001f3f 100%); display: block !important;">
       <div class="row align-items-center g-3 w-100">
         <div class="col-lg-8 col-12" style="min-width: 0;">
-          <h4 class="fw-bold mb-1"><i class="bi bi-folder-fill me-2"></i>Group: {{ group.group.name }}</h4>
+          <h4 class="fw-bold mb-1 d-flex align-items-center">
+            <i class="bi bi-folder-fill me-2"></i>Group:&nbsp;<span class="group-name-display-{{ group.group.id }}">{{ group.group.name }}</span>
+            <button type="button" class="btn btn-sm btn-link text-white ms-2 p-0" data-bs-toggle="modal" data-bs-target="#renameGroupModal{{ group.group.id }}" title="Rename Group">
+              <i class="bi bi-pencil-square fs-5"></i>
+            </button>
+            {% if group.group.site %} <span class="ms-2">| Site: {{ group.group.site.name }}</span>{% endif %}
+          </h4>
           <div class="d-flex flex-wrap mt-2 text-white-50 small" style="font-size: 13px; column-gap: 24px; row-gap: 8px;">
             <div><strong>Created:</strong> <span class="text-white">{{ group.group.created_at|date:"F d, Y" }}</span></div>
             <div><strong>Total Advance:</strong> <span class="text-white">₹{{ group.group.total_advance|floatformat:2 }}</span></div>
             <div><strong>Used:</strong> <span class="text-white">₹{{ group.used_advance|floatformat:2 }}</span></div>
             <div><strong>Adjustments:</strong> <span class="text-white">₹{{ group.adjustments_total|floatformat:2 }}</span></div>
             {% if group.attached_credit_notes_total > 0 %}
-              <div><strong>Attached Credit Notes:</strong> <span class="text-white">₹{{ group.attached_credit_notes_total|floatformat:2 }}</span></div>
+              <div class="dropdown d-inline-block">
+                <strong>Attached Credit Notes:</strong> 
+                <span class="text-white dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer; text-decoration: underline dashed;">
+                  ₹{{ group.attached_credit_notes_total|floatformat:2 }}
+                </span>
+                <ul class="dropdown-menu shadow-sm border-0 p-2" style="font-size: 13px; min-width: 250px;">
+                  <li><h6 class="dropdown-header text-primary fw-bold px-2 py-1">Used Credit Notes</h6></li>
+                  {% for cn in group.attached_credit_notes %}
+                    <li class="dropdown-item d-flex justify-content-between align-items-center rounded-2 px-2 py-1">
+                      <span>
+                        {% if cn.group %}
+                          <span class="badge rounded-pill bg-dark text-white px-2 py-1 me-1" style="font-size: 10px;">From: {{ cn.group.name }} (Bal: ₹{{ cn.group.remaining_balance|floatformat:2 }})</span>
+                        {% endif %}
+                        {{ cn.created_at|date:"d M Y" }} {% if cn.remarks %}<small class="text-muted d-block">{{ cn.remarks }}</small>{% endif %}
+                      </span>
+                      <span class="fw-bold text-success">₹{{ cn.amount|floatformat:2 }}</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
             {% endif %}
             <div><strong>Calculated Remaining:</strong> <span class="text-white fw-bold">₹{{ group.calculated_remaining|floatformat:2 }}</span></div>
           </div>
 
           <div class="d-flex flex-wrap gap-2 mt-2">
             {% if group.overdue_balance > 0 %}
-              <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1">Overdue Before Clearing: ₹{{ group.overdue_balance }}</span>
+              <span class="badge rounded-pill bg-danger-subtle text-danger text-white border border-danger-subtle px-3 py-1">Overdue Before Clearing: ₹{{ group.overdue_balance }}</span>
             {% endif %}
             {% if group.overdue_amount > 0 %}
-              <span class="badge rounded-pill bg-danger shadow-sm px-3 py-1">Overdue: ₹{{ group.overdue_amount|floatformat:2 }}</span>
+              <span class="badge rounded-pill bg-danger text-white shadow-sm px-3 py-1">Overdue: ₹{{ group.overdue_amount|floatformat:2 }}</span>
             {% endif %}
             {% if group.cleared_amount > 0 %}
-              <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1">Cleared: ₹{{ group.cleared_amount|floatformat:2 }} (on last payment)</span>
+              <span class="badge rounded-pill bg-success-subtle text-white text-success border border-success-subtle px-3 py-1">Cleared: ₹{{ group.cleared_amount|floatformat:2 }} (on last payment)</span>
             {% endif %}
           </div>
 
@@ -191,11 +243,21 @@
           {% endif %}
         
           {% if group.update_proofs %}
-            {% for proof_url in group.update_proofs %}
-              <a href="{{ proof_url }}" target="_blank" class="btn btn-outline-light btn-sm rounded-pill px-3 shadow-sm text-center">
-                <i class="bi bi-file-earmark-check"></i> Proof {{ forloop.counter }}
-              </a>
+            <div class="d-flex flex-column align-items-end gap-2 mt-2 w-100">
+            {% for proof in group.update_proofs %}
+              <div class="d-flex flex-column align-items-end mb-1 w-100">
+                <a href="{{ proof.url }}" target="_blank" class="btn btn-outline-light btn-sm rounded-pill px-3 shadow-sm text-center">
+                  <i class="bi bi-file-earmark-check"></i> 
+                  {% if proof.amount > 0 %}₹{{ proof.amount|floatformat:2 }}{% else %}Proof {{ forloop.counter }}{% endif %}
+                </a>
+                {% if proof.remarks %}
+                  <div class="text-muted text-end mt-1 w-100" style="font-size: 0.75rem; line-height: 1.3;">
+                    <i class="bi bi-info-circle"></i> {{ proof.remarks }}
+                  </div>
+                {% endif %}
+              </div>
             {% endfor %}
+            </div>
           {% endif %}
 
           {% if request.user.is_staff %}
@@ -203,9 +265,9 @@
               <button type="button" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#updateBalanceModal{{ group.group.id }}">
                 <i class="bi bi-plus-slash-minus"></i> Update Balance
               </button>
-              <form method="POST" action="{% url 'close_group' group.group.id %}" style="display: contents;">
+              <form method="POST" action="{% url 'close_group' group.group.id %}" style="display: contents;" class="ajax-close-group-form">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-warning btn-sm rounded-pill px-3 shadow-sm text-dark"><i class="bi bi-folder-x"></i> Close Group</button>
+                <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 shadow-sm text-dark ajax-close-btn"><i class="bi bi-folder-x"></i> Close Group</button>
               </form>
             {% else %}
               <span class="badge rounded-pill bg-light text-secondary border px-3 py-2 shadow-sm text-center">Closed</span>
@@ -245,7 +307,7 @@
                   <td>
                     ₹{{ row.remaining|floatformat:2 }}
                     {% if row.overdue and not group.group.is_closed %}
-                      <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle ms-2 px-2 py-0.5" style="font-size: 11px;">
+                      <span class="badge rounded-pill bg-danger-subtle text-danger text-white border border-danger-subtle ms-2 px-2 py-0.5" style="font-size: 11px;">
                         Overdue ₹{{ row.overdue_amount|floatformat:2 }}
                       </span>
                     {% endif %}
@@ -313,7 +375,12 @@
                     <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1">{{ note.get_adjustment_type_display }}</span>
                   </td>
                   <td class="fw-bold">₹{{ note.amount|floatformat:2 }}</td>
-                  <td>{{ note.remarks|default:"--" }}</td>
+                  <td>
+                    {% if note.group %}
+                      <span class="badge rounded-pill bg-dark text-white px-2 py-1 me-1" style="font-size: 11px;">From: {{ note.group.name }} (Bal: ₹{{ note.group.remaining_balance|floatformat:2 }})</span>
+                    {% endif %}
+                    {{ note.remarks|default:"--" }}
+                  </td>
                   <td class="text-nowrap">{{ note.created_at|date:"F d, Y H:i" }}</td>
                   <td>{{ note.created_by.get_full_name|default:note.created_by.username }}</td>
                 </tr>
@@ -392,7 +459,7 @@
     <form method="POST" action="{% url 'update_group_balance' group.group.id %}" enctype="multipart/form-data" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
       {% csrf_token %}
       <div class="modal-header">
-        <h5 class="modal-title fw-bold text-dark" id="updateBalanceModalLabel{{ group.group.id }}">Update Balance for {{ group.group.name }}</h5>
+        <h5 class="modal-title fw-bold text-dark" id="updateBalanceModalLabel{{ group.group.id }}">Update Balance for <span class="group-name-display-{{ group.group.id }}">{{ group.group.name }}</span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4 text-dark">
@@ -401,9 +468,91 @@
           <input type="number" step="0.01" name="new_amount" class="form-control rounded-3" required>
         </div>
         <div class="mb-3">
+          <label for="assign_date" class="form-label fw-semibold">Date of Assignment:</label>
+          <input type="date" name="assign_date" class="form-control rounded-3" required>
+        </div>
+        <div class="mb-3">
+          <label for="payment_mode" class="form-label fw-semibold">Payment Mode:</label>
+          <select name="payment_mode" class="form-select rounded-3" required>
+            <option value="net_banking">Net Banking</option>
+            <option value="credit_card">Credit Card</option>
+            <option value="debit_card">Debit Card</option>
+            <option value="cash">Cash</option>
+            <option value="cheque">Cheque</option>
+            <option value="upi">UPI</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="mb-3">
           <label for="proof_file" class="form-label fw-semibold">Upload Proof:</label>
           <input type="file" name="proof_file" class="form-control rounded-3" required>
         </div>
+        
+        {% if group.available_credit_notes %}
+        <div class="mb-3 p-3 bg-light rounded-3 border">
+          <label class="form-label fw-semibold text-dark mb-2">Available Credit Notes for {{ group.leader.username|default:"Leader" }} (Optional):</label>
+          <div style="max-height: 150px; overflow-y: auto;" class="border rounded-3 p-2 bg-white">
+            {% for cn in group.available_credit_notes %}
+            <div class="form-check mb-2 pb-2 border-bottom">
+              <input class="form-check-input update-cn-checkbox" type="checkbox" name="selected_credit_notes" value="{{ cn.id }}" id="cn_{{ cn.id }}_{{ group.group.id }}" data-amount="{{ cn.amount|stringformat:'f' }}">
+              <label class="form-check-label d-flex justify-content-between" for="cn_{{ cn.id }}_{{ group.group.id }}">
+                <span>
+                  {% if cn.group %}
+                    <span class="badge rounded-pill bg-dark text-white px-2 py-1 me-1" style="font-size: 11px;">From: {{ cn.group.name }} (Bal: ₹{{ cn.group.remaining_balance|floatformat:2 }})</span>
+                  {% endif %}
+                  {{ cn.created_at|date:"d M Y" }}
+                  {% if cn.remarks %}<small class="text-muted d-block">{{ cn.remarks }}</small>{% endif %}
+                </span>
+                <span class="text-success fw-bold">₹{{ cn.amount|floatformat:2 }}</span>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mt-2 text-end small">
+            <strong>Selected Credit Notes Total: ₹<span id="cnTotal_{{ group.group.id }}">0.00</span></strong>
+          </div>
+          <div class="mt-1 text-end fw-bold text-success" id="netCashDisplay_{{ group.group.id }}" style="display: none;">
+            <i class="bi bi-cash-coin me-1"></i> Net Cash to Pay (₹): <span id="netCashAmount_{{ group.group.id }}">0.00</span>
+          </div>
+        </div>
+        
+        <script>
+          document.addEventListener("DOMContentLoaded", function() {
+            const checkboxes = document.querySelectorAll('#updateBalanceModal{{ group.group.id }} .update-cn-checkbox');
+            const totalSpan = document.getElementById('cnTotal_{{ group.group.id }}');
+            const newAmountInput = document.querySelector('#updateBalanceModal{{ group.group.id }} input[name="new_amount"]');
+            const netCashDisplay = document.getElementById('netCashDisplay_{{ group.group.id }}');
+            const netCashAmount = document.getElementById('netCashAmount_{{ group.group.id }}');
+            
+            function calculateNetCash() {
+              let total = 0;
+              checkboxes.forEach(box => {
+                if(box.checked) {
+                  total += parseFloat(box.dataset.amount || 0);
+                }
+              });
+              totalSpan.textContent = total.toFixed(2);
+              
+              const advanceVal = parseFloat(newAmountInput.value) || 0;
+              if (total > 0 || advanceVal > 0) {
+                  const net = Math.max(0, advanceVal - total);
+                  netCashAmount.textContent = net.toFixed(2);
+                  netCashDisplay.style.display = 'block';
+              } else {
+                  netCashDisplay.style.display = 'none';
+              }
+            }
+            
+            checkboxes.forEach(cb => {
+              cb.addEventListener('change', calculateNetCash);
+            });
+            
+            if (newAmountInput) {
+              newAmountInput.addEventListener('input', calculateNetCash);
+            }
+          });
+        </script>
+        {% endif %}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Close</button>
@@ -414,6 +563,10 @@
 </div>
 {% endif %}
 {% endfor %}
+
+<!-- jQuery (required for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
   // Smooth Page Transition
@@ -441,13 +594,127 @@
         }, 350);
       });
     });
+
+    $('#groupSelect').select2({
+      placeholder: "-- All Groups --",
+      allowClear: true,
+      width: "250px"
+    });
   });
 </script>
 
-{% if messages %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
+    // AJAX for closing groups
+    document.querySelectorAll('.ajax-close-btn').forEach(button => {
+      button.addEventListener('click', function (e) {
+        e.preventDefault();
+        const form = this.closest('form');
+        const actionUrl = form.getAttribute('action');
+        const formData = new FormData(form);
+
+        fetch(actionUrl, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            Swal.fire({
+              icon: 'success',
+              title: data.message,
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            // Replace form and update balance button with Closed badge
+            const container = form.parentElement;
+            container.innerHTML = '<span class="badge rounded-pill bg-light text-secondary border px-3 py-2 shadow-sm text-center">Closed</span>';
+          } else {
+            Swal.fire({
+              icon: 'warning',
+              title: data.message,
+              timer: 2500,
+              showConfirmButton: false,
+            });
+          }
+        })
+        .catch(error => console.error('Error:', error));
+      });
+    });
+
+    // AJAX Rename Group Handler
+    document.querySelectorAll('.rename-group-form').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const groupId = this.getAttribute('data-group-id');
+        const input = this.querySelector('input[name="new_name"]');
+        const newName = input.value.trim();
+        const submitBtn = this.querySelector('.rename-submit-btn');
+        const modalEl = document.getElementById(`renameGroupModal${groupId}`);
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+        if (!newName) return;
+
+        if (submitBtn) submitBtn.disabled = true;
+
+        fetch(this.action, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': this.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({'new_name': newName})
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (submitBtn) submitBtn.disabled = false;
+          if (data.success) {
+            document.querySelectorAll(`.group-name-display-${groupId}`).forEach(el => {
+              el.textContent = data.new_name;
+            });
+            if (modal) modal.hide();
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'success',
+                title: `Group successfully renamed to '${data.new_name}'.`,
+                timer: 2000,
+                showConfirmButton: false
+              });
+            }
+          } else {
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: data.message || 'Failed to rename group.',
+                timer: 2500,
+                showConfirmButton: false
+              });
+            } else {
+              alert(data.message || 'Failed to rename group.');
+            }
+          }
+        })
+        .catch(err => {
+          if (submitBtn) submitBtn.disabled = false;
+          console.error('Error renaming group:', err);
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              icon: 'error',
+              title: 'An error occurred while renaming the group.',
+              timer: 2500,
+              showConfirmButton: false
+            });
+          }
+        });
+      });
+    });
+
+    {% if messages %}
     {% for message in messages %}
       Swal.fire({
         icon: "{% if message.tags == 'error' %}error{% else %}success{% endif %}",
@@ -456,8 +723,33 @@
         showConfirmButton: false,
       });
     {% endfor %}
+    {% endif %}
   });
 </script>
-{% endif %}
+
+<!-- Rename Group Modals -->
+{% for group in group_data %}
+<div class="modal fade" id="renameGroupModal{{ group.group.id }}" tabindex="-1" aria-labelledby="renameGroupModalLabel{{ group.group.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-light border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold" id="renameGroupModalLabel{{ group.group.id }}"><i class="bi bi-pencil-square text-primary me-2"></i>Rename Group</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{% url 'rename_group' group.group.id %}" class="rename-group-form" data-group-id="{{ group.group.id }}">
+        {% csrf_token %}
+        <div class="modal-body pt-3 pb-4">
+          <label class="form-label fw-semibold text-secondary small">Group Name</label>
+          <input type="text" name="new_name" class="form-control rounded-3" value="{{ group.group.name }}" required>
+        </div>
+        <div class="modal-footer border-top-0 pt-0 bg-light rounded-bottom-4">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm rename-submit-btn">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
 
 {% endblock %}

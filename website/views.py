@@ -1,3 +1,4 @@
+import urllib.parse
 from website.models import Holiday
 from collections import defaultdict
 import decimal
@@ -23,7 +24,7 @@ from .models import CashVoucher, FCMToken
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from .models import CashVoucher, Expense
-from django.db.models import Q
+from django.db.models import Q, Count, Exists, OuterRef
 
 
 
@@ -184,6 +185,7 @@ def item_form(request):
     transaction_date_from = request.GET.get('transaction_date_from', None)
     transaction_date_to = request.GET.get('transaction_date_to', None)
     item_type_filter = request.GET.get('item_type', '')
+    advance_group_id = request.GET.get('advance_group_id', '')
     sort_by_item_type = request.GET.get('sort_by_item_type', '0').strip()
     sort_delete_requested = request.GET.get('sort_delete_requested', '0').strip()
     sort_approval_status = request.GET.get('sort_approval_status', '0').strip()
@@ -223,7 +225,18 @@ def item_form(request):
     # Apply item type filter
     if item_type_filter:
         print("ITEM TYPE FILTER APPLIED")
-        expenses = expenses.filter(item_type=item_type_filter)
+        if item_type_filter == 'advances' and search_query:
+            # If user is filtering by advances AND searching, show advances OR vouchers related to the searched advance group
+            expenses = expenses.filter(
+                Q(item_type='advances') | 
+                Q(advance_group__name__icontains=search_query) |
+                Q(advance_group__expense__evoucher_number__icontains=search_query)
+            ).distinct()
+        else:
+            expenses = expenses.filter(item_type=item_type_filter)
+            
+        if item_type_filter == 'advances' and advance_group_id:
+            expenses = expenses.filter(advance_group_id=advance_group_id)
 
     # Annotate proof count
     expenses = expenses.annotate(proof_count=Count('proof_photos'))
@@ -241,8 +254,9 @@ def item_form(request):
             Q(transaction_date__icontains=search_query) |
             Q(created_by__username__icontains=search_query) |
             Q(amount__icontains=search_query) |
-            Q(evoucher_number__icontains=search_query)
-        )
+            Q(evoucher_number__icontains=search_query) |
+            Q(advance_group__name__icontains=search_query)
+        ).distinct()
 
 
     # Apply date filters
@@ -337,7 +351,10 @@ def item_form(request):
     if show_rejected == "1":
         expenses = expenses.filter(is_rejected=True).order_by("-transaction_date")
 
-    for exp in expenses:
+    paginator = Paginator(expenses, 50)
+    page_obj = paginator.get_page(page_number)
+
+    for exp in page_obj.object_list:
         exp.has_pending_tip = exp.cash_vouchers.filter(
             voucher_number__startswith="XPCV", status="pending"
         ).exists()
@@ -366,19 +383,30 @@ def item_form(request):
         else:
             exp.derived_km = exp.km
 
-    paginator = Paginator(expenses, 50)
-    page_obj = paginator.get_page(page_number)
-
     # --- Generate evoucher number ---
     evoucher_number = generate_evoucher_number()
     all_users = User.objects.filter(is_active=True).order_by('username')
+    from website.models import AdvanceGroup
+    all_advance_groups = AdvanceGroup.objects.all().order_by('-created_at')
 
     # --- Context (use page_obj.object_list, not full queryset) ---
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'evoucher_number': evoucher_number,
         'current_date': datetime.today().date(),
         'expenses': page_obj,              # ✅ use only paginated subset
         'page_obj': page_obj,              # ✅ template pagination
+        'all_advance_groups': all_advance_groups,
+        'selected_advance_group_id': advance_group_id,
         'approved_vouchers': approved_vouchers,
         'transaction_date_from': transaction_date_from,
         'transaction_date_to': transaction_date_to,
@@ -435,7 +463,14 @@ def transaction(request):
 
     # Apply other filters
     if item_type_filter:
-        expenses = expenses.filter(item_type=item_type_filter)
+        if item_type_filter == 'advances' and search_query:
+            expenses = expenses.filter(
+                Q(item_type='advances') | 
+                Q(advance_group__name__icontains=search_query) |
+                Q(advance_group__expense__evoucher_number__icontains=search_query)
+            ).distinct()
+        else:
+            expenses = expenses.filter(item_type=item_type_filter)
 
     if transaction_date_from:
         try:
@@ -456,8 +491,9 @@ def transaction(request):
             Q(evoucher_number__icontains=search_query) |
             Q(item_type__icontains=search_query) |
             Q(transaction_date__icontains=search_query) |
-            Q(transaction_details__icontains=search_query)
-        )
+            Q(transaction_details__icontains=search_query) |
+            Q(advance_group__name__icontains=search_query)
+        ).distinct()
 
     # Prepare data for the summary
     summary_data = []
@@ -500,7 +536,17 @@ def transaction(request):
         return export_pdf(summary_data)
 
     # Context for rendering the template
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'summary_data': summary_data,
         'transaction_date_from': transaction_date_from,
         'transaction_date_to': transaction_date_to,
@@ -726,7 +772,26 @@ def assign_advances(request):
         leader_id = request.POST.get("leader")
         payment_mode = request.POST.get("payment_mode", "net_banking")
         assign_date_str = request.POST.get("assign_date")
+        
+        site_id = request.POST.get("site")
+        advance_type = request.POST.get("advance_type")
 
+        # Validate Site and Advance Type logic
+        if advance_type in ["Site AMC", "Site Project"] and not site_id:
+            messages.error(request, "A Site must be selected for Site AMC or Site Project advances.")
+            return redirect("assign_advances")
+        elif advance_type in ["Office Maintenance", "Food and Groceries"]:
+            site_id = None  # Clear site if not site-specific
+            
+        if advance_type == "Site AMC" and site_id:
+            from apage.models import SiteAMC
+            from datetime import date
+            amc = SiteAMC.objects.filter(site_id=site_id, has_amc=True).first()
+            if not amc:
+                messages.error(request, "The selected site does not have an active AMC.")
+                return redirect("assign_advances")
+
+            
         print(f"➡️ Group: {group_name}")
         print(f"➡️ Users: {user_ids}")
         print(f"➡️ Leader: {leader_id}")
@@ -780,10 +845,16 @@ def assign_advances(request):
                     name=group_name,
                     total_advance=0,
                     payment_mode=payment_mode,
-                    created_at=custom_date
+                    created_at=custom_date,
+                    site_id=site_id if site_id else None,
+                    advance_type=advance_type
                 )
             else:
                 group.payment_mode = payment_mode
+                if site_id:
+                    group.site_id = site_id
+                if advance_type:
+                    group.advance_type = advance_type
                 group.save()
 
             previous_amount = group.total_advance
@@ -1031,7 +1102,27 @@ def assign_advances(request):
 
     print("➡️ Rendering page now...\n")
 
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
+    available_credit_notes = []
+    if selected_group and leader_id:
+        from .models import AdvanceAdjustment
+        leader_user = User.objects.filter(id=leader_id).first()
+        if leader_user:
+            available_credit_notes = list(AdvanceAdjustment.objects.filter(
+                user=leader_user,
+                is_used=False
+            ).order_by("-created_at"))
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "users": User.objects.filter(is_active=True),
         "groups": AdvanceGroup.objects.filter(is_closed=False),
         "selected_group": selected_group,
@@ -1040,6 +1131,7 @@ def assign_advances(request):
         "show_balance": show_balance,
         "show_manage": show_manage,
         "show_history": show_history,
+        "available_credit_notes": available_credit_notes,
         "logs": sorted(logs, key=lambda log: log.timestamp, reverse=True),
         "first_log": first_log,
         "assigned_user_ids_map": {
@@ -1326,10 +1418,18 @@ def view_assigned_groups(request):
             cleared_amount = overdue
 
         initial_proof = group.proof_file.url if hasattr(group, "proof_file") and group.proof_file else None
-        update_proofs = [log.proof_file.url for log in group.update_logs.all() if log.proof_file]
+        update_proofs = [{"url": log.proof_file.url, "remarks": log.remarks, "amount": log.new_amount - log.previous_amount} for log in group.update_logs.all() if log.proof_file]
 
         attached_notes = list(group.attached_credit_notes.all().order_by("-created_at"))
         attached_total = group.attached_credit_notes.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        
+        available_credit_notes = []
+        if group.leader:
+            from .models import AdvanceAdjustment
+            available_credit_notes = list(AdvanceAdjustment.objects.filter(
+                user=group.leader, 
+                is_used=False
+            ).order_by("-created_at"))
 
         group_data.append(
             {
@@ -1339,6 +1439,7 @@ def view_assigned_groups(request):
                 "adjustments": list(group.adjustments.all().order_by("-created_at")),
                 "attached_credit_notes": attached_notes,
                 "attached_credit_notes_total": attached_total,
+                "available_credit_notes": available_credit_notes,
                 "remaining_balance": group.remaining_balance,   # <-- DB value
                 "calculated_remaining": remaining,              # <-- may be negative
                 "overdue_amount": overdue,
@@ -1418,7 +1519,7 @@ def export_advances_excel(request):
     # Base header
     base_header = [
         "GROUP NAME", "LEADER", "ASSIGNED USERS", "DATE OF ASSIGNMENT", "PAYMENT MODE", 
-        "USER", "ITEM", "CREDIT", "DEBIT", "REMAINING", "DATE"
+        "USER", "ITEM", "CREDIT (₹)", "DEBIT (₹)", "REMAINING (₹)", "FINAL REMAINING (₹)", "TOTAL OVERSPENT (₹)", "DATE"
     ]
     ws.append(base_header)
 
@@ -1430,11 +1531,12 @@ def export_advances_excel(request):
             item_type="advances",
             status__in=["pending", "paid"],
             is_draft=False,
+            is_allocation=False,  # Exclude initial allocation / credit voucher from debits
         ).order_by("date", "id")
 
         # All proof files for this group
         proof_files = [
-            request.build_absolute_uri(log.proof_file.url)
+            request.build_absolute_uri(log.proof_file.url).replace("http://", "https://").replace("xpredictlabs.com", "xpredictlabs.com:9001") if not request.get_host().startswith("127.0.0.1") and not request.get_host().startswith("localhost") else request.build_absolute_uri(log.proof_file.url)
             for log in group.update_logs.all()
             if log.proof_file
         ]
@@ -1449,37 +1551,46 @@ def export_advances_excel(request):
         date_of_assignment = group.created_at.strftime("%B %d, %Y") if group.created_at else "-"
         payment_mode_display = dict(group._meta.get_field('payment_mode').choices).get(group.payment_mode, group.payment_mode) if group.payment_mode else "-"
 
-        if not group_expenses.exists():
-            # Output a single row for the group if it has no expenses
-            row_data = [
-                group.name,
-                leader_name,
-                assigned_users,
-                date_of_assignment,
-                payment_mode_display,
-                "-", # USER
-                "-", # ITEM
-                f"₹{(group.total_advance or 0):.2f}", # CREDIT
-                "₹0.00", # DEBIT
-                f"₹{(group.total_advance or 0):.2f}", # REMAINING
-                "-", # DATE
-            ]
-            for proof_url in proof_files:
-                row_data.append(proof_url)
+        # Precompute final remaining and overspent amounts for the group row columns
+        group_total = group.total_advance or Decimal("0.00")
+        total_expenses = sum([exp.amount or Decimal("0.00") for exp in group_expenses])
+        final_balance_calc = group_total - total_expenses
+        final_remaining_val = float(final_balance_calc) if final_balance_calc > 0 else 0.00
+        total_overspent_val = float(abs(final_balance_calc)) if final_balance_calc < 0 else 0.00
 
-            ws.append(row_data)
+        # First, output a single row for the initial advance credit
+        credit_amount = group.total_advance or Decimal("0.00")
+        credit_row = [
+            group.name,
+            leader_name,
+            assigned_users,
+            date_of_assignment,
+            payment_mode_display,
+            "-", # USER
+            "Advance Assigned", # ITEM
+            float(credit_amount), # CREDIT
+            "", # DEBIT
+            float(credit_amount), # RUNNING REMAINING
+            final_remaining_val, # FINAL REMAINING
+            total_overspent_val, # TOTAL OVERSPENT
+            group.created_at.strftime("%B %d, %Y") if group.created_at else "-", # DATE
+        ]
+        
+        for proof_url in proof_files:
+            credit_row.append(proof_url)
 
-            col_offset = len(base_header)
-            for i, proof_url in enumerate(proof_files):
-                cell = ws.cell(row=row_idx, column=col_offset + i + 1)
-                cell.hyperlink = proof_url
-                cell.value = f"Proof {i+1}"
-                cell.style = "Hyperlink"
-            row_idx += 1
-            continue
+        ws.append(credit_row)
 
-        current_balance = group.total_advance or Decimal("0.00")
-
+        col_offset = len(base_header)
+        for i, proof_url in enumerate(proof_files):
+            cell = ws.cell(row=row_idx, column=col_offset + i + 1)
+            cell.hyperlink = proof_url
+            cell.value = f"Proof {i+1}"
+            cell.style = "Hyperlink"
+        row_idx += 1
+        
+        # Then, output each expense as a debit row
+        current_balance = credit_amount
         for exp in group_expenses:
             user = exp.created_by
             if not user:
@@ -1489,7 +1600,6 @@ def export_advances_excel(request):
             current_balance = current_balance - debit
             remaining = current_balance
 
-            # Base row data
             row_data = [
                 group.name,
                 leader_name,
@@ -1498,28 +1608,21 @@ def export_advances_excel(request):
                 payment_mode_display,
                 user.get_full_name() or user.username,
                 exp.item_name or "Unnamed",
-                f"₹{(group.total_advance or 0):.2f}",
-                f"₹{debit:.2f}",
-                f"₹{remaining:.2f}",
+                "", # CREDIT
+                float(debit), # DEBIT
+                float(remaining), # REMAINING
+                final_remaining_val,
+                total_overspent_val,
                 exp.date.strftime("%B %d, %Y") if exp.date else "-",
             ]
 
-            # Add proof columns
             for proof_url in proof_files:
-                row_data.append(proof_url)
+                row_data.append("")
 
-            # Write row
             ws.append(row_data)
-
-            # Add clickable hyperlinks for proofs
-            col_offset = len(base_header)  # starting column index for proofs
-            for i, proof_url in enumerate(proof_files):
-                cell = ws.cell(row=row_idx, column=col_offset + i + 1)
-                cell.hyperlink = proof_url
-                cell.value = f"Proof {i+1}"
-                cell.style = "Hyperlink"
-
             row_idx += 1
+
+        pass
 
     # Auto-adjust column width
     for i, col in enumerate(ws.columns, 1):
@@ -1597,6 +1700,18 @@ def update_group_balance(request, group_id):
     group.save()
     print(f"➡️ Previous Total: {prev}, Updated Total: {group.total_advance}")
 
+    # Attach selected credit notes to the group
+    selected_credit_note_ids = request.POST.getlist("selected_credit_notes")
+    if selected_credit_note_ids:
+        from .models import AdvanceAdjustment
+        AdvanceAdjustment.objects.filter(
+            id__in=selected_credit_note_ids,
+            is_used=False
+        ).update(
+            is_used=True,
+            attached_group=group
+        )
+
     # Recalculate used, remaining, overdue
     used, remaining, overdue = calculate_group_balances(group)
 
@@ -1610,13 +1725,33 @@ def update_group_balance(request, group_id):
     proof_file = request.FILES.get("proof_file")
 
     # Log the update
-    AdvanceGroupUpdateLog.objects.create(
+    log = AdvanceGroupUpdateLog.objects.create(
         group=group,
         previous_amount=prev,
         new_amount=group.total_advance,
         updated_by=request.user,
         proof_file=proof_file
     )
+    
+    assign_date_str = request.POST.get("assign_date")
+    payment_mode = request.POST.get("payment_mode")
+    
+    if assign_date_str:
+        try:
+            from datetime import datetime
+            from django.utils import timezone
+            parsed_date = datetime.strptime(assign_date_str, "%Y-%m-%d")
+            current_time = timezone.now().time()
+            custom_date = timezone.make_aware(datetime.combine(parsed_date, current_time))
+            log.timestamp = custom_date
+            log.save(update_fields=['timestamp'])
+        except Exception as e:
+            print("Error parsing assign_date:", e)
+            
+    if payment_mode:
+        group.payment_mode = payment_mode
+        group.save(update_fields=['payment_mode'])
+
     print("➡️ Update log saved")
 
     print("====== ALLOCATION EXPENSE UPDATE CHECK ======")
@@ -1631,10 +1766,22 @@ def update_group_balance(request, group_id):
         print(f"➡️ Found allocation expense: ID {allocation_expense.id}")
 
         allocation_expense.amount = group.total_advance
-        allocation_expense.transaction_date = timezone.now().date()
+        
+        if assign_date_str:
+            try:
+                from datetime import datetime
+                parsed_date = datetime.strptime(assign_date_str, "%Y-%m-%d")
+                allocation_expense.transaction_date = parsed_date.date()
+            except ValueError:
+                pass
+        else:
+            allocation_expense.transaction_date = timezone.now().date()
+            
         allocation_expense.item_name = group.name
 
-        if hasattr(group, "payment_mode"):
+        if payment_mode:
+            allocation_expense.payment_mode = payment_mode
+        elif hasattr(group, "payment_mode"):
             print(f"➡️ Updating payment mode to: {group.payment_mode}")
             allocation_expense.payment_mode = group.payment_mode
 
@@ -1718,7 +1865,7 @@ def new_item_form(request, user_id):
         evoucher_number = request.POST.get("e_voucher_number")
         transaction_dates = request.POST.getlist('transaction_date', [])
         transaction_date = next(
-                (datetime.strptime(date.strip(), "%Y-%m-%d").date() for date in transaction_dates if date.strip()),
+                (datetime.strptime(t_date.strip(), "%Y-%m-%d").date() for t_date in transaction_dates if t_date.strip()),
                 None,
             )
         bill_photo = request.FILES.get("bill_photo")
@@ -1928,10 +2075,10 @@ def new_item_form(request, user_id):
         # Fetch the Cash Voucher details from the form
                 cv_amount = request.POST.get("cvamount", "").strip()
                 paid_to = request.POST.get("paid_to", "").strip()
-                cv_item_name = request.POST.get("item_name", "").strip()
-                cv_transaction_date = request.POST.get("transaction_date", "").strip()
+                cv_item_name = request.POST.get("tip_item_name", "").strip()
+                cv_transaction_date = request.POST.get("tip_transaction_date", "").strip()
                 cv_voucher_number = request.POST.get("tip_voucher_number", "")
-                tip_proof_photo = request.FILES.get("proof_photo") 
+                tip_proof_photo = request.FILES.get("tip_proof_photo") 
 
                 # Validate all required fields
                 if not (cv_amount and paid_to and cv_item_name and cv_transaction_date):
@@ -2016,7 +2163,16 @@ def new_item_form(request, user_id):
     except:
         restrict_transaction_date = True
 
+    from apage.models import Site, SiteAMC
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "approved_vouchers": approved_vouchers,
         "evoucher_number": evoucher_number,
         "current_date": current_date,
@@ -2075,9 +2231,33 @@ from django.contrib import messages
 def delete_group(request, group_id):
     group = get_object_or_404(AdvanceGroup, id=group_id)
     group_name = group.name
+    
+    # Delete all evouchers (allocated advances and used evouchers) linked to this group
+    from .models import Expense
+    Expense.objects.filter(advance_group=group).delete()
+    
     group.delete()
-    messages.success(request, f"Group '{group_name}' has been deleted.")
+    messages.success(request, f"Group '{group_name}' and its associated eVouchers have been deleted.")
     return redirect('view_assigned_groups')  # Update this to your group listing URL name
+
+
+@require_POST
+def rename_group(request, group_id):
+    group = get_object_or_404(AdvanceGroup, id=group_id)
+    new_name = request.POST.get('new_name', '').strip()
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
+    
+    if new_name:
+        group.name = new_name
+        group.save()
+        if is_ajax:
+            return JsonResponse({'success': True, 'new_name': group.name, 'group_id': group.id})
+        messages.success(request, f"Group successfully renamed to '{new_name}'.")
+    else:
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': "Group name cannot be empty."}, status=400)
+        messages.error(request, "Group name cannot be empty.")
+    return redirect('view_assigned_groups')
 
 
 
@@ -2100,7 +2280,16 @@ def draft_vouchers(request):
             created_by=user
         )
 
+    from apage.models import Site, SiteAMC
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "expenses": draft_vouchers
     }
 
@@ -2291,7 +2480,17 @@ def approved_vouchers(request):
     total_amount = vouchers.aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
     # Prepare context with vouchers and total amount
-    context = {'vouchers': vouchers, 'total_amount': total_amount}
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
+    context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+'vouchers': vouchers, 'total_amount': total_amount}
 
     return render(request, 'xp/approved_vouchers.html', context)
 
@@ -2302,7 +2501,17 @@ def rejected_vouchers(request):
     else:
          rejected_vouchers = CashVoucher.objects.filter(created_by=user, status='rejected')
 
-    context = {'rejected_vouchers': rejected_vouchers}
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
+    context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+'rejected_vouchers': rejected_vouchers}
     return render(request, 'xp/rejected_vouchers.html', context)
 
 
@@ -2461,7 +2670,17 @@ def e_voucher_page(request):
     # Fetch all Expense records, ordered by the most recent submission
     expenses = Expense.objects.all().order_by('-id')  # Assuming you have a 'created_at' timestamp field
 
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'expenses': expenses,
     }
 
@@ -2534,7 +2753,17 @@ def expense_details(request, expense_id):
     View to show the details of a specific expense.
     """
     expense = get_object_or_404(Expense, id=expense_id)
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'expense': expense
     }
     return render(request, 'xp/expense_details.html', context)
@@ -2632,7 +2861,17 @@ def new_cash_voucher_form(request):
     # GET request: fetch all existing vouchers
     cash_vouchers = CashVoucher.objects.all()
     cv_voucher_number =generate_voucher_number()
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'current_date': current_date,
         'cash_vouchers': cash_vouchers,  # Pass the list of vouchers
         'cv_voucher_number':cv_voucher_number,
@@ -2647,6 +2886,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+
 
 
 def edit_item(request, item_id):
@@ -2683,7 +2923,7 @@ def edit_item(request, item_id):
         evoucher_number = data.get("e_voucher_number", expense.evoucher_number)
         transaction_dates = data.getlist("transaction_date", [])
         transaction_date = next(
-            (datetime.strptime(date.strip(), "%Y-%m-%d").date() for date in transaction_dates if date.strip()),
+            (datetime.strptime(t_date.strip(), "%Y-%m-%d").date() for t_date in transaction_dates if t_date.strip()),
             expense.transaction_date,
         )
 
@@ -2715,23 +2955,36 @@ def edit_item(request, item_id):
         else:
             is_draft = False   # 🔥 force exit draft on normal submit
 
+        # --- Pre-calculate Borrowed Amounts for accurate balance check ---
+        borrowed_amounts = data.getlist("borrowed_amounts[]")
+        borrowed_froms = data.getlist("borrowed_froms[]")
+        calculated_remaining_amount = Decimal(str(total_amount or 0))
+        for b_amt, b_from in zip(borrowed_amounts, borrowed_froms):
+            if b_amt and b_from:
+                b_amt_decimal = Decimal(b_amt)
+                if b_amt_decimal <= calculated_remaining_amount:
+                    calculated_remaining_amount -= b_amt_decimal
+
         # --- AdvanceGroup validation if applicable ---
         selected_group_id = data.get("selected_group_id")
-        if item_type == "advances" and selected_group_id:
+        group = None
+        if item_type == "advances":
+            if not selected_group_id:
+                messages.error(request, "Please select an Advance Group.")
+                return redirect("edit_item", item_id=item_id)
+            
             try:
                 group = AdvanceGroup.objects.get(id=selected_group_id)
                 
                 # Check if current expense amount is already in used_advance
-                is_counted = (expense.advance_group == group and 
+                is_counted = (expense.advance_group_id == group.id and 
                               not expense.is_rejected and 
                               not expense.is_draft and 
                               expense.status != 'rejected')
                 
+                # We allow over-utilizing the advance, so no balance check is enforced here.
+                # Just calculate the available balance for debugging or future reference.
                 available_balance = group.remaining_balance + (expense.amount if is_counted else Decimal("0.00"))
-                
-                if available_balance < Decimal(str(total_amount or 0)):
-                    messages.error(request, "Insufficient group balance.")
-                    return redirect("edit_item", item_id=item_id)
             except AdvanceGroup.DoesNotExist:
                 messages.error(request, "Selected group not found.")
                 return redirect("edit_item", item_id=item_id)
@@ -2804,10 +3057,8 @@ def edit_item(request, item_id):
                 ProofPhoto.objects.create(expense=expense, file=file)
 
         # --- Handle borrowed amounts ---
-        borrowed_amounts = data.getlist("borrowed_amounts[]")
-        borrowed_froms = data.getlist("borrowed_froms[]")
         BorrowedAmount.objects.filter(expense=expense).delete()
-        remaining_amount = Decimal(total_amount)
+        remaining_amount = Decimal(str(total_amount or 0))
         for b_amt, b_from in zip(borrowed_amounts, borrowed_froms):
             if b_amt and b_from:
                 b_amt_decimal = Decimal(b_amt)
@@ -2839,10 +3090,10 @@ def edit_item(request, item_id):
         if "tips_checkbox" in data and data.get("tips_checkbox") == "on":
             cv_amount = data.get("cvamount", "").strip()
             paid_to = data.get("paid_to", "").strip()
-            cv_item_name = data.get("item_name", "").strip()
-            cv_transaction_date = data.get("transaction_date", "").strip()
+            cv_item_name = data.get("tip_item_name", "").strip()
+            cv_transaction_date = data.get("tip_transaction_date", "").strip()
             cv_voucher_number = data.get("tip_voucher_number", "")
-            tip_proof_photo = files.get("proof_photo")
+            tip_proof_photo = files.get("tip_proof_photo")
 
             if cv_amount and paid_to and cv_item_name and cv_transaction_date:
                 try:
@@ -2903,7 +3154,16 @@ def edit_item(request, item_id):
     print("DEBUG internal_option:", expense.internal_option)
     print("DEBUG type:", type(expense.internal_option))
     print("WORKING")
+    from apage.models import Site, SiteAMC
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "expense": expense,
         "approved_vouchers": approved_vouchers,
         "current_date": current_date,
@@ -3220,6 +3480,10 @@ def export_vouchers(request):
 #         is_draft=False, delete_requested=False
 #     ).order_by("transaction_date", "id")
 #     site_url = request.build_absolute_uri('/')[:-1]
+    if not request.get_host().startswith('127.0.0.1') and not request.get_host().startswith('localhost'):
+        site_url = site_url.replace('http://', 'https://')
+        if 'xpredictlabs.com' in site_url and ':9001' not in site_url:
+            site_url = site_url.replace('xpredictlabs.com', 'xpredictlabs.com:9001')
 #     if user_id:
 #         expenses = expenses.filter(created_by_id=user_id)
 
@@ -3441,7 +3705,11 @@ def export_to_xlsx(request):
         "fg_color": "#D9E1F2", "num_format": "dd-mmm-yyyy"
     })
 
-    site_url = request.build_absolute_uri("/")[:-1]
+    site_url = request.build_absolute_uri('/')[:-1]
+    if not request.get_host().startswith('127.0.0.1') and not request.get_host().startswith('localhost'):
+        site_url = site_url.replace('http://', 'https://')
+        if 'xpredictlabs.com' in site_url and ':9001' not in site_url:
+            site_url = site_url.replace('xpredictlabs.com', 'xpredictlabs.com:9001')
     user_id = request.GET.get("created_by")
 
     # ---------- Fetch Expenses ----------
@@ -3715,6 +3983,10 @@ def export_to_pdf(request):
 
     vouchers = get_filtered_expenses(request)
     site_url = request.build_absolute_uri('/')[:-1]
+    if not request.get_host().startswith('127.0.0.1') and not request.get_host().startswith('localhost'):
+        site_url = site_url.replace('http://', 'https://')
+        if 'xpredictlabs.com' in site_url and ':9001' not in site_url:
+            site_url = site_url.replace('xpredictlabs.com', 'xpredictlabs.com:9001')
     html_content = """
     <html>
     <head><style>
@@ -3877,6 +4149,10 @@ def export_to_csv(request):
     ])
     expenses = get_filtered_expenses(request)
     site_url = request.build_absolute_uri('/')[:-1]
+    if not request.get_host().startswith('127.0.0.1') and not request.get_host().startswith('localhost'):
+        site_url = site_url.replace('http://', 'https://')
+        if 'xpredictlabs.com' in site_url and ':9001' not in site_url:
+            site_url = site_url.replace('xpredictlabs.com', 'xpredictlabs.com:9001')
 
     for idx, expense in enumerate(expenses, start=1):
         payment_category = dict(expense.PAYMENT_OPTIONS).get(expense.transaction_option, expense.transaction_option or "")
@@ -4001,7 +4277,17 @@ def search_vouchers(request):
             paid_to__icontains=query
         )
 
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'vouchers': vouchers,
         'cash_vouchers': cash_vouchers,
         'query': query,
@@ -4094,7 +4380,17 @@ def export_cash_vouchers_pdf(request):
     vouchers = CashVoucher.objects.all()
 
     # Prepare the context for the HTML template
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'vouchers': vouchers
     }
 
@@ -4281,20 +4577,22 @@ def vouchers_dashboard(request):
     # 2. Financial Overview (excluding advances)
     # Filter expenses by user and date, exclude 'advances' item type, drafts, allocations
     if show_all_users:
-        expenses_base = Expense.objects.filter(
+        all_expenses_base = Expense.objects.filter(
             transaction_date__range=[from_date_obj, to_date_obj],
             is_draft=False,
             is_allocation=False,
             delete_requested=False
-        ).exclude(item_type='advances')
+        )
     else:
-        expenses_base = Expense.objects.filter(
+        all_expenses_base = Expense.objects.filter(
             created_by=target_user,
             transaction_date__range=[from_date_obj, to_date_obj],
             is_draft=False,
             is_allocation=False,
             delete_requested=False
-        ).exclude(item_type='advances')
+        )
+        
+    expenses_base = all_expenses_base.exclude(item_type='advances')
 
     total_claimed = expenses_base.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
@@ -4340,8 +4638,8 @@ def vouchers_dashboard(request):
             claimed_amounts.append(float(item['claimed'] or 0))
             paid_amounts.append(float(item['paid'] or 0))
 
-    # 4. Expense Distribution by Category
-    category_counts = expenses_base.values('item_type').annotate(
+    # 4. Expense Distribution by Category (include advances)
+    category_counts = all_expenses_base.values('item_type').annotate(
         count=Count('id'),
         total=Sum('amount')
     )
@@ -4432,14 +4730,16 @@ def get_user_credit_notes(request):
             user_id=user_id,
             adjustment_type='credit_note',
             is_used=False
-        ).values("id", "amount", "remarks", "created_at")
+        ).values("id", "amount", "remarks", "created_at", "group__name", "group__remaining_balance")
         
         credit_notes = [
             {
                 "id": note["id"],
                 "amount": str(note["amount"]),
                 "remarks": note["remarks"] or "",
-                "created_at": note["created_at"].strftime("%Y-%m-%d")
+                "created_at": note["created_at"].strftime("%Y-%m-%d"),
+                "group_name": note["group__name"] or "",
+                "group_balance": str(note["group__remaining_balance"]) if note["group__remaining_balance"] is not None else ""
             }
             for note in notes
         ]
@@ -4618,7 +4918,10 @@ def get_user_credit_notes(request):
 #             final_amount_to_pay = total_amount_to_be_paid - leader_sub_balance + leader_overdue_total
 
 #     # ---------------- CONTEXT -----------------
-#     context = {
+#     from apage.models import Site
+    context = {
+        "sites": Site.objects.all(),}
+
 #         "users": users,
 #         "zones": zones,
 #         "expenses": expenses,
@@ -4900,7 +5203,7 @@ def get_user_credit_notes(request):
 #             from_date=from_date_obj,
 #             to_date=to_date_obj,
 #             screenshot=screenshot,
-#             remarks=remarks,
+#             remarks=final_remarks,
 #         )
 
 #         print(f"Payment Record Created: ₹{final_amount_to_pay}")
@@ -4940,6 +5243,7 @@ def payable(request):
 
     leader_sub_balance = Decimal("0.00")
     leader_overdue_total = Decimal("0.00")
+    total_assigned_given = Decimal("0.00")
     leader_group_balances = []
 
     from_date = request.POST.get("from_date") or request.GET.get("from_date")
@@ -5152,17 +5456,8 @@ def payable(request):
                     remaining = Decimal("0.00")
                     overdue = -raw_remaining
 
-                # Calculate overdue before from_date_obj to get increase in overdue for this period
-                overdue_before = Decimal("0.00")
-                adjustments_before = Decimal("0.00")
-                if from_date_obj:
-                    adjustments_before = group.adjustments.filter(created_at__date__lt=from_date_obj).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-
-                raw_remaining_before = (group.total_advance + group.paid_overdue) - used_before - adjustments_before
-                if raw_remaining_before <= 0:
-                    overdue_before = -raw_remaining_before
-
-                overdue = max(overdue - overdue_before, Decimal("0.00"))
+                # True total overdue for the advance group
+                # (We no longer calculate overdue_before because Advances are decoupled from Payables)
 
                 leader_sub_balance += remaining
                 leader_overdue_total += overdue
@@ -5180,6 +5475,33 @@ def payable(request):
                     future_count = future_qs.count()
                     future_total = future_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
 
+                
+                pending_tips_subquery = CashVoucher.objects.filter(
+                    expense=OuterRef('pk'),
+                    voucher_number__startswith="XPCV",
+                    status="pending"
+                )
+
+                pending_qs = Expense.objects.annotate(
+                    proof_count_local=Count("proof_photos"),
+                    has_pending_tip=Exists(pending_tips_subquery)
+                ).filter(
+                    advance_group=group,
+                    is_draft=False,
+                    status="pending",
+                    is_approved=False
+                ).exclude(is_rejected=True).filter(
+                    Q(has_pending_tip=True) |
+                    ( (Q(proof_photo="") | Q(proof_photo__isnull=True)) & Q(proof_count_local=0) ) |
+                    ( (Q(bill_photo="") | Q(bill_photo__isnull=True)) & (Q(gst_photo="") | Q(gst_photo__isnull=True)) )
+                )
+                pending_count = pending_qs.count()
+                
+                pending_details = []
+                for p in pending_qs:
+                    pending_details.append(f"{p.evoucher_number or 'N/A'}: ₹{p.amount or '0.00'}")
+                pending_details_str = "<br>".join(pending_details)
+
                 leader_group_balances.append({
                     "group_id": group.id,
                     "group_name": group.name,
@@ -5190,10 +5512,13 @@ def payable(request):
                     "remaining": remaining,
                     "overdue": overdue,
                     "future_count": future_count,
-                    "future_total": future_total
+                    "future_total": future_total,
+                    "pending_count": pending_count,
+                    "pending_details": pending_details_str
                 })
+                total_assigned_given += group.total_advance
 
-            final_amount_to_pay = total_amount_to_be_paid - leader_sub_balance + leader_overdue_total
+            final_amount_to_pay = total_amount_to_be_paid
             if final_amount_to_pay < Decimal("0.00"):
                 final_amount_to_pay = Decimal("0.00")
 
@@ -5202,7 +5527,17 @@ def payable(request):
         filtered_users = filtered_users | User.objects.filter(id=selected_user.id)
 
     # ---------------- CONTEXT -----------------
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "users": users,
         "zones": zones,
         "expenses": expenses,
@@ -5213,11 +5548,13 @@ def payable(request):
         "total_amount_to_be_paid": total_amount_to_be_paid,
         "leader_sub_balance": leader_sub_balance,
         "leader_overdue_total": leader_overdue_total,
+        "total_assigned_given": total_assigned_given,
         "leader_group_balances": leader_group_balances,
         "final_amount_to_pay": final_amount_to_pay,
 
         "from_date": from_date,
         "to_date": to_date,
+        "today": date.today(),
     }
 
     return render(request, "xp/payable.html", context)
@@ -5225,6 +5562,127 @@ def payable(request):
 
 
 
+
+
+
+@login_required
+@require_POST
+def bulk_update_group_balances(request):
+    print("\n================ BULK_UPDATE_GROUP_BALANCES CALLED ================")
+    
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, "Permission denied.")
+        return redirect("payable")
+
+    assign_date_str = request.POST.get("assign_date")
+    payment_mode = request.POST.get("payment_mode")
+    proof_file = request.FILES.get("proof_file")
+    user_provided_remarks = request.POST.get("remarks", "").strip()
+
+    user_id = request.POST.get("user_id", "")
+    zone_id = request.POST.get("zone_id", "")
+    from_date = request.POST.get("from_date", "")
+    to_date = request.POST.get("to_date", "")
+
+    updated_count = 0
+    total_reimbursed = Decimal("0.00")
+
+    try:
+        with db_transaction.atomic():
+            # First pass: gather info for auto-generated remarks
+            updates_info = []
+            for key, value in request.POST.items():
+                if key.startswith("amount_") and value:
+                    try:
+                        amount = Decimal(value)
+                        if amount > 0:
+                            group_id = int(key.split("_")[1])
+                            group_name = AdvanceGroup.objects.get(id=group_id).name
+                            updates_info.append(f"{group_name} (₹{amount})")
+                    except (ValueError, InvalidOperation, AdvanceGroup.DoesNotExist):
+                        pass
+            
+            auto_remarks = "Consolidated Update: " + ", ".join(updates_info)
+            final_remarks = user_provided_remarks if user_provided_remarks else auto_remarks
+
+            # Second pass: execute updates
+            for key, value in request.POST.items():
+                if key.startswith("amount_") and value:
+                    try:
+                        amount = Decimal(value)
+                        if amount > 0:
+                            group_id = int(key.split("_")[1])
+                            group = AdvanceGroup.objects.select_for_update().get(id=group_id)
+                            
+                            prev = group.total_advance
+                            group.total_advance += amount
+                            
+                            # Recalculate used, remaining, overdue
+                            used, remaining, overdue = calculate_group_balances(group)
+                            
+                            group.used_advance = used
+                            group.remaining_balance = remaining
+                            if payment_mode:
+                                group.payment_mode = payment_mode
+                                
+                            group.save()
+                            
+                            # Create update log
+                            log = AdvanceGroupUpdateLog.objects.create(
+                                group=group,
+                                previous_amount=prev,
+                                new_amount=group.total_advance,
+                                updated_by=request.user,
+                                proof_file=proof_file,
+                                remarks=final_remarks
+                            )
+                            
+                            if assign_date_str:
+                                try:
+                                    from datetime import datetime
+                                    from django.utils import timezone
+                                    parsed_date = datetime.strptime(assign_date_str, "%Y-%m-%d")
+                                    current_time = timezone.now().time()
+                                    custom_date = timezone.make_aware(datetime.combine(parsed_date, current_time))
+                                    log.timestamp = custom_date
+                                    log.save(update_fields=['timestamp'])
+                                except Exception as e:
+                                    print("Error parsing assign_date:", e)
+
+                            # Update allocation expense if it exists
+                            allocation_expense = Expense.objects.filter(
+                                advance_group=group,
+                                is_allocation=True
+                            ).first()
+
+                            if allocation_expense:
+                                allocation_expense.amount = group.total_advance
+                                if assign_date_str:
+                                    try:
+                                        allocation_expense.transaction_date = parsed_date
+                                    except Exception:
+                                        pass
+                                if payment_mode:
+                                    allocation_expense.payment_mode = payment_mode
+                                allocation_expense.save(update_fields=['amount', 'transaction_date', 'payment_mode'])
+
+                            updated_count += 1
+                            total_reimbursed += amount
+                            
+                    except (ValueError, InvalidOperation, AdvanceGroup.DoesNotExist) as e:
+                        print(f"Error processing {key}: {e}")
+                        continue
+                        
+        if updated_count > 0:
+            messages.success(request, f"Successfully reimbursed ₹{total_reimbursed} across {updated_count} groups.")
+        else:
+            messages.warning(request, "No valid amounts were submitted for reimbursement.")
+            
+    except Exception as e:
+        messages.error(request, f"An error occurred during bulk update: {str(e)}")
+
+    redirect_url = f"/website/payable/?user_id={user_id}&zone_id={zone_id}&from_date={from_date}&to_date={to_date}"
+    return redirect(redirect_url)
 
 
 @login_required
@@ -5245,6 +5703,8 @@ def add_adjustment(request):
     
     adjustment_type = request.POST.get("adjustment_type")
     remarks = request.POST.get("remarks")
+    if not remarks:
+        remarks = "Consolidated Bulk Update"
     
     added_count = 0
     try:
@@ -5587,7 +6047,7 @@ def process_payment(request):
             # --------------------------
             # CORRECT FINAL AMOUNT FORMULA (SAME AS UI)
             # --------------------------
-            computed_final_amount = total_expenses + leader_overdue - total_leader_balance
+            computed_final_amount = total_expenses
 
             if computed_final_amount < 0:
                 computed_final_amount = Decimal("0.00")
@@ -5597,52 +6057,7 @@ def process_payment(request):
                 messages.warning(request, "No pending vouchers or outstanding advances to process.")
                 return redirect('pay_now', user_id=user_id)
 
-            # --- How much advance can we apply in this payment? ---
-            # We cannot use more advance than the voucher total
-            advance_to_apply = min(max(total_leader_balance, 0), total_expenses)
-            remaining_to_allocate = advance_to_apply
-
-            print(f"Advance to apply in this payment: {advance_to_apply}")
-
-            # Track which groups were actually used in THIS payment
-            used_group_ids = set()
-
-            # --- Deduct advance from each group until advance_to_apply is exhausted ---
-            for assignment in leader_assignments:
-                group = locked_groups.get(assignment.group_id)
-                if not group:
-                    continue
-
-                if remaining_to_allocate <= 0:
-                    break  # we've used all advance we can use for this payment
-
-                remaining_bal = group_remaining_balances.get(group.id, Decimal("0.00"))
-                can_use = min(remaining_bal, remaining_to_allocate)
-
-                if can_use <= 0:
-                    continue
-
-                print(f"  Using ₹{can_use} from group '{group.name}' "
-                      f"(before: remaining={remaining_bal}, used={group_used_totals.get(group.id, Decimal('0.00'))})")
-
-                group.used_advance = group_used_totals.get(group.id, Decimal("0.00")) + can_use
-                group.remaining_balance = remaining_bal - can_use
-
-                used_group_ids.add(group.id)  # mark this group as used
-
-                if group.remaining_balance <= 0:
-                    group.remaining_balance = Decimal("0.00")
-                    adjustments_total = group_adjustments_totals.get(group.id, Decimal("0.00"))
-                    group.used_advance = max(group.total_advance + group.paid_overdue - adjustments_total, Decimal("0.00"))
-                    print(f"  -> Group '{group.name}' advance fully used (keeping group open)")
-
-                group.save()
-
-                remaining_to_allocate -= can_use
-
-                print(f"  After: group '{group.name}' used_advance={group.used_advance}, "
-                      f"remaining_balance={group.remaining_balance}")
-                print(f"  Remaining advance to allocate: {remaining_to_allocate}")
+            # (Advances are now decoupled from Payables, so we do NOT deduct advance from groups here)
 
             print(f"Final Amount to Pay (UI-MATCHED): {computed_final_amount}")
             print(f"Final amount to pay (computed): {computed_final_amount}")
@@ -5684,37 +6099,6 @@ def process_payment(request):
                     group.used_advance = group.total_advance + group.paid_overdue
                     group.is_closed = True
                     group.save(update_fields=["used_advance", "remaining_balance", "is_closed"])
-                else:
-                    used_tot = group_used_totals.get(group.id, Decimal("0.00"))
-                    if used_tot > (group.total_advance + group.paid_overdue):
-                        # Reimbursing overdue: increase paid_overdue by the overdue amount paid in this period
-                        overdue_before = group_overdue_befores.get(group.id, Decimal("0.00"))
-                        total_overdue = used_tot - (group.total_advance + group.paid_overdue)
-                        overdue_paid = max(total_overdue - overdue_before, Decimal("0.00"))
-
-                        if overdue_paid > 0:
-                            print(f"[REIMBURSING OVERDUE] {group.name} - Increasing paid_overdue by {overdue_paid}")
-                            group.paid_overdue += overdue_paid
-                            group.remaining_balance = Decimal("0.00")
-                            group.used_advance = group.total_advance + group.paid_overdue
-                            group.save(update_fields=["paid_overdue", "used_advance", "remaining_balance"])
-                        elif overdue_before == 0:
-                            group.remaining_balance = Decimal("0.00")
-                            group.used_advance = group.total_advance + group.paid_overdue
-                            group.save(update_fields=["used_advance", "remaining_balance"])
-                    
-                    elif used_tot == (group.total_advance + group.paid_overdue):
-                        overdue_before = group_overdue_befores.get(group.id, Decimal("0.00"))
-                        if overdue_before == 0:
-                            print(f"[CAPPING USED ADVANCE] {group.name}")
-                            group.remaining_balance = Decimal("0.00")
-                            group.used_advance = group.total_advance + group.paid_overdue
-                            group.save(update_fields=["used_advance", "remaining_balance"])
-
-                            print(
-                                f"  -> After clear: used={group.used_advance}, "
-                                f"remaining={group.remaining_balance}, closed={group.is_closed}"
-                            )
 
             # --- Save Payment record ---
             Payment.objects.create(
@@ -5935,12 +6319,16 @@ def export_as_csv(payments, request):
     writer.writerow(['Transaction ID', 'Paid To', 'Amount', 'From', 'To', 'Date', 'Uploaded Proof'])
 
     # Construct site URL for absolute file links
-    site_url = request.build_absolute_uri('/')[:-1]  # Remove trailing slash
+    site_url = request.build_absolute_uri('/')[:-1]
+    if not request.get_host().startswith('127.0.0.1') and not request.get_host().startswith('localhost'):
+        site_url = site_url.replace('http://', 'https://')
+        if 'xpredictlabs.com' in site_url and ':9001' not in site_url:
+            site_url = site_url.replace('xpredictlabs.com', 'xpredictlabs.com:9001')  # Remove trailing slash
 
     for payment in payments:
         # Generate downloadable proof link
-        if hasattr(payment, 'proof_photo') and payment.proof_photo:
-            proof_file_url = f"{site_url}/download/{payment.proof_photo.name}"
+        if hasattr(payment, 'screenshot') and payment.screenshot:
+            proof_file_url = f"{site_url}{payment.screenshot.url}" if payment.screenshot else "No File"
         else:
             proof_file_url = 'No File'
 
@@ -5976,12 +6364,16 @@ def export_as_xlsx(queryset, request):
     ws.append(headers)
 
     # Construct site URL for absolute file links
-    site_url = request.build_absolute_uri('/')[:-1]  # Remove trailing slash
+    site_url = request.build_absolute_uri('/')[:-1]
+    if not request.get_host().startswith('127.0.0.1') and not request.get_host().startswith('localhost'):
+        site_url = site_url.replace('http://', 'https://')
+        if 'xpredictlabs.com' in site_url and ':9001' not in site_url:
+            site_url = site_url.replace('xpredictlabs.com', 'xpredictlabs.com:9001')  # Remove trailing slash
 
     # Populate data rows
     for payment in queryset:
         # Generate downloadable screenshot link
-        screenshot_url = f"{site_url}/download/{payment.screenshot.name}" if hasattr(payment, 'screenshot') and payment.screenshot else "No Screenshot"
+        screenshot_url = f"{site_url}{payment.screenshot.url}" if hasattr(payment, 'screenshot') and payment.screenshot else "No Screenshot"
 
         ws.append([
             payment.transaction_id or "N/A",
@@ -6026,7 +6418,17 @@ def export_as_pdf(request, payments):
     payments = Payment.objects.all()
 
     # Prepare context for the template
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         'payments': payments
     }
 
@@ -6340,7 +6742,11 @@ def ajax_reply_request(request):
 
         response = {"success": True}
 
-        # Create message if message or file is present
+        gif_url = request.POST.get('gif_url', '').strip()
+        if gif_url:
+            msg = f"[GIF] {gif_url}"
+
+        # Create message if message, file or gif is present
         if msg or file:
             message_obj = PaymentRequestMessage.objects.create(
                 request=req,
@@ -6348,9 +6754,21 @@ def ajax_reply_request(request):
                 message=msg,
                 attachment=file if file else None
             )
+            
+            is_gif = message_obj.message and message_obj.message.startswith('[GIF] ')
+            gif_url = None
+            if is_gif:
+                gif_url = message_obj.message.replace('[GIF] ', '')
+                if 'media.tenor.com' in gif_url:
+                    import re as _re
+                    gif_url = _re.sub(r'AAAA[A-Z0-9]/', 'AAAP1/', gif_url)
+                    gif_url = _re.sub(r'\.(gif|webp)$', '.mp4', gif_url)
+
             response.update({
                 "sender": message_obj.sender.username,
                 "message": message_obj.message,
+                "is_gif": is_gif,
+                "gif_url": gif_url,
                 "sent_at": message_obj.sent_at.strftime("%H:%M"),
                 "attachment_url": message_obj.attachment.url if message_obj.attachment else None,
                 "attachment_name": message_obj.attachment.name if message_obj.attachment else None
@@ -6385,9 +6803,20 @@ def fetch_messages(request, req_id):
     messages = req.messages.select_related("sender").order_by("sent_at")
     result = []
     for msg in messages:
+        is_gif = msg.message and msg.message.startswith('[GIF] ')
+        gif_url = None
+        if is_gif:
+            gif_url = msg.message.replace('[GIF] ', '')
+            if 'media.tenor.com' in gif_url:
+                import re as _re
+                gif_url = _re.sub(r'AAAA[A-Z0-9]/', 'AAAP1/', gif_url)
+                gif_url = _re.sub(r'\.(gif|webp)$', '.mp4', gif_url)
+                
         result.append({
             "sender": msg.sender.username,
             "message": msg.message,
+            "is_gif": is_gif,
+            "gif_url": gif_url,
             "timestamp": timesince(msg.sent_at) + " ago",
             "attachment": msg.attachment.url if msg.attachment else None,
             "attachment_name": msg.attachment.name.split("/")[-1] if msg.attachment else "",
@@ -6395,6 +6824,41 @@ def fetch_messages(request, req_id):
         })
 
     return JsonResponse({"success": True, "messages": result})
+
+
+import requests
+from bs4 import BeautifulSoup
+
+def ajax_gif_search(request):
+    query = request.GET.get('q', 'trending').strip()
+    if not query or query == 'trending':
+        query = 'trending'
+        
+    url = f"https://tenor.com/search/{query}-gifs"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"}
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        soup = BeautifulSoup(res.text, 'html.parser')
+        images = []
+        for div in soup.find_all('div', class_='Gif'):
+            pic = div.find('picture')
+            if pic:
+                # Get the MP4 (animated) source
+                mp4_source = pic.find('source', type='video/mp4')
+                img = pic.find('img')
+                if mp4_source and mp4_source.get('srcset'):
+                    mp4_url = mp4_source.get('srcset').split()[0]
+                    thumb_url = img.get('src') if img else mp4_url
+                    if mp4_url.startswith('http'):
+                        images.append({
+                            'mp4': mp4_url,
+                            'thumb': thumb_url
+                        })
+        
+        return JsonResponse({"success": True, "data": images[:20]})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 from django.views.decorators.http import require_POST
@@ -6410,7 +6874,6 @@ def request_expense_deletion(request, expense_id):
     expense = get_object_or_404(Expense, id=expense_id)
     if not expense.delete_requested:
         expense.delete_requested = True
-        expense.delete_requested_by = request.user
         expense.save()
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"success": True, "requested": True})
@@ -6507,12 +6970,31 @@ def staff_required(user):
 def close_group(request, group_id):
     group = get_object_or_404(AdvanceGroup, id=group_id)
     if group.is_closed:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'warning', 'message': f"Group '{group.name}' is already closed."})
         messages.warning(request, f"Group '{group.name}' is already closed.")
     else:
+        if group.remaining_balance > 0:
+            msg = f"Group '{group.name}' has a positive balance of {group.remaining_balance}. Please raise a credit note before closing."
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'warning', 'message': msg})
+            messages.warning(request, msg)
+            return redirect(request.META.get('HTTP_REFERER', 'view_assigned_groups'))
+            
+        elif group.remaining_balance < 0:
+            msg = f"Group '{group.name}' has an overdue balance of {abs(group.remaining_balance)}. Please update the group balance before closing."
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'warning', 'message': msg})
+            messages.warning(request, msg)
+            return redirect(request.META.get('HTTP_REFERER', 'view_assigned_groups'))
+            
         group.is_closed = True
         group.save()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success', 'message': f"Group '{group.name}' has been closed successfully."})
         messages.success(request, f"Group '{group.name}' has been closed successfully.")
-    return redirect('view_assigned_groups')  # replace with your template/view
+    
+    return redirect('view_assigned_groups')
 
 
 
@@ -6545,7 +7027,17 @@ def directpay_form(request):
         print("gst file:", request.FILES.get("gst_photo"))
         return redirect("directpay_preview")
 
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
 
         "current_date": date.today(),
     }
@@ -6719,7 +7211,17 @@ def directpay_preview(request):
     all_users = User.objects.filter(is_active=True).order_by("first_name")
     kirti_user = User.objects.filter(username="Kirti").first()
     default_voucher_user = kirti_user if kirti_user else request.user
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "directpays": directpays,
         "start_date": start_date,
         "end_date": end_date,
@@ -6758,7 +7260,17 @@ def edit_directpay_form(request, dp_id):
         return redirect("directpay_preview")
 
     # Prefill form with existing DirectPay instance
+    from apage.models import Site, SiteAMC
+    from datetime import date
+    
+    active_amc_site_ids = list(
+        SiteAMC.objects.filter(has_amc=True).values_list('site_id', flat=True)
+    )
+    
     context = {
+        "sites": Site.objects.all(),
+        "active_amc_site_ids": active_amc_site_ids,
+
         "dp": dp,
         "current_date": dp.transaction_date or date.today(),
     }
@@ -6814,9 +7326,16 @@ def delete_advance_log(request, log_id):
             logger.exception("Failed to delete proof file from disk")
 
     group_name = log.group.name
+    
+    # Recalculate balance for the group before deleting log
+    difference = log.new_amount - log.previous_amount
+    log.group.total_advance -= difference
+    log.group.remaining_balance -= difference
+    log.group.save()
+    
     log.delete()
 
-    messages.success(request, "History record deleted successfully.")
+    messages.success(request, "History record deleted successfully. Balance has been recalculated.")
     return redirect(reverse("assign_advances") + f"?group_name={group_name}&action=history")
 
 
@@ -7070,6 +7589,11 @@ def api_close_groups_ajax(request):
         try:
             group = AdvanceGroup.objects.get(id=g_id)
             if not group.is_closed:
+                if group.remaining_balance > 0:
+                    return JsonResponse({"success": False, "error": f"Group '{group.name}' has a positive balance of {group.remaining_balance}. Please raise a credit note before closing."}, status=400)
+                elif group.remaining_balance < 0:
+                    return JsonResponse({"success": False, "error": f"Group '{group.name}' has an overdue balance of {abs(group.remaining_balance)}. Please update the group balance before closing."}, status=400)
+                    
                 group.is_closed = True
                 group.save()
                 updated_count += 1
@@ -7082,3 +7606,165 @@ def api_close_groups_ajax(request):
         "updated_count": updated_count,
         "message": f"Successfully closed {updated_count} group(s): {', '.join(closed_names)}" if closed_names else "No groups were closed."
     })
+
+@login_required
+def site_expenses_report(request):
+    from apage.models import Site
+    from django.db.models import Sum
+    from decimal import Decimal
+    
+    sites = Site.objects.all().order_by('name')
+    selected_site_id = request.GET.get('site_id')
+    advance_type = request.GET.get('advance_type', 'Both')
+    from_date = request.GET.get('from_date')
+    to_date = request.GET.get('to_date')
+    
+    groups = AdvanceGroup.objects.all()
+    if selected_site_id:
+        groups = groups.filter(site_id=selected_site_id)
+        
+    if from_date:
+        groups = groups.filter(created_at__date__gte=from_date)
+    if to_date:
+        groups = groups.filter(created_at__date__lte=to_date)
+        
+    if advance_type == 'Site AMC':
+        groups = groups.filter(advance_type='Site AMC')
+    elif advance_type == 'Site Project':
+        groups = groups.filter(advance_type='Site Project')
+    elif advance_type == 'Both':
+        groups = groups.filter(advance_type__in=['Site AMC', 'Site Project'])
+        
+    total_assigned = groups.aggregate(total=Sum('total_advance'))['total'] or Decimal('0.00')
+    total_used = groups.aggregate(total=Sum('used_advance'))['total'] or Decimal('0.00')
+    total_remaining = groups.aggregate(total=Sum('remaining_balance'))['total'] or Decimal('0.00')
+    
+    context = {
+        'sites': sites,
+        'selected_site_id': int(selected_site_id) if selected_site_id else None,
+        'advance_type': advance_type,
+        'from_date': from_date,
+        'to_date': to_date,
+        'groups': groups,
+        'total_assigned': total_assigned,
+        'total_used': total_used,
+        'total_remaining': total_remaining
+    }
+    return render(request, 'xp/site_expenses.html', context)
+
+
+# --- Tasks & Calendar ---
+@login_required(login_url='/login/')
+def todo_calendar(request):
+    return render(request, 'xp/todo_calendar.html')
+
+
+@login_required(login_url='/login/')
+def api_todo_items(request):
+    from .models import TodoItem
+    import json
+    
+    if request.method == 'GET':
+        if request.user.is_superuser:
+            todos = TodoItem.objects.all().order_by('-created_at')
+        else:
+            todos = TodoItem.objects.filter(user=request.user).order_by('-created_at')
+            
+        data = [{'id': t.id, 'title': t.title, 'is_completed': t.is_completed} for t in todos]
+        return JsonResponse(data, safe=False)
+        
+    elif request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            action = body.get('action')
+            
+            if action == 'add':
+                title = body.get('title')
+                if not title:
+                    return JsonResponse({'success': False, 'error': 'Title is required'})
+                todo = TodoItem.objects.create(user=request.user, title=title)
+                return JsonResponse({'success': True, 'id': todo.id})
+                
+            elif action == 'toggle':
+                todo_id = body.get('id')
+                todo = TodoItem.objects.get(id=todo_id)
+                # Ensure they own it or are superuser
+                if todo.user == request.user or request.user.is_superuser:
+                    todo.is_completed = not todo.is_completed
+                    todo.save()
+                    return JsonResponse({'success': True, 'is_completed': todo.is_completed})
+                return JsonResponse({'success': False, 'error': 'Permission denied'})
+                
+            elif action == 'delete':
+                todo_id = body.get('id')
+                todo = TodoItem.objects.get(id=todo_id)
+                if todo.user == request.user or request.user.is_superuser:
+                    todo.delete()
+                    return JsonResponse({'success': True})
+                return JsonResponse({'success': False, 'error': 'Permission denied'})
+                
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required(login_url='/login/')
+def api_calendar_events(request):
+    from .models import CalendarEvent
+    from django.utils.dateparse import parse_datetime
+    import json
+    
+    if request.method == 'GET':
+        if request.user.is_superuser:
+            events = CalendarEvent.objects.all()
+        else:
+            events = CalendarEvent.objects.filter(user=request.user)
+            
+        data = []
+        for e in events:
+            data.append({
+                'id': e.id,
+                'title': e.title,
+                'start': e.start_date.isoformat(),
+                'end': e.end_date.isoformat() if e.end_date else None,
+                'allDay': e.all_day,
+                'color': e.color
+            })
+        return JsonResponse(data, safe=False)
+        
+    elif request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            action = body.get('action')
+            
+            if action == 'add':
+                title = body.get('title')
+                start_str = body.get('start')
+                end_str = body.get('end')
+                all_day = body.get('allDay', True)
+                color = body.get('color', '#3788d8')
+                
+                if not title or not start_str:
+                    return JsonResponse({'success': False, 'error': 'Title and start date required'})
+                    
+                start_date = parse_datetime(start_str)
+                end_date = parse_datetime(end_str) if end_str else None
+                
+                event = CalendarEvent.objects.create(
+                    user=request.user,
+                    title=title,
+                    start_date=start_date,
+                    end_date=end_date,
+                    all_day=all_day,
+                    color=color
+                )
+                return JsonResponse({'success': True, 'id': event.id})
+                
+            elif action == 'delete':
+                event_id = body.get('id')
+                event = CalendarEvent.objects.get(id=event_id)
+                if event.user == request.user or request.user.is_superuser:
+                    event.delete()
+                    return JsonResponse({'success': True})
+                return JsonResponse({'success': False, 'error': 'Permission denied'})
+                
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})

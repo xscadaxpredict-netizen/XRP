@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Edit Profile | XsHoT ERP{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <a href="{% url 'user_profile' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i>
+            </a>
+            <div>
+                <h3 class="fw-bold mb-0" style="font-family:'Outfit',sans-serif;">Edit Business Profile</h3>
+                <p class="text-muted small mb-0">Update your business information</p>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Business Name</label>
+                            {{ user_profile_form.business_title }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Address</label>
+                            {{ user_profile_form.business_address }}
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Email</label>
+                            {{ user_profile_form.business_email }}
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-semibold">Phone</label>
+                            {{ user_profile_form.business_phone }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">GST Number</label>
+                            {{ user_profile_form.business_gst }}
+                        </div>
+                        <div class="col-12 pt-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ti ti-check me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

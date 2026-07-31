@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  .stars {
+    display: inline-block;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+
+  .star {
+    color: #ccc;
+    user-select: none;
+  }
+
+  .star.selected,
+  .star.hover {
+    color: #FFD700;
+  }
+</style>
+
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center">
+      <h2 class="mb-0 me-2">Vendors List</h2>
+      <a href="#" class="text-muted" data-bs-toggle="modal" data-bs-target="#ratingLogicModal"
+        title="How are ratings calculated?">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-info-circle" width="24" height="24"
+          viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+          <path d="M12 9h.01" />
+          <path d="M11 12h1 v4h1" />
+        </svg>
+      </a>
+    </div>
+    <div class="btn-list">
+      <a href="{% url 'export_vendor_template' %}" class="btn btn-outline-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-download" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
+            <path d="M7 11l5 5l5 -5"></path>
+            <path d="M12 4l0 12"></path>
+          </svg>
+          Template
+      </a>
+      <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#importVendorModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-upload" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <path d="M14 3v4a1 1 0 0 0 1 1h4"></path>
+            <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"></path>
+            <path d="M12 11v6"></path>
+            <path d="M9.5 13.5l2.5 -2.5l2.5 2.5"></path>
+          </svg>
+          Import
+      </button>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createVendorModal">Create New
+        Vendor</button>
+      <a href="{% url 'sync_vendor_ratings' %}" class="btn btn-outline-info">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-refresh" width="24" height="24"
+          viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+          <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+          <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+        </svg>
+        Sync All Ratings
+      </a>
+    </div>
+  </div>
+
+  <!-- Rating Logic Modal -->
+  <div class="modal fade" id="ratingLogicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">How Automated Ratings are Calculated</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="card bg-light-subtle shadow-none border">
+                <div class="card-body">
+                  <h4 class="card-title text-primary mb-2">📦 Quality Rating</h4>
+                  <p class="text-muted small">Based on items **Accepted** vs. **Rejected** in GRNs.</p>
+                  <div class="bg-white p-2 rounded border font-monospace small mb-2">
+                    Score = (Accepted Items / Received Items) × 5.0
+                  </div>
+                  <p class="small mb-0"><strong>Example:</strong> 10 items received, 8 accepted = 4.0 ⭐</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card bg-light-subtle shadow-none border">
+                <div class="card-body">
+                  <h4 class="card-title text-success mb-2">🚚 Delivery Rating</h4>
+                  <p class="text-muted small">Based on **Expected Delivery Date** vs. **Actual GRN Date**.</p>
+                  <div class="bg-white p-2 rounded border font-monospace small mb-2">
+                    Score = Max(5.0 - (Days Delayed × 0.5), 1.0)
+                  </div>
+                  <p class="small mb-0"><strong>Rule:</strong> Perfect on-time delivery is 5.0 ⭐. Every day late reduces
+                    the score by 0.5 stars.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card bg-light-subtle shadow-none border">
+                <div class="card-body">
+                  <h4 class="card-title text-warning mb-2">💰 Pricing Rating</h4>
+                  <p class="text-muted small">Compares vendor's unit price with the **System Average** for that same
+                    product.</p>
+                  <div class="bg-white p-2 rounded border font-monospace small mb-2">
+                    Score = (Average Peer Price / Vendor Price) × 5.0
+                  </div>
+                  <p class="small mb-0"><strong>Rule:</strong> If price is average or below, 5.0 ⭐. If more expensive
+                    than peers, score drops proportionally.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Display Django messages -->
+  {% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <table class="table table-striped table-bordered">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Level</th>
+        <th>Rating</th>
+        <th>Category</th>
+        <th>Contact Details</th>
+        <th>Tax & Bank Details</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for vendor in vendors %}
+      <tr>
+        <td>{{ vendor.name }}</td>
+        <td>{{ vendor.get_level_display }}</td>
+        <td>
+          <div class="mb-2">
+            <strong>Manual:</strong> {{ vendor.average_rating|default:"0.0"|floatformat:1 }}
+            <div class="stars readonly-stars" style="font-size: 1rem;">
+              {% for i in "12345" %}
+              <span class="star {% if forloop.counter <= vendor.full_stars %}selected{% endif %}">&#9733;</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mt-2 pt-2 border-top">
+            <div class="d-flex justify-content-between">
+              <span>📦 Quality:</span>
+              <span class="text-warning fw-bold">
+                {% if vendor.auto_quality_rating > 0 %}{{ vendor.auto_quality_rating|floatformat:1 }} ⭐{% else %}<span
+                  class="text-muted small">N/A</span>{% endif %}
+              </span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span>🚚 Delivery:</span>
+              <span class="text-warning fw-bold">
+                {% if vendor.auto_delivery_rating > 0 %}{{ vendor.auto_delivery_rating|floatformat:1 }} ⭐{% else %}<span
+                  class="text-muted small">N/A</span>{% endif %}
+              </span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span>💰 Pricing:</span>
+              <span class="text-warning fw-bold">
+                {% if vendor.auto_pricing_rating > 0 %}{{ vendor.auto_pricing_rating|floatformat:1 }} ⭐{% else %}<span
+                  class="text-muted small">N/A</span>{% endif %}
+              </span>
+            </div>
+          </div>
+        </td>
+        <td>{{ vendor.category }}</td>
+        <td>
+          <strong>Email:</strong> {{ vendor.contact_email|default:"N/A" }} <br>
+          <strong>Phone 1:</strong> {{ vendor.contact_number|default:"N/A" }} <br>
+          <strong>Phone 2:</strong> {{ vendor.contact_number_2|default:"N/A" }}
+        </td>
+        <td>
+          <strong>GST:</strong> {{ vendor.gst_number|default:"N/A" }} <br>
+          <strong>PAN:</strong> {{ vendor.pan_number|default:"N/A" }} <br>
+          <strong>Bank:</strong> {{ vendor.bank_name|default:"N/A" }} <br>
+          <strong>Acc No:</strong> {{ vendor.bank_account_no|default:"N/A" }} <br>
+          <strong>IFSC:</strong> {{ vendor.ifsc_code|default:"N/A" }}
+        </td>
+        <td>
+          <div class="btn-list">
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+              data-bs-target="#editVendorModal{{ vendor.id }}">Edit</button>
+            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#rateModal"
+              data-vendor-id="{{ vendor.id }}" data-vendor-name="{{ vendor.name }}">
+              Rate
+            </button>
+            <a href="{% url 'vendor_payment_history' vendor.id %}" class="btn btn-outline-info btn-sm">
+              History
+            </a>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Edit Vendor Modal -->
+      <div class="modal fade" id="editVendorModal{{ vendor.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="edit_vendor_id" value="{{ vendor.id }}">
+            <input type="hidden" name="edit_vendor" value="1">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Edit Vendor: {{ vendor.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ vendor.name }}" required>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Category</label>
+                    <input type="text" name="category" class="form-control" value="{{ vendor.category }}">
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Contact Number 1</label>
+                    <input type="text" name="contact_number" class="form-control" value="{{ vendor.contact_number }}">
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Contact Number 2</label>
+                    <input type="text" name="contact_number_2" class="form-control"
+                      value="{{ vendor.contact_number_2 }}">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Contact Email</label>
+                  <input type="email" name="contact_email" class="form-control" value="{{ vendor.contact_email }}">
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">GST Number</label>
+                    <input type="text" name="gst_number" class="form-control" value="{{ vendor.gst_number }}">
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">PAN Number</label>
+                    <input type="text" name="pan_number" class="form-control" value="{{ vendor.pan_number }}">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Bank Name</label>
+                  <input type="text" name="bank_name" class="form-control" value="{{ vendor.bank_name }}">
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Account Number</label>
+                    <input type="text" name="bank_account_no" class="form-control" value="{{ vendor.bank_account_no }}">
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">IFSC Code</label>
+                    <input type="text" name="ifsc_code" class="form-control" value="{{ vendor.ifsc_code }}">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Level</label>
+                  <select name="level" class="form-select" required>
+                    <option value="L1" {% if vendor.level == "L1" %}selected{% endif %}>Level 1</option>
+                    <option value="L2" {% if vendor.level == "L2" %}selected{% endif %}>Level 2</option>
+                    <option value="L3" {% if vendor.level == "L3" %}selected{% endif %}>Level 3</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Credit Period (Days)</label>
+                    <input type="number" name="credit_period_days" class="form-control" value="{{ vendor.credit_period_days }}" required>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Rate Vendor Modal -->
+<div class="modal fade" id="rateModal" tabindex="-1" aria-labelledby="rateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="ratingForm">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rateModalLabel">Rate Vendor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="rating" id="ratingInput" value="0" required>
+          <div class="stars" id="starContainer" style="font-size:2rem; cursor:pointer;">
+            {% for i in "12345" %}
+            <span class="star" data-value="{{ forloop.counter }}">&#9733;</span>
+            {% endfor %}
+          </div>
+          <textarea name="comments" placeholder="Comments (optional)" rows="3" class="form-control mt-3"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Submit Rating</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Create Vendor Modal -->
+<div class="modal fade" id="createVendorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="create_vendor" value="1">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Create New Vendor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Name</label>
+              <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Category</label>
+              <input type="text" name="category" class="form-control">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Contact Number 1</label>
+              <input type="text" name="contact_number" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Contact Number 2</label>
+              <input type="text" name="contact_number_2" class="form-control">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Contact Email</label>
+            <input type="email" name="contact_email" class="form-control">
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">GST Number</label>
+              <input type="text" name="gst_number" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">PAN Number</label>
+              <input type="text" name="pan_number" class="form-control">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Bank Name</label>
+            <input type="text" name="bank_name" class="form-control">
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Account Number</label>
+              <input type="text" name="bank_account_no" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">IFSC Code</label>
+              <input type="text" name="ifsc_code" class="form-control">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Level</label>
+            <select name="level" class="form-select" required>
+              <option value="L1">Level 1</option>
+              <option value="L2">Level 2</option>
+              <option value="L3">Level 3</option>
+            </select>
+          </div>
+          <div class="mb-3">
+              <label class="form-label">Credit Period (Days)</label>
+              <input type="number" name="credit_period_days" class="form-control" value="30" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Create</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const rateModal = document.getElementById('rateModal');
+    const ratingInput = document.getElementById('ratingInput');
+    const stars = rateModal.querySelectorAll('.star');
+    const ratingForm = document.getElementById('ratingForm');
+    let selectedRating = 0;
+
+    rateModal.addEventListener('show.bs.modal', event => {
+      const button = event.relatedTarget;
+      const vendorId = button.getAttribute('data-vendor-id');
+      const vendorName = button.getAttribute('data-vendor-name');
+      document.getElementById('rateModalLabel').textContent = `Rate Vendor: ${vendorName}`;
+      ratingForm.action = `/vendors/${vendorId}/rate/`;
+
+      selectedRating = 0;
+      ratingInput.value = 0;
+      stars.forEach(s => s.classList.remove('selected'));
+    });
+
+    stars.forEach(star => {
+      star.addEventListener('mouseover', () => {
+        const val = parseInt(star.getAttribute('data-value'));
+        stars.forEach(s => s.classList.toggle('hover', parseInt(s.getAttribute('data-value')) <= val));
+      });
+      star.addEventListener('mouseout', () => {
+        stars.forEach(s => s.classList.remove('hover'));
+        stars.forEach(s => s.classList.toggle('selected', parseInt(s.getAttribute('data-value')) <= selectedRating));
+      });
+      star.addEventListener('click', () => {
+        selectedRating = parseInt(star.getAttribute('data-value'));
+        ratingInput.value = selectedRating;
+        stars.forEach(s => s.classList.toggle('selected', parseInt(s.getAttribute('data-value')) <= selectedRating));
+      });
+    });
+  });
+</script>
+
+<!-- Import Vendor Modal -->
+<div class="modal fade" id="importVendorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'import_vendors' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Bulk Import Vendors</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">Please upload an Excel file (.xlsx) with the correct headers. You can download the template above.</p>
+          <div class="mb-3">
+            <label class="form-label">Select Excel File</label>
+            <input type="file" name="excel_file" class="form-control" accept=".xlsx" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Upload & Import</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

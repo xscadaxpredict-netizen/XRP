@@ -94,7 +94,7 @@
 
     <!-- Confirm Order Form Card -->
     <div class="card border-0 shadow-lg" style="border-radius: 16px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);">
-        <form method="post" enctype="multipart/form-data" class="card-body p-4 form-control-custom">
+        <form method="post" enctype="multipart/form-data" class="card-body p-4 form-control-custom" id="confirmOrderForm">
             {% csrf_token %}
 
             <label class="form-label fw-bold text-dark fs-5"><i class="bi bi-file-earmark-check me-2 text-primary"></i>Select Quotations:</label>
@@ -104,8 +104,8 @@
             {% for quotation in quotations %}
                 <div class="form-check form-check-card {% if quotation.quotation_no in confirmed_quotations %}disabled-card{% endif %}">
                     <input class="form-check-input" 
-                           type="radio" 
-                           name="quotation_selection" 
+                           type="checkbox"
+                               name="quotation_selection" 
                            value="{{ quotation.quotation_no }}" 
                            id="quotation_{{ quotation.id }}" 
                            {% if quotation.quotation_no in confirmed_quotations %}disabled{% endif %}>
@@ -128,8 +128,8 @@
                         <div class="form-check form-check-card {% if file_data.quotation_number in confirmed_quotations %}disabled-card{% endif %}">
                             <input 
                                 class="form-check-input" 
-                                type="radio" 
-                                name="quotation_selection" 
+                                type="checkbox"
+                               name="quotation_selection" 
                                 value="{{ file_data.quotation_number }}" 
                                 id="stored_quotation_{{ file_data.quotation_number }}"
                                 {% if file_data.quotation_number in confirmed_quotations %}disabled{% endif %}
@@ -155,8 +155,8 @@
                         <div class="form-check form-check-card {% if file_data.quotation_number in confirmed_quotations %}disabled-card{% endif %}">
                             <input 
                                 class="form-check-input" 
-                                type="radio" 
-                                name="quotation_selection" 
+                                type="checkbox"
+                               name="quotation_selection" 
                                 value="{{ file_data.quotation_number }}" 
                                 id="proposal_quotation_{{ file_data.quotation_number }}"
                                 {% if file_data.quotation_number in confirmed_quotations %}disabled{% endif %}
@@ -180,7 +180,7 @@
                 {% for wash in hidrec_quotations %}
                     <div class="form-check form-check-card {% if wash.quotation_no in confirmed_quotations %}disabled-card{% endif %}">
                         <input class="form-check-input" 
-                               type="radio" 
+                               type="checkbox"
                                name="quotation_selection" 
                                value="{{ wash.quotation_no }}" 
                                id="hidrec_wash_{{ wash.id }}"
@@ -203,7 +203,7 @@
                 {% for uploaded in uploaded_quotations %}
                     <div class="form-check form-check-card {% if uploaded.quotation_no in confirmed_quotations %}disabled-card{% endif %}">
                         <input class="form-check-input" 
-                               type="radio" 
+                               type="checkbox"
                                name="quotation_selection" 
                                value="{{ uploaded.quotation_no }}" 
                                id="uploaded_quote_{{ uploaded.id }}"
@@ -240,13 +240,15 @@
 
             <!-- Submit button and Back button -->
             <div class="d-flex justify-content-start gap-2 mt-4 pt-3 border-top border-light-subtle">
-                <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                <button type="button" id="preConfirmBtn" class="btn btn-primary px-4 rounded-pill shadow-sm">
                     <i class="bi bi-check-circle-fill me-1"></i> Push to Confirm Orders
                 </button>
                 <a href="{% url 'managequotationpage' enquiry.id %}" class="btn btn-outline-secondary px-4 rounded-pill transition-link">
                     <i class="bi bi-arrow-left me-1"></i> Back
                 </a>
             </div>
+        
+            
         </form>
     </div>
 </div>
@@ -274,7 +276,79 @@
                 }, 350);
             });
         });
+    
+        const preConfirmBtn = document.getElementById("preConfirmBtn");
+        if (preConfirmBtn) {
+            preConfirmBtn.addEventListener("click", function() {
+                const radios = document.querySelectorAll('input[name="quotation_selection"]');
+                let isChecked = false;
+                for (const radio of radios) {
+                    if (radio.checked) {
+                        isChecked = true;
+                        break;
+                    }
+                }
+                if (!isChecked) {
+                    alert("Please select a quotation first before confirming the order.");
+                    return;
+                }
+                var poModal = new bootstrap.Modal(document.getElementById('poUploadModal'));
+                poModal.show();
+            });
+        }
+        const addMorePoBtn = document.getElementById("addMorePoBtn");
+        if (addMorePoBtn) {
+            addMorePoBtn.addEventListener("click", function() {
+                const container = document.getElementById("po-inputs-container");
+                const newRow = document.createElement("div");
+                newRow.className = "mb-3 po-input-row d-flex align-items-center gap-2";
+                newRow.innerHTML = `
+                    <div class="flex-grow-1">
+                        <input class="form-control" type="file" name="po_file" form="confirmOrderForm">
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-po-btn" title="Remove">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+                container.appendChild(newRow);
+
+                // Add event listener to the new remove button
+                newRow.querySelector(".remove-po-btn").addEventListener("click", function() {
+                    newRow.remove();
+                });
+            });
+        }
     });
 </script>
+
+<!-- PO Upload Modal -->
+            <div class="modal fade" id="poUploadModal" tabindex="-1" aria-labelledby="poUploadModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content shadow-lg border-0" style="border-radius: 16px;">
+                        <div class="modal-header bg-light border-bottom-0 pt-4 px-4">
+                            <h5 class="modal-title fw-bold text-dark" id="poUploadModalLabel">
+                                <i class="bi bi-file-earmark-arrow-up-fill text-primary me-2"></i>Upload Purchase Order (PO)
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <p class="text-muted small mb-3">Please upload the Purchase Order (PO) documents to proceed with confirming this order. You can add multiple files.</p>
+                            <div id="po-inputs-container">
+                                <div class="mb-3 po-input-row">
+                                    <label class="form-label fw-semibold text-dark">Select PO File</label>
+                                    <input class="form-control" type="file" name="po_file" form="confirmOrderForm">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2 rounded-pill" id="addMorePoBtn">
+                                <i class="bi bi-plus-circle me-1"></i> Add More PO
+                            </button>
+                        </div>
+                        <div class="modal-footer border-top-0 px-4 pb-4 pt-0 gap-2">
+                            <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" form="confirmOrderForm" class="btn btn-primary px-4 rounded-pill shadow-sm" style="background-color: #2563eb; border: none;">Confirm Order</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
 {% endblock %}

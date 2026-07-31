@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Sent Email Logs</h2>
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>PO Number</th>
+                <th>Recipient</th>
+                <th>Subject</th>
+                <th>Sent At</th>
+                <th>Attachment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>
+                    <a href="{% url 'po_list' %}?highlight={{ log.purchase_order.id }}">
+                        {{ log.purchase_order.po_number }}
+                    </a>
+                </td>
+                <td>{{ log.recipient }}</td>
+                <td>{{ log.subject }}</td>
+                <td>{{ log.timestamp|date:"M d, Y H:i" }}</td>
+                <td>
+                    {% if log.attachment %}
+                    <a href="{{ log.attachment.url }}" class="btn btn-sm btn-outline-info" target="_blank">
+                        📄 View File
+                    </a>
+                    {% else %}
+                    <span class="text-muted">No Attachment</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center">No email logs found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2 class="mt-5">Sent WhatsApp Logs</h2>
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>PO Number</th>
+                <th>Recipient Number</th>
+                <th>Message</th>
+                <th>Sent At</th>
+                <th>Sent By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in whatsapp_logs %}
+            <tr>
+                <td>
+                    <a href="{% url 'purchase_order_list' %}?highlight={{ log.purchase_order.id }}">
+                        {{ log.purchase_order.po_number }}
+                    </a>
+                </td>
+                <td>{{ log.recipient_number }}</td>
+                <td>{{ log.message }}</td>
+                <td>{{ log.sent_at|date:"M d, Y H:i" }}</td>
+                <td>{{ log.sent_by.username|default:"System" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center">No WhatsApp logs found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4">
+    <div class="card shadow-sm border rounded">
+        <div class="card-header bg-success text-white py-3">
+            <h2 class="card-title mb-0 fs-4 fw-bold">Direct Issue from Stock: {{ item.item_name }}</h2>
+        </div>
+        <div class="card-body p-4">
+            <h5 class="text-uppercase text-muted small fw-bold mb-4">Project: {{ project.name }}</h5>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted text-uppercase d-block fw-bold" style="font-size: 0.7rem;">Production Requirement</small>
+                        <span class="fs-5 fw-bold">{{ item.item_name }}</span>
+                        <div class="mt-2 text-dark" style="font-size: 0.9rem;">
+                            <strong>Requested Qty:</strong> {{ item.quantity }}<br>
+                            <strong>Pending Qty:</strong> {{ pending_qty }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted text-uppercase d-block fw-bold" style="font-size: 0.7rem;">Available Warehouse Stock</small>
+                        <span class="fs-5 fw-bold {% if stock_item.quantity > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ stock_item.quantity }}
+                        </span>
+                        <div class="mt-2 text-dark" style="font-size: 0.9rem;">
+                            <strong>Product Code:</strong> {{ stock_item.product_code|default:"-" }}<br>
+                            <strong>Stock Type:</strong> {{ stock_item.get_stock_type_display|default:stock_item.stock_type|capfirst }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3 col-md-6">
+                    <label for="id_issued_qty" class="form-label fw-bold">Quantity to Issue</label>
+                    <input type="number" name="issued_qty" id="id_issued_qty" class="form-control" 
+                           value="{{ default_qty }}" min="1" max="{{ stock_item.quantity }}" required>
+                    <div class="form-text text-muted">
+                        Maximum available to issue: {{ stock_item.quantity }} (Default pre-filled with min of pending & stock).
+                    </div>
+                </div>
+
+                <div class="mb-4 col-md-6">
+                    <label for="id_unit_price" class="form-label fw-bold">Unit Price (₹)</label>
+                    <input type="number" name="unit_price" id="id_unit_price" class="form-control" 
+                           value="{{ last_price|stringformat:".2f" }}" step="0.01" min="0" required>
+                    <div class="form-text text-muted">
+                        Auto-filled from last purchase. You can edit if needed.
+                    </div>
+                </div>
+
+                <div class="mb-4 col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Total Transaction Value</label>
+                    <div class="alert alert-info py-2 fw-bold" id="totalValue">₹0.00</div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success px-4">Confirm Direct Issue</button>
+                    <a href="{% url 'project_detail' project.id %}" class="btn btn-outline-secondary px-4">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const qtyInput = document.getElementById('id_issued_qty');
+    const priceInput = document.getElementById('id_unit_price');
+    const totalValueDiv = document.getElementById('totalValue');
+
+    function updateTotalValue() {
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const total = qty * price;
+        totalValueDiv.textContent = `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    qtyInput.addEventListener('input', updateTotalValue);
+    priceInput.addEventListener('input', updateTotalValue);
+    
+    // Initialize
+    updateTotalValue();
+</script>
+{% endblock %}

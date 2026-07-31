@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block content %}
+<!-- Display Django messages -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="container-xl my-4">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">
+                Create Purchase Order
+                <i class="bi bi-info-circle ms-2" style="font-size: 1rem; cursor: pointer;" data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Last Price: From most frequent non-rejected PO. Unit Price: Prefilled from Last Price if available, else Indent Estimate."></i>
+                <small class="text-muted">(Indent #{{ indent.id }} - {{ indent.title }})</small>
+            </h2>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data"
+                action="{% url 'indent_convert_to_po' indent.id vendor.id %}">
+                {% csrf_token %}
+
+                <!-- Purchase Order Details -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">Purchase Order Number</label>
+                        <input type="text" name="po_number" class="form-control" value="{{ po_form.po_number.value|default:po_form.initial.po_number }}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Proforma Invoices (Multiple)</label>
+                        {{ po_form.attachments }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Last Bought Value (Optional)</label>
+                        {{ po_form.last_bought_value }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Expected Delivery</label>
+                        {{ po_form.expected_delivery|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Vendor Name</label>
+                        {{ po_form.vendor_name|add_class:"form-control"|attr:"id:id_vendor_name" }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Vendor Code</label>
+                        <input type="text" id="vendor_code" class="form-control mt-1"
+                            value="{{ po_form.vendor_code.value }}" readonly placeholder="Vendor Code will appear here">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Payment Terms</label>
+                        {{ po_form.payment_terms|add_class:"form-select" }}
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Items Section -->
+                <h4 class="mb-3">Purchase Order Items</h4>
+                {{ item_formset.management_form }}
+
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Indent Qty</th>
+                            <th>Stock Available</th>
+                            <th>Shortage</th>
+                            <th>PO Qty</th>
+                            <th>Last Price</th>
+                            <th>Unit Price</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for form, data in formset_items %}
+                        <tr>
+                            <td>{{ form.product_name|add_class:"form-control" }}</td>
+                            <td>{{ data.indent_qty }}</td>
+                            <td>{{ data.available }}</td>
+                            <td>
+                                {% if data.shortage > 0 %}
+                                <span class="text-danger fw-bold">{{ data.shortage }}</span>
+                                {% else %}
+                                <span class="text-success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ form.quantity|add_class:"form-control" }}</td>
+                            <td>
+                                <input type="number" step="0.01" class="form-control"
+                                    value="{{ data.last_purchased_price|default:'' }}" placeholder="Manual Entry">
+                                {% if data.last_purchased_date %}
+                                <div class="small text-muted mt-1">{{ data.last_purchased_date|date:"d/M/y" }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ form.unit_price|add_class:"form-control" }}
+                            </td>
+                            <td>{{ form.remarks|add_class:"form-control" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Submit -->
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        Create Purchase Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+<script>
+    $(function () {
+        $("#id_vendor_name").autocomplete({
+            source: function (request, response) {
+                $.getJSON("{% url 'vendor_autocomplete' %}", { q: request.term }, function (data) {
+                    response($.map(data, function (item) {
+                        return {
+                            label: item.name,
+                            value: item.name,
+                            code: item.code
+                        };
+                    }));
+                });
+            },
+            minLength: 1,
+            select: function (event, ui) {
+                $("#vendor_code").val(ui.item.code);
+            }
+        });
+
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+</script>
+{% endblock %}

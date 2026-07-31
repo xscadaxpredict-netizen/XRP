@@ -4,6 +4,7 @@ from django.conf.urls.static import static
 from django.conf import settings
 from django.contrib.auth.views import LoginView, LogoutView
 from . import views
+from . import views_master
 
 urlpatterns = [
     # Home
@@ -11,6 +12,13 @@ urlpatterns = [
 
     # File Upload
     path('success/', views.success_view, name='success'),
+    
+    # Master Settings
+    path('master/', views_master.master_dashboard, name='master_dashboard'),
+    path('master/<str:app_label>/<str:model_name>/', views_master.master_list, name='master_list'),
+    path('master/<str:app_label>/<str:model_name>/create/', views_master.master_create, name='master_create'),
+    path('master/<str:app_label>/<str:model_name>/update/<int:pk>/', views_master.master_update, name='master_update'),
+    path('master/<str:app_label>/<str:model_name>/delete/<int:pk>/', views_master.master_delete, name='master_delete'),
 
     # Item Form
     path('item_form/', views.item_form, name='item_form'),
@@ -68,6 +76,7 @@ urlpatterns = [
 
     path('payable/', views.payable, name='payable'),
     path('payable/add-adjustment/', views.add_adjustment, name='add_payable_adjustment'),
+    path('payable/bulk-update-balances/', views.bulk_update_group_balances, name='bulk_update_group_balances'),
     path('payable/get-user-credit-notes/', views.get_user_credit_notes, name='get_user_credit_notes'),
     path('pay_now/<int:user_id>/', views.pay_now, name='pay_now'),
     path('process_payment/', views.process_payment, name='process_payment'),
@@ -98,6 +107,7 @@ urlpatterns = [
     path("assigned-groups/", views.view_assigned_groups, name="view_assigned_groups"),
     path("update/balance/<int:group_id>/", views.update_group_balance, name="update_group_balance"),
     path("delete-group/<int:group_id>/", views.delete_group, name="delete_group"),
+    path("rename-group/<int:group_id>/", views.rename_group, name="rename_group"),
     path("update-group-members/<int:group_id>/", views.update_group_members, name="update_group_members"),
     path('expenses/approve/<int:expense_id>/', views.approve_expense, name='approve_expense'),
     path('expenses/reject/', views.reject_expense, name='reject_expense'),
@@ -106,6 +116,7 @@ urlpatterns = [
      path('view-requests/', views.view_requests, name='view_requests'),
     path('chat/<int:req_id>/', views.chat_request, name='chat_request'),
     path('ajax-reply/', views.ajax_reply_request, name='ajax_reply_request'),
+    path('ajax-gif-search/', views.ajax_gif_search, name='ajax_gif_search'),
     path("ajax/fetch-messages/<int:req_id>/", views.fetch_messages, name="fetch_messages"),
     path('advances/export/excel/', views.export_advances_excel, name='export_advances'),
     path('advances/export/pdf/', views.export_advances_pdf, name='export_advances_pdf'),
@@ -154,6 +165,12 @@ urlpatterns = [
     path('api/advance-groups-list/', views.api_advance_groups_list, name='api_advance_groups_list'),
     path('api/close-groups-ajax/', views.api_close_groups_ajax, name='api_close_groups_ajax'),
     path('update-holidays/', views.update_holidays, name='update_holidays'),
+    path('site-expenses/', views.site_expenses_report, name='site_expenses_report'),
+    
+    # Tasks & Calendar
+    path('todo-calendar/', views.todo_calendar, name='todo_calendar'),
+    path('api/todos/', views.api_todo_items, name='api_todo_items'),
+    path('api/events/', views.api_calendar_events, name='api_calendar_events'),
 ]
 
 # Serve media files in development

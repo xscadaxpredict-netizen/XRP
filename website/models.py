@@ -23,6 +23,21 @@ class AdvanceGroup(models.Model):
     ],
     default="net_banking",
 )
+    
+    # New Site tracking fields
+    site = models.ForeignKey('apage.Site', on_delete=models.SET_NULL, null=True, blank=True, related_name="advance_groups")
+    advance_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('Site AMC', 'Site AMC'),
+            ('Site Project', 'Site Project'),
+            ('Office Maintenance', 'Office Maintenance'),
+            ('Food and Groceries', 'Food and Groceries'),
+            ('Client Visit', 'Client Visit'),
+        ],
+        null=True,
+        blank=True
+    )
 
 
     def __str__(self):
@@ -202,6 +217,7 @@ class AdvanceGroupUpdateLog(models.Model):
     new_amount = models.DecimalField(max_digits=10, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
     proof_file = models.FileField(upload_to='advance_proofs/', null=True, blank=True)
+    remarks = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.group.name} updated by {self.updated_by} at {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -249,7 +265,7 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     from_date = models.DateField()  # Start date for the payment duration
     to_date = models.DateField()    # End date for the payment duration
-    screenshot = models.ImageField(upload_to='payment_screenshots/')
+    screenshot = models.ImageField(upload_to='payment_screenshots/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     remarks = models.CharField(max_length=255, blank=True)
 
@@ -356,6 +372,22 @@ class PaymentRequestMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} - {self.message[:30]}"
+        
+    @property
+    def is_gif(self):
+        return bool(self.message and self.message.startswith('[GIF] '))
+        
+    @property
+    def gif_url(self):
+        if self.is_gif:
+            url = self.message.replace('[GIF] ', '')
+            # Convert any Tenor static format to MP4 animated
+            if 'media.tenor.com' in url:
+                import re
+                url = re.sub(r'AAAA[A-Z0-9]/', 'AAAP1/', url)
+                url = re.sub(r'\.(gif|webp)$', '.mp4', url)
+            return url
+        return None
     
 
 
@@ -416,3 +448,23 @@ class Holiday(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.date}"
+
+class TodoItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='todo_items')
+    title = models.CharField(max_length=255)
+    is_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} - {'Completed' if self.is_completed else 'Pending'}"
+
+class CalendarEvent(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calendar_events')
+    title = models.CharField(max_length=255)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField(null=True, blank=True)
+    all_day = models.BooleanField(default=True)
+    color = models.CharField(max_length=50, default='#3788d8') # Adding a color field for premium styling
+
+    def __str__(self):
+        return f"{self.title} ({self.start_date.date()})"

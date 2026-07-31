@@ -1,0 +1,894 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .item-dropdown-container {
+    position: relative;
+  }
+
+  .sfg-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1050;
+    /* Above modal if needed */
+    display: none;
+    float: left;
+    min-width: 100%;
+    padding: 0.5rem 0;
+    margin: 0.125rem 0 0;
+    font-size: 0.85rem;
+    color: #1e293b;
+    text-align: left;
+    list-style: none;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    /* Ensure it overlays everything when inside a modal */
+    z-index: 2000;
+  }
+
+  .sfg-dropdown .dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    clear: both;
+    font-weight: 400;
+    color: #1e293b;
+    text-align: inherit;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    border-bottom: 1px solid #f8fafc;
+  }
+
+  .sfg-dropdown .dropdown-item:hover {
+    background-color: #f1f5f9;
+    color: #206bc4;
+  }
+
+  .stepper-item.active .step-counter {
+    border-color: #206bc4;
+    background-color: #206bc4;
+    color: #fff;
+  }
+
+  .stepper-item.active .step-name {
+    color: #206bc4;
+  }
+
+  .stepper-item:hover .step-counter {
+    background-color: #f8fafc;
+    border-color: #206bc4;
+  }
+
+  /* Fix for modal clipping dropdowns */
+  .modal-body,
+  .modal-content {
+    overflow: visible !important;
+  }
+
+  .stepper-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+</style>
+
+
+<div class="container">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 mt-4 gap-3">
+    <div>
+      <h2 class="mb-1">{{ project.name }}</h2>
+      <div class="d-flex flex-wrap gap-2 text-muted align-items-center" style="font-size: 0.95rem;">
+        {% if project.lead %}
+        <span><strong>Lead Department:</strong> {{ project.lead.name }}</span>
+        <span class="text-muted d-none d-md-inline">|</span>
+        {% endif %}
+        <span><strong>Site Location:</strong> {{ project.place|default:"-" }}</span>
+
+      </div>
+    </div>
+    <div>
+      <!-- 📊 Financial Dashboard Link -->
+      {% if is_admin or is_accounts %}
+      <a class="btn btn-outline-primary btn-md fw-bold shadow-sm"
+        href="{% url 'project_financial_dashboard' project.id %}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
+          stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+          <path
+            d="M17 8v-3a1 1 0 0 0 -1 -1h-10a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1 -1 1h-12a2 2 0 0 1 -2 -2v-12" />
+          <path d="M20 12v4h-4a2 2 0 0 1 0 -4h4" />
+        </svg>
+        Financial Dashboard
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mt-4 gap-3">
+    <h3 class="mb-0">All Department Requirements</h3>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+
+      <!-- 🔍 View ALL INDENTS for this Project -->
+      <a class="btn btn-primary btn-md" href="{% url 'indent_list' %}?project={{ project.id }}">
+        <i class="bi bi-list-ul"></i> View All Indents
+      </a>
+
+      <!-- 🔍 View ALL GRN for this Project -->
+      {% if is_admin or is_grn %}
+      <a class="btn btn-primary btn-md" href="{% url 'grn_list' %}?project_id={{ project.id }}">
+        <i class="bi bi-box-seam"></i> View All GRN
+      </a>
+      {% endif %}
+
+      <!-- 🔍 View ALL PURCHASE ORDERS for this Project -->
+      {% if is_admin or is_stock or is_vendor %}
+      <a class="btn btn-primary btn-md" href="{% url 'purchase_order_list' %}?project={{ project.id }}">
+        <i class="bi bi-cart"></i> View All Purchase Orders
+      </a>
+      {% endif %}
+
+      <!-- ⚙️ Project Assembly Visualizer -->
+      {% if is_admin or is_production %}
+      <a class="btn btn-primary btn-md fw-bold shadow-sm" href="{% url 'project_assembly' project.id %}">
+        <i class="bi bi-diagram-3"></i> Project Assembly
+      </a>
+      {% endif %}
+
+      <!-- 📦 Issue Material to Project - Dropdown -->
+      {% if is_admin or is_stock %}
+      <div class="btn-group">
+        <button type="button" class="btn btn-primary btn-md dropdown-toggle" data-bs-toggle="dropdown"
+          aria-expanded="false">
+          <i class="bi bi-box-arrow-right"></i> Issue Material
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="{% url 'project_material_issue_from_indent' project.id %}"><i
+                class="bi bi-list-check"></i> From Indent</a></li>
+          <li><a class="dropdown-item" href="{% url 'project_material_issue' project.id %}"><i
+                class="bi bi-plus-circle"></i> Single Item</a></li>
+        </ul>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+  <div class="card p-4 mt-4 border rounded shadow-sm" id="departments-section">
+
+    <h3 class="fw-bold mb-4 text-primary">Departments (Semi Finished Goods)</h3>
+
+
+    <div class="row mt-3">
+      {% for entry in dept_data %}
+      {% with dept=entry.dept items=entry.items has_items=entry.has_items indent=entry.indent %}
+      <div class="col-12 mb-4">
+        <div class="card p-3">
+          <div class="d-flex align-items-center gap-4">
+            <h3 class="mb-0">{{ dept.name }}</h3>
+            {% if indent %}
+            <div style="min-width: 250px;">
+              {{ entry.indent_prog_html|safe }}
+            </div>
+            {% endif %}
+          </div>
+          <small class="text-muted text-end">{% if indent %}XPINT: {{ indent.indent_number }}{% endif %}</small>
+
+          <div class="mt-2">
+            <input type="checkbox" class="form-check-input me-2" onclick="toggleDept('{{ dept.id }}')">
+            <label>Add / Edit Production Items </label>
+          </div>
+
+          <!-- department form -->
+          <form method="post" id="form-{{ dept.id }}" class="d-none mt-3">
+            {% csrf_token %}
+            <input type="hidden" name="dept_id" value="{{ dept.id }}">
+            <div id="delete-container-{{ dept.id }}"></div>
+
+            <div class="table-responsive">
+              <table class="table table-sm" style="min-width: 600px;">
+                <thead>
+                  <tr>
+                    <th style="width: 48%">Item</th>
+                    <th style="width: 16%">Qty</th>
+                    <th style="width: 20%">Due</th>
+                    <th style="width: 16%">Delete</th>
+                  </tr>
+                </thead>
+                <tbody id="rows-{{ dept.id }}">
+                  {% for item in items %}
+                  <tr>
+                    <td>
+                      <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                      <div class="item-dropdown-container">
+                        <div class="input-group flex-nowrap">
+                          <input name="item_name[]" class="form-control" value="{{ item.item_name }}" data-valid="true" data-dept-id="{{ dept.id }}"
+                            autocomplete="off" onclick="showDropdown(this)" oninput="filterDropdown(this)">
+                          {% if item.requested_by_dept %}
+                          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1"
+                            style="font-size: 0.65rem;">
+                            Req: {{ item.requested_by_dept.name }}
+                          </span>
+                          {% endif %}
+                          <span class="input-group-text bg-light stock-display"
+                            style="min-width: 80px; font-size: 0.75rem;">Stock: -</span>
+                        </div>
+                        <div class="sfg-dropdown"></div>
+                      </div>
+                    </td>
+                    <td><input name="quantity[]" class="form-control" value="{{ item.quantity }}"></td>
+                    <td><input type="date" name="due_date[]" class="form-control"
+                        value="{{ item.due_date|date:'Y-m-d' }}"></td>
+                    <td class="text-center align-middle">
+                      <button type="button" class="btn btn-icon btn-md btn-danger delete-btn"
+                        onclick="confirmDelete('{{ item.id }}', this)" title="Delete item">
+  
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          class="icon">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M4 7h16" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                          <path d="M9 7V4a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                        </svg>
+  
+                      </button>
+                    </td>
+                  </tr>
+                  {% endfor %}
+  
+                  <!-- blank row for new item -->
+                  <tr>
+                    <td>
+                      <input type="hidden" name="item_id[]" value="">
+                      <div class="item-dropdown-container">
+                        <div class="input-group flex-nowrap">
+                          <input name="item_name[]" class="form-control" placeholder="New item" data-valid="false" data-dept-id="{{ dept.id }}"
+                            autocomplete="off" onclick="showDropdown(this)" oninput="filterDropdown(this)">
+                          <span class="input-group-text bg-light stock-display"
+                            style="min-width: 80px; font-size: 0.75rem;">Stock: -</span>
+                        </div>
+                        <div class="sfg-dropdown"></div>
+                      </div>
+                    </td>
+                    <td><input name="quantity[]" class="form-control" value="1"></td>
+                    <td><input type="date" name="due_date[]" class="form-control"></td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="addRow('{{ dept.id }}')">Add
+                More</button>
+              <button type="submit" class="btn btn-success btn-sm">Save</button>
+            </div>
+          </form>
+
+          <!-- readonly items preview -->
+          {% if has_items %}
+          <div class="mt-3 p-2 bg-light border rounded">
+            <h6 class="fw-bold mb-2">Production Items </h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-borderless align-middle mb-0" style="font-size: 0.85rem;">
+                <thead>
+                  <tr class="text-muted">
+                    <th>Item Name</th>
+                    <th class="text-center">Req. Qty</th>
+                    <th class="text-center">Accepted</th>
+                    <th class="text-center">Pending</th>
+                    <th>Progress</th>
+                    <th>Due Date</th>
+                    <th class="text-center">Stock Available</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in items %}
+                  <tr>
+                    <td>
+                      <strong>{{ item.item_name }}</strong>
+                      {% if item.requested_by_dept %}
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1"
+                        style="font-size: 0.65rem;">
+                        Req: {{ item.requested_by_dept.name }}
+                      </span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-center text-success fw-bold">{{ item.accepted_qty }}</td>
+                    <td class="text-center text-danger fw-bold">{{ item.pending_qty }}</td>
+                    <td>{{ item.progress_html|safe }}</td>
+                    <td>{{ item.due_date|date:"Y-m-d"|default:"-" }}</td>
+                    <td class="text-center font-monospace">{{ item.stock_qty|default:0 }}</td>
+                    <td class="text-center">
+                      {% if item.pending_qty > 0 and item.stock_qty > 0 %}
+                        {% if is_admin or is_stock %}
+                        <a href="{% url 'issue_internal_requirement' item.id %}"
+                          class="btn btn-outline-success btn-sm py-0 px-2" style="font-size: 0.75rem;">Issue</a>
+                        {% else %}
+                        <span class="text-muted" style="font-size: 0.75rem;">-</span>
+                        {% endif %}
+                      {% else %}
+                      <span class="text-muted" style="font-size: 0.75rem;">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- action buttons flex row -->
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <a class="btn btn-primary btn-md" href="{% url 'project_indent_create' project.id dept.id %}">
+              Raise Material Indent
+            </a>
+            <a class="btn btn-primary btn-md"
+              href="{% url 'indent_list' %}?project={{ project.id }}&department={{ dept.id }}">
+              View Material Indents
+            </a>
+            
+            {% if is_admin or is_grn %}
+            <a class="btn btn-primary btn-md" href="{% url 'create_internal_grn' indent.id %}">
+              Create Production GRN
+            </a>
+            <a class="btn btn-primary btn-md"
+              href="{% url 'grn_list' %}?project_id={{ project.id }}&department_id={{ dept.id }}">
+              View Department GRN
+            </a>
+            {% endif %}
+
+            <button class="btn btn-primary btn-md fw-bold" data-bs-toggle="modal" data-bs-target="#crossDeptModal"
+              data-requesting-dept-id="{{ dept.id }}" data-requesting-dept-name="{{ dept.name }}">
+              Request SFG
+            </button>
+
+            {% if is_admin or is_stock or is_vendor %}
+            <a class="btn btn-primary btn-md"
+              href="{% url 'purchase_order_list' %}?project={{ project.id }}&department={{ dept.id }}">
+              View Department PO
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endwith %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 🚀 Cross-Departmental Request Modal -->
+  <div class="modal fade" id="crossDeptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form action="{% url 'create_cross_dept_request' project.id %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="requesting_dept" id="modal_requesting_dept_id">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Request Production from Another Dept</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Requesting Dept</label>
+              <input type="text" id="modal_requesting_dept_name" class="form-control" readonly>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Target Department (Who am I asking?)</label>
+              <select name="target_dept" class="form-select" required>
+                {% for entry in dept_data %}
+                <option value="{{ entry.dept.id }}" data-dept-code="{{ entry.dept.code }}">{{ entry.dept.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <h6 class="fw-bold mt-4 mb-2">Requested Items</h6>
+            <div class="modal-table-container table-responsive" style="position: relative;">
+              <table class="table table-sm" style="min-width: 600px;">
+                <thead>
+                  <tr>
+                    <th style="width: 50%">Item</th>
+                    <th style="width: 20%">Qty</th>
+                    <th style="width: 25%">Due Date</th>
+                    <th style="width: 5%"></th>
+                  </tr>
+                </thead>
+                <tbody id="modal-item-rows">
+                  <tr>
+                    <td>
+                      <div class="item-dropdown-container">
+                        <div class="input-group flex-nowrap">
+                          <input type="text" name="item_name[]" class="form-control" required placeholder="e.g. PCB Box"
+                            data-valid="false" autocomplete="off" onclick="showDropdown(this)"
+                            oninput="filterDropdown(this)">
+                          <span class="input-group-text bg-light stock-display" style="font-size: 0.65rem; min-width: 60px;">S: -</span>
+                        </div>
+                        <div class="sfg-dropdown"></div>
+                      </div>
+                    </td>
+                    <td><input type="number" name="quantity[]" class="form-control" value="1" min="1" required></td>
+                    <td><input type="date" name="due_date[]" class="form-control"></td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addModalRow()">Add More</button>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-warning">Send Request</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 🏗️ Material (Purchase) Indents Section -->
+  <div class="card p-4 mt-4 border rounded shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="fw-bold mb-0">Material Indents (Purchase)</h3>
+      <div class="d-flex gap-2">
+
+        <button type="button" class="btn btn-primary btn-md fw-bold" onclick="printCombinedPO()">
+          Print Combined PO (Consolidated)
+        </button>
+      </div>
+    </div>
+
+    {% if project_indents %}
+    <!-- No Checkboxes required for Project-Level combination -->
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Indent No</th>
+            <th>Title</th>
+            <th>Department</th>
+            <th>Progress</th>
+            <th class="text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pi in project_indents %}
+          <tr>
+            <!-- <td> removed checkbox </td> -->
+            <td><span class="badge bg-light text-dark border">{{ pi.indent_number }}</span></td>
+            <td><strong>{{ pi.title }}</strong></td>
+            <td>{{ pi.department.name|default:"-" }}</td>
+            <td style="min-width: 150px;">{{ pi.progress_html|safe }}</td>
+            <td class="text-center">
+              <a href="{% url 'indent_details' pi.id %}" class="btn btn-sm btn-outline-primary">View Details</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info py-2">No material indents found for this project.</div>
+    {% endif %}
+  </div>
+
+  <!-- 📦 Issued Materials Section -->
+  <div class="card p-4 mt-4 border rounded shadow-sm">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3 class="fw-bold mb-0">Issued Materials</h3>
+      <a href="{% url 'project_material_issue' project.id %}" class="btn btn-primary btn-md">
+        Issue Material
+      </a>
+    </div>
+
+    {% if issued_materials %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Stock Item</th>
+            <th>Quantity Issued</th>
+            <th>Total Value</th>
+            <th>Issued By</th>
+            <th>Issued At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in issued_materials %}
+          <tr>
+            <td>
+              <strong>{{ issue.stock_item.product_name }}</strong>
+              {% if issue.unit_price > 0 %}
+              <br><small class="text-muted">@ ₹{{ issue.unit_price }}/unit</small>
+              {% endif %}
+            </td>
+            <td>{{ issue.issued_qty }}</td>
+            <td><strong>₹{{ issue.total_value }}</strong></td>
+            <td>{{ issue.issued_by.username|default:"-" }}</td>
+            <td>{{ issue.issued_at|date:"d M Y, H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info py-2">No materials have been issued to this project yet.</div>
+    {% endif %}
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  function printCombinedPO() {
+    // Fetch vendors associated with Approved POs for this Project
+    fetch(`{% url 'check_project_vendors_print' project.id %}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          Swal.fire('Error', data.error, 'error');
+        } else if (data.vendors.length === 0) {
+          Swal.fire('Info', 'No approved purchase orders found for this project.', 'info');
+        } else {
+          const options = data.vendors.map(v => `<option value="${v.id}">${v.name} (${v.code || 'N/A'})</option>`).join('');
+          Swal.fire({
+            title: 'Print Consolidated PO',
+            html: `
+                        <p class="small text-muted mb-3">Select a vendor to view all their approved project items together.</p>
+                        <select id="swal-vendor-print" class="form-select">${options}</select>
+                    `,
+            showCancelButton: true,
+            confirmButtonText: 'View Print Layout',
+            preConfirm: () => {
+              return document.getElementById('swal-vendor-print').value;
+            }
+          }).then((res) => {
+            if (res.isConfirmed) {
+              const vendorId = res.value;
+              window.location.href = `/project/{{ project.id }}/combined-po-print/${vendorId}/`;
+            }
+          });
+        }
+      });
+  }
+</script>
+
+<script>
+  function confirmDelete(itemId, btnElement) {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "Do you want to delete this item?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!"
+    }).then((result) => {
+      if (result.isConfirmed) {
+
+        // 👉 Find which form this delete belongs to
+        let form = btnElement.closest("form");
+        let deptId = form.querySelector("input[name='dept_id']").value;
+
+        // 👉 Add delete input to the correct delete container
+        let container = document.getElementById(`delete-container-${deptId}`);
+        container.insertAdjacentHTML(
+          "beforeend",
+          `<input type="hidden" name="delete_item[]" value="${itemId}">`
+        );
+
+        // 👉 Remove row visually
+        let row = btnElement.closest("tr");
+        row.style.background = "#ffcccc";
+        row.style.transition = "0.3s";
+        setTimeout(() => row.remove(), 300);
+      }
+    });
+  }
+</script>
+
+<script>
+  // Defined early to ensure availability
+  function toggleDept(id) {
+    const form = document.getElementById("form-" + id);
+    if (form) form.classList.toggle("d-none");
+  }
+</script>
+
+<script>
+  let stockData = {};
+  try {
+    stockData = JSON.parse('{{ stock_json|escapejs }}');
+  } catch (e) {
+    console.error("Failed to load stock data", e);
+  }
+
+  function showDropdown(input) {
+    const container = input.closest('.item-dropdown-container');
+    const dropdown = container.querySelector('.sfg-dropdown');
+
+    // Hide all other dropdowns
+    document.querySelectorAll('.sfg-dropdown').forEach(d => {
+      if (d !== dropdown) d.style.display = 'none';
+    });
+
+    filterDropdown(input);
+  }
+
+  function filterDropdown(input) {
+    const container = input.closest('.item-dropdown-container');
+    const dropdown = container.querySelector('.sfg-dropdown');
+    const query = input.value.trim().toLowerCase();
+
+    // Mark invalid while typing
+    input.dataset.valid = "false";
+    toggleSaveButton(input.closest('form'));
+
+    // Fix for dropup if near bottom of screen/modal
+    const rect = input.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 250) {
+      dropdown.style.bottom = '100%';
+      dropdown.style.top = 'auto';
+      dropdown.style.marginTop = '0';
+      dropdown.style.marginBottom = '0.125rem';
+    } else {
+      dropdown.style.bottom = 'auto';
+      dropdown.style.top = '100%';
+      dropdown.style.marginTop = '0.125rem';
+      dropdown.style.marginBottom = '0';
+    }
+
+    // Get department ID for filtering
+    let deptId = input.getAttribute('data-dept-id');
+    if (!deptId) {
+      const modal = input.closest('#crossDeptModal');
+      if (modal) {
+        const select = modal.querySelector('select[name="target_dept"]');
+        if (select) {
+          deptId = select.value;
+        }
+      }
+    }
+
+    const deptStock = (deptId && stockData[deptId]) ? stockData[deptId] : {};
+    const productNames = Object.keys(deptStock);
+
+    const matches = query
+      ? productNames.filter(p => p.toLowerCase().includes(query))
+      : productNames.slice(0, 10);
+
+    renderDropdown(dropdown, matches, input, deptStock);
+    dropdown.style.display = matches.length > 0 || query === "" ? 'block' : 'none';
+  }
+
+  function renderDropdown(dropdown, names, input, deptStock) {
+    dropdown.innerHTML = '';
+    if (names.length === 0) {
+      dropdown.innerHTML = '<div class="dropdown-item text-danger small"><i class="bi bi-x-circle"></i> Item not found in Stock</div>';
+      return;
+    }
+
+    names.forEach(name => {
+      const qty = deptStock[name];
+      const div = document.createElement('div');
+      div.className = 'dropdown-item d-flex justify-content-between';
+      div.innerHTML = `<span>${name}</span> <small class="text-muted">In Stock: ${qty}</small>`;
+      div.onclick = () => selectItem(name, qty, input);
+      dropdown.appendChild(div);
+    });
+  }
+
+  function selectItem(name, stock, input) {
+    // Duplicate Detection
+    const form = input.closest('form');
+    // Check against other rows in the SAME form/modal
+    const otherNames = Array.from(form.querySelectorAll('input[name="item_name[]"]'))
+      .filter(i => i !== input)
+      .map(i => i.value.toLowerCase())
+      .filter(v => v !== "");
+
+    if (otherNames.includes(name.toLowerCase())) {
+      Swal.fire({
+        title: 'Already Selected',
+        text: `'${name}' is already in this request. Please increase the quantity if you need more.`,
+        icon: 'warning',
+        confirmButtonColor: '#206bc4'
+      });
+      input.value = '';
+      updateStockDisplay(input, null);
+      input.closest('.item-dropdown-container').querySelector('.sfg-dropdown').style.display = 'none';
+      return;
+    }
+
+    input.value = name;
+    input.dataset.valid = "true";
+    updateStockDisplay(input, stock);
+    toggleSaveButton(input.closest('form'));
+    input.closest('.item-dropdown-container').querySelector('.sfg-dropdown').style.display = 'none';
+  }
+
+  function toggleSaveButton(form) {
+    if (!form) return;
+    const saveBtn = form.querySelector('button[type="submit"]');
+    if (!saveBtn) return;
+
+    const isModal = form.closest('.modal') !== null;
+    const originalText = isModal ? "Send Request" : "Save";
+    const originalClass = isModal ? "btn-warning" : "btn-success";
+
+    const inputs = Array.from(form.querySelectorAll('input[name="item_name[]"]'));
+    const hasInvalidItem = inputs.some(input => {
+      const val = input.value.trim();
+      return val !== "" && input.dataset.valid === "false";
+    });
+
+    if (hasInvalidItem) {
+      saveBtn.disabled = true;
+      saveBtn.classList.add('btn-secondary');
+      saveBtn.classList.remove(originalClass);
+      saveBtn.innerText = "Select valid items";
+    } else {
+      saveBtn.disabled = false;
+      saveBtn.classList.remove('btn-secondary');
+      saveBtn.classList.add(originalClass);
+      saveBtn.innerText = originalText;
+    }
+  }
+
+  function updateStockDisplay(input, stock) {
+    const display = input.closest('td').querySelector('.stock-display');
+    if (stock === null) {
+      display.textContent = 'Stock: -';
+      display.classList.remove('text-success', 'text-danger');
+    } else {
+      display.textContent = `Stock: ${stock}`;
+      if (stock > 0) {
+        display.classList.remove('text-danger');
+        display.classList.add('text-success');
+      } else {
+        display.classList.remove('text-success');
+        display.classList.add('text-danger');
+      }
+    }
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.item-dropdown-container')) {
+      document.querySelectorAll('.sfg-dropdown').forEach(d => d.style.display = 'none');
+    }
+  });
+
+  function addRow(id) {
+    const tableBody = document.getElementById("rows-" + id);
+    const newRow = `<tr>
+       <td>
+         <input type="hidden" name="item_id[]" value="">
+         <div class="item-dropdown-container">
+            <div class="input-group">
+                <input name="item_name[]" class="form-control" placeholder="New item"
+                       data-valid="false" data-dept-id="${id}"
+                       autocomplete="off" onclick="showDropdown(this)" oninput="filterDropdown(this)">
+                <span class="input-group-text bg-light stock-display" style="min-width: 100px; font-size: 0.75rem;">Stock: -</span>
+            </div>
+            <div class="sfg-dropdown"></div>
+         </div>
+       </td>
+       <td><input name="quantity[]" class="form-control" value="1"></td>
+       <td><input type="date" name="due_date[]" class="form-control"></td>
+       <td class="text-center align-middle">
+           <button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
+               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7V4a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+           </button>
+       </td>
+     </tr>`;
+    tableBody.insertAdjacentHTML("beforeend", newRow);
+  }
+
+  function addModalRow() {
+    const tableBody = document.getElementById('modal-item-rows');
+    const newRow = `<tr>
+          <td>
+              <div class="item-dropdown-container">
+                  <div class="input-group">
+                      <input type="text" name="item_name[]" class="form-control" required placeholder="e.g. PCB Box"
+                             data-valid="false"
+                             autocomplete="off" onclick="showDropdown(this)" oninput="filterDropdown(this)">
+                      <span class="input-group-text bg-light stock-display" style="font-size: 0.65rem;">S: -</span>
+                  </div>
+                  <div class="sfg-dropdown"></div>
+              </div>
+          </td>
+          <td><input type="number" name="quantity[]" class="form-control" value="1" min="1" required></td>
+          <td><input type="date" name="due_date[]" class="form-control"></td>
+          <td class="text-center align-middle">
+              <button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7V4a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+              </button>
+          </td>
+      </tr>`;
+    tableBody.insertAdjacentHTML('beforeend', newRow);
+  }
+
+  // 🚀 Modal Data Handling and Stock Initialization
+  document.addEventListener('DOMContentLoaded', function () {
+    // Initialize stock displays for existing page items
+    document.querySelectorAll('input[name="item_name[]"]').forEach(input => {
+      const name = input.value.trim();
+      if (name) {
+        let deptId = input.getAttribute('data-dept-id');
+        if (!deptId) {
+          const modal = input.closest('#crossDeptModal');
+          if (modal) {
+            const select = modal.querySelector('select[name="target_dept"]');
+            if (select) {
+              deptId = select.value;
+            }
+          }
+        }
+        const deptStock = (deptId && stockData[deptId]) ? stockData[deptId] : {};
+        const qty = deptStock[name];
+        if (qty !== undefined) {
+          updateStockDisplay(input, qty);
+        }
+      }
+    });
+
+    const crossDeptModal = document.getElementById('crossDeptModal');
+    if (crossDeptModal) {
+      crossDeptModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const deptId = button.getAttribute('data-requesting-dept-id');
+        const deptName = button.getAttribute('data-requesting-dept-name');
+
+        document.getElementById('modal_requesting_dept_id').value = deptId;
+        document.getElementById('modal_requesting_dept_name').value = deptName;
+
+        // Reset modal rows to one on open
+        document.getElementById('modal-item-rows').innerHTML = `<tr>
+          <td>
+              <div class="item-dropdown-container">
+                  <div class="input-group">
+                      <input type="text" name="item_name[]" class="form-control" required placeholder="e.g. PCB Box"
+                             data-valid="false"
+                             autocomplete="off" onclick="showDropdown(this)" oninput="filterDropdown(this)">
+                      <span class="input-group-text bg-light stock-display" style="font-size: 0.65rem;">S: -</span>
+                  </div>
+                  <div class="sfg-dropdown"></div>
+              </div>
+          </td>
+          <td><input type="number" name="quantity[]" class="form-control" value="1" min="1" required></td>
+          <td><input type="date" name="due_date[]" class="form-control"></td>
+          <td></td>
+        </tr>`;
+
+        // Optionally hide the requesting dept from the target select
+        const select = crossDeptModal.querySelector('select[name="target_dept"]');
+        Array.from(select.options).forEach(opt => {
+          opt.style.display = (opt.value === deptId) ? 'none' : 'block';
+          if (opt.value === deptId && opt.selected) {
+            // select a different one if current is hidden
+            let next = Array.from(select.options).find(o => o.value !== deptId);
+            if (next) next.selected = true;
+          }
+        });
+      });
+    }
+  });
+</script>
+
+{% endblock %}

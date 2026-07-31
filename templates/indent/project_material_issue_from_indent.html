@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex align-items-center w-100">
+                <h5 class="card-title mb-0">Issue Materials from Indent - {{ indent.indent_number }}</h5>
+                <div class="ms-auto text-end" style="font-size: 0.9rem;">
+                    Project: <strong>{{ project.name }}</strong>
+                    <span class="mx-2">|</span>
+                    Department: <strong>{{ indent.department }}</strong>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if indent_items_data %}
+            <form method="post" id="issueForm">
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="50"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                                <th>Item Name</th>
+                                <th>Total Qty</th>
+                                <th>Issued</th>
+                                <th>Remaining</th>
+                                <th>Available Stock</th>
+                                <th width="120">Qty to Issue</th>
+                                <th width="120">Unit Price (₹)</th>
+                                <th>Total Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in indent_items_data %}
+                            <tr class="{% if not data.has_stock %}table-danger{% endif %}">
+                                <td>
+                                    <input type="checkbox" name="selected_{{ data.indent_item.id }}" class="form-check-input item-checkbox" {% if not data.has_stock %}disabled="disabled"{% endif %}>
+                                </td>
+                                <td>
+                                    <strong>{{ data.indent_item.product_name }}</strong>
+                                    {% if not data.has_stock %}
+                                    <br><small class="text-danger">No stock available</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ data.total_qty }}</td>
+                                <td><span class="badge bg-info text-white">{{ data.issued_qty }}</span></td>
+                                <td><span class="badge bg-primary text-white">{{ data.requested_qty }}</span></td>
+                                <td>
+                                    {% if data.sufficient_stock %}
+                                    <span class="badge bg-success text-white">{{ data.available_qty }}</span>
+                                    {% else %}
+                                    <span class="badge bg-danger text-white">{{ data.available_qty }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <input type="number" name="qty_{{ data.indent_item.id }}" class="form-control qty-input" value="{{ data.requested_qty }}" min="1" max="{{ data.available_qty }}" data-item-id="{{ data.indent_item.id }}" {% if not data.has_stock %}disabled="disabled"{% endif %}>
+                                </td>
+                                <td>
+                                    <input type="number" name="price_{{ data.indent_item.id }}" class="form-control price-input" value="{{ data.last_price }}" min="0" step="0.01" data-item-id="{{ data.indent_item.id }}" {% if not data.has_stock %}disabled="disabled"{% endif %}>
+                                </td>
+                                <td><strong class="total-value" data-item-id="{{ data.indent_item.id }}">₹{{ data.requested_qty|floatformat:0|default:"0" }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="8" class="text-end"><strong>Grand Total:</strong></td>
+                                <td><strong id="grandTotal">₹0.00</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Issue Selected Materials</button>
+                    <a href="{% url 'project_material_issue_from_indent' project.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Indent Selection</a>
+                    <a href="{% url 'project_detail' project.id %}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Cancel</a>
+                </div>
+            </form>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> <strong>All items from this indent have been issued!</strong>
+                <p class="mb-0 mt-2">All materials requested in this indent have been fully issued to the project.</p>
+            </div>
+            <div class="mt-3">
+                <a href="{% url 'project_material_issue_from_indent' project.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to Indent Selection</a>
+                <a href="{% url 'project_detail' project.id %}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Back to Project</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('selectAll')?.addEventListener('change', function() {
+    document.querySelectorAll('.item-checkbox:not(:disabled)').forEach(cb => cb.checked = this.checked);
+});
+function calculateRowTotal(itemId) {
+    const qtyInput = document.querySelector(`input[name="qty_${itemId}"]`);
+    const priceInput = document.querySelector(`input[name="price_${itemId}"]`);
+    const totalCell = document.querySelector(`.total-value[data-item-id="${itemId}"]`);
+    if (qtyInput && priceInput && totalCell) {
+        const total = (parseFloat(qtyInput.value) || 0) * (parseFloat(priceInput.value) || 0);
+        totalCell.textContent = `₹${total.toFixed(2)}`;
+    }
+    calculateGrandTotal();
+}
+function calculateGrandTotal() {
+    let grandTotal = 0;
+    document.querySelectorAll('.item-checkbox:checked').forEach(cb => {
+        const itemId = cb.name.replace('selected_', '');
+        const qty = parseFloat(document.querySelector(`input[name="qty_${itemId}"]`).value) || 0;
+        const price = parseFloat(document.querySelector(`input[name="price_${itemId}"]`).value) || 0;
+        grandTotal += qty * price;
+    });
+    document.getElementById('grandTotal').textContent = `₹${grandTotal.toFixed(2)}`;
+}
+document.querySelectorAll('.qty-input, .price-input').forEach(input => {
+    input.addEventListener('input', () => calculateRowTotal(input.dataset.itemId));
+});
+document.querySelectorAll('.item-checkbox').forEach(cb => cb.addEventListener('change', calculateGrandTotal));
+document.querySelectorAll('.qty-input').forEach(input => calculateRowTotal(input.dataset.itemId));
+</script>
+{% endblock %}

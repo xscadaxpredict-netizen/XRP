@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+  <!-- Display Django messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+  
+<div class="page-wrapper">
+  <div class="container-xl">
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="page-title">Purchase Orders</h2>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="table-responsive">
+        <table class="table card-table table-vcenter text-nowrap">
+          <thead>
+            <tr>
+              <th>PO Number</th>
+              <th>Vendor</th>
+              <th>Expected Delivery</th>
+              <th>Status</th>
+              <th>Delay Info</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for po in purchase_orders %}
+            <tr>
+              <td><strong>{{ po.po_number }}</strong></td>
+              <td>{{ po.vendor.name }}</td>
+              <td>{{ po.expected_delivery|date:"d M Y" }}</td>
+              <td>
+                <span class="badge text-white
+                  {% if po.status == 'approved' %} bg-success
+                  {% elif po.status == 'pending' %} bg-warning
+                  {% elif po.status == 'rejected' %} bg-danger
+                  {% elif po.status == 'received' %} bg-info
+                  {% else %} bg-secondary
+                  {% endif %}
+                ">
+                  {{ po.get_status_display }}
+                </span>
+              </td>
+              <td>
+                {% if po.status == 'approved' and po.expected_delivery %}
+                  {% if po.expected_delivery < today %}
+                    <span class="text-danger">
+                      Overdue by {{ po.overdue_days }} days
+                    </span><br>
+                    {% if po.delivery_delay_reason %}
+                      Reason: {{ po.delivery_delay_reason }}
+                    {% else %}
+                      <em>No delay reason provided</em>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-success">On schedule</span>
+                  {% endif %}
+                {% else %}
+                  N/A
+                {% endif %}
+              </td>
+              <td>
+                {% if po.status == 'approved' %}
+                  <a href="{% url 'po_update_delay' po.id %}" class="btn btn-sm btn-warning">Update Delay Reason</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted">No Purchase Orders found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-wrapper">
+  <div class="container-xl">
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="page-title">Create Production Order</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="container-xl">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            <!-- Enquiry -->
+            <div class="mb-3">
+              <label for="id_enquiry" class="form-label">Enquiry</label>
+              <select name="enquiry_id" id="id_enquiry" class="form-select" required>
+                <option value="" disabled selected>-- Select Enquiry --</option>
+                {% for e in enquiries %}
+                <option value="{{ e.id }}">
+                    {{ e.refrence|default:"No Ref" }} - {{ e.companyname }}
+                  </option>
+                {% endfor %}
+              </select>
+              <div class="invalid-feedback">Please select an enquiry.</div>
+            </div>
+
+            <!-- Product -->
+            <div class="mb-3">
+              <label for="id_product" class="form-label">Product</label>
+              <select name="product_id" id="id_product" class="form-select" required>
+                <option value="" disabled selected>-- Select Product --</option>
+                {% for product in products %}
+                  <option value="{{ product.id }}">{{ product.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="invalid-feedback">Please select a product.</div>
+            </div>
+
+            <!-- Order Number -->
+            <div class="mb-3">
+              <label class="form-label">Order Number</label>
+              <input type="text" name="order_number" class="form-control" placeholder="Enter order number" required>
+              <div class="invalid-feedback">Order number is required.</div>
+            </div>
+
+            <!-- Sales Order -->
+            <div class="mb-3">
+              <label class="form-label">Sales Order</label>
+              <input type="text" name="sales_order" class="form-control" placeholder="Enter sales order">
+            </div>
+
+            <!-- Planned Start -->
+            <div class="mb-3">
+              <label class="form-label">Planned Start</label>
+              <input type="date" name="planned_start" class="form-control" required>
+              <div class="invalid-feedback">Planned start date required.</div>
+            </div>
+
+            <!-- Planned End -->
+            <div class="mb-3">
+              <label class="form-label">Planned End</label>
+              <input type="date" name="planned_end" class="form-control" required>
+              <div class="invalid-feedback">Planned end date required.</div>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="ti ti-plus me-1"></i> Create Order
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

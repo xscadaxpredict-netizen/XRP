@@ -269,7 +269,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // @formatter:on
 document.addEventListener("DOMContentLoaded", function () {
-    const map = new jsVectorMap({
+    if (document.querySelector("#map-world")) const map = new jsVectorMap({
         selector: '#map-world',
         map: 'world',
         backgroundColor: 'transparent',

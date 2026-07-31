@@ -28,7 +28,6 @@ urlpatterns = [
     path('',include('app.urls')),
     path('website/', include('website.urls')),     # Base path for 'website' app
     path('riva/', include('Riva.urls')),     # Base path for 'website' app
-
-
-    # path('feedback/', website_views.service_feedback_form, name='service_feedback'),
-]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    path('indent/', include('indent.urls')),
+    path('xshot/', include('gstbillingapp.urls')),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block content %}
+<div class="container-xl my-4">
+
+  <!-- Hidden flag for JS -->
+  <input type="hidden" id="qc_fail_trigger_modal" value="{{ qc_fail_trigger_modal|yesno:'1,0' }}">
+
+  <!-- Production Order Header -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3 class="card-title">Production Order #{{ po.order_number }}</h3>
+    </div>
+    <div class="card-body">
+      <p><strong>Status:</strong> <span class="badge bg-info text-white">{{ po.status }}</span></p>
+      <p><strong>Created At:</strong> {{ po.created_at|date:"d M Y H:i" }}</p>
+    </div>
+    <div class="card-footer d-flex gap-2">
+      <button class="btn btn-warning" type="button" onclick="toggleSection('issue-section')">
+        <i class="ti ti-package"></i> Issue Materials
+      </button>
+      <button class="btn btn-info" type="button" onclick="toggleSection('qc-section')">
+        <i class="ti ti-clipboard-check"></i> Record QC
+      </button>
+      <button class="btn btn-success" type="button" onclick="toggleSection('delivery-section')">
+        <i class="ti ti-truck"></i> Generate Delivery
+      </button>
+    </div>
+  </div>
+
+  <!-- Kitting / BOM Section -->
+  <div class="card mb-4 border-primary">
+    <div class="card-header bg-primary-lt">
+      <h3 class="card-title text-primary"><i class="ti ti-list-details"></i> Kitting & Bill of Materials</h3>
+    </div>
+    <div class="card-body">
+      {% if po.machine_kit %}
+        <p><strong>Attached Kit:</strong> <span class="badge bg-primary fs-5">{{ po.machine_kit.name }}</span></p>
+        <div class="d-flex gap-2 mt-3">
+          <a href="{% url 'po_kitting_dashboard' po.id %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" /><path d="M4 13h3l3 3h4l3 -3h3" /></svg>
+            View Kitting Dashboard (Analyze Shortages)
+          </a>
+          <form action="{% url 'attach_kit_to_po' po.id %}" method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Detach Kit?');">Detach Kit</button>
+          </form>
+        </div>
+      {% else %}
+        <p class="text-muted">No Machine Kit (BOM) is attached to this Production Order.</p>
+        <div class="row g-3 align-items-end mt-2">
+          <div class="col-md-5">
+            <form action="{% url 'attach_kit_to_po' po.id %}" method="post" class="d-flex gap-2">
+              {% csrf_token %}
+              <select name="kit_id" class="form-select" required>
+                <option value="">-- Select Existing Kit --</option>
+                {% for kit in machine_kits %}
+                  <option value="{{ kit.id }}">{{ kit.name }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary">Attach</button>
+            </form>
+          </div>
+          <div class="col-auto">
+            <span class="text-muted mx-2">OR</span>
+          </div>
+          <div class="col-auto">
+            <a href="{% url 'upload_kit_excel' %}?po_id={{ po.id }}" class="btn btn-outline-success">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M12 11v6" /><path d="M9.5 13.5l2.5 -2.5l2.5 2.5" /></svg>
+              Upload New Excel BOM
+            </a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Issue Materials Section -->
+  <div id="issue-section" class="card mb-4 d-none">
+    <div class="card-header"><h4>Issued Materials</h4></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {{ issue_form.production_order.as_hidden }}
+        <div class="mb-3">
+          <label class="form-label">Stock Item</label>
+          {{ issue_form.stock_item|add_class:"form-select" }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Issued Quantity</label>
+          {{ issue_form.issued_qty|add_class:"form-control" }}
+        </div>
+        <button type="submit" name="issue_material" class="btn btn-primary">Submit</button>
+      </form>
+      <hr>
+      <table class="table table-bordered mt-3">
+        <thead><tr><th>Item</th><th>Qty</th><th>Issued By</th><th>Issued At</th></tr></thead>
+        <tbody>
+          {% for issue in issues %}
+          <tr>
+            <td>{{ issue.stock_item }}</td>
+            <td>{{ issue.issued_qty }}</td>
+            <td>{{ issue.issued_by }}</td>
+            <td>{{ issue.issued_at|date:"d M Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted">No issues yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- QC Section -->
+  <div id="qc-section" class="card mb-4 d-none">
+    <div class="card-header"><h4>Quality Checks</h4></div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {{ qc_form.production_order.as_hidden }}
+        <div class="mb-3">
+          <label class="form-label">Result</label>
+          {{ qc_form.passed|add_class:"form-select" }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Remarks</label>
+          {{ qc_form.remarks|add_class:"form-control" }}
+        </div>
+
+        <!-- Inline Snag Section -->
+        <div id="snag-inline-section" class="d-none mt-3 border p-3 bg-light rounded">
+          <h5 class="text-danger">Snag Report (required for QC Fail)</h5>
+          <div class="mb-3">
+            <label class="form-label">Snap Type</label>
+            {{ snag_form.snap_type|add_class:"form-select" }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Reject Reason</label>
+            {{ snag_form.description|add_class:"form-control" }}
+          </div>
+        </div>
+
+        <button type="submit" name="qc_check" class="btn btn-success mt-2">Submit</button>
+      </form>
+
+      <hr>
+      <table class="table table-bordered mt-3">
+        <thead><tr><th>Result</th><th>Remarks</th><th>Checked At</th></tr></thead>
+        <tbody>
+          {% for qc in qc_checks %}
+          <tr>
+            <td>{% if qc.passed %}<span class="badge bg-success text-white">Pass</span>{% else %}<span class="badge bg-danger text-white">Fail</span>{% endif %}</td>
+            <td>{{ qc.remarks|default:"-" }}</td>
+            <td>{{ qc.checked_at|date:"d M Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted">No QC yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Delivery Section -->
+  <div id="delivery-section" class="card mb-4 d-none">
+    <div class="card-header"><h4>Delivery</h4></div>
+    <div class="card-body">
+      {% if delivery %}
+        <p><strong>Delivered At:</strong> {{ delivery.delivered_at|date:"d M Y H:i" }}</p>
+        <p><strong>Remarks:</strong> {{ delivery.remarks|default:"-" }}</p>
+      {% else %}
+        <form method="post">
+          {% csrf_token %}
+          {{ delivery_form.production_order.as_hidden }}
+          <div class="mb-3">
+            <label class="form-label">Remarks</label>
+            {{ delivery_form.remarks|add_class:"form-control" }}
+          </div>
+          <button type="submit" name="delivery" class="btn btn-primary">Mark Delivered</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Snag Report Table -->
+  <!-- Snag Report Table -->
+<div class="card mb-4">
+  <div class="card-header"><h4>Snag Report</h4></div>
+  <div class="card-body">
+    <table class="table table-bordered mt-3">
+      <thead><tr><th>Snap Type</th><th>Description</th><th>Reported At</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for snag in snags %}
+        <tr id="snag-row-{{ snag.id }}">
+          <td>{{ snag.get_snap_type_display }}</td>
+          <td>{{ snag.description|default:"-" }}</td>
+          <td>{{ snag.reported_at|date:"d M Y H:i" }}</td>
+          <td id="snag-status-{{ snag.id }}">
+            {% if snag.resolved %}
+              <span class="badge bg-success text-white">Resolved</span>
+            {% else %}
+              <span class="badge bg-danger text-white">Open</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if not snag.resolved %}
+            <button class="btn btn-sm btn-success" onclick="resolveSnag({{ snag.id }})">Resolve</button>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted">No snags reported.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+  function toggleSection(id) {
+    document.querySelectorAll('.card.mb-4').forEach(c => {
+      if (c.id && c.id !== id) c.classList.add('d-none');
+    });
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('d-none');
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const passedField = document.querySelector("#id_passed");
+    const snagSection = document.querySelector("#snag-inline-section");
+    const qcFailFlag = document.querySelector("#qc_fail_trigger_modal").value === "1";
+
+    // Show inline Snag if QC Fail previously submitted
+    if (qcFailFlag && snagSection) {
+      snagSection.classList.remove("d-none");
+    }
+
+    // Show/hide inline Snag dynamically on selection
+    if (passedField) {
+      passedField.addEventListener("change", () => {
+        const failSelected =
+          (passedField.type === "checkbox" && !passedField.checked) ||
+          (passedField.tagName === "SELECT" && passedField.value === "False");
+        if (failSelected) {
+          snagSection.classList.remove("d-none");
+        } else {
+          snagSection.classList.add("d-none");
+        }
+      });
+    }
+  });
+</script>
+<script>
+  function resolveSnag(snagId) {
+    if (!confirm("Mark this snag as resolved?")) return;
+
+    fetch("{% url 'resolve_snag' 0 %}".replace("0", snagId), {
+      method: "GET",
+      headers: { "X-CSRFToken": "{{ csrf_token }}" }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update row status badge
+        document.getElementById("snag-status-" + snagId).innerHTML = '<span class="badge text-white bg-success">Resolved</span>';
+        // Remove the resolve button
+        document.querySelector("#snag-row-" + snagId + " button").remove();
+
+        // Optionally, show a message
+        alert("Snag resolved. QC updated automatically if all snags resolved.");
+        // Reload the page to reflect QC update
+        location.reload();
+      }
+    })
+    .catch(err => console.error(err));
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Profile | XsHoT ERP{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h2 mb-1">Business Profile</h2>
+                <p class="text-secondary small mb-0">Your registered business information</p>
+            </div>
+            <a href="{% url 'user_profile_edit' %}" id="user_profile_edit_btn"
+                class="btn btn-primary d-flex align-items-center gap-2">
+                <i class="ti ti-edit"></i> Edit Profile
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item px-4 py-3 d-flex align-items-center gap-3">
+                        <span class="avatar bg-primary-lt">
+                            <i class="ti ti-building"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="text-secondary small fw-semibold text-uppercase tracking-wide">Business Name
+                            </div>
+                            <div class="fw-semibold">{{ user_profile.business_title|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div class="list-group-item px-4 py-3 d-flex align-items-center gap-3">
+                        <span class="avatar bg-info-lt">
+                            <i class="ti ti-map-pin"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="text-secondary small fw-semibold text-uppercase tracking-wide">Address</div>
+                            <div class="fw-semibold">{{ user_profile.business_address|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div class="list-group-item px-4 py-3 d-flex align-items-center gap-3">
+                        <span class="avatar bg-success-lt">
+                            <i class="ti ti-mail"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="text-secondary small fw-semibold text-uppercase tracking-wide">Email</div>
+                            <div class="fw-semibold">{{ user_profile.business_email|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div class="list-group-item px-4 py-3 d-flex align-items-center gap-3">
+                        <span class="avatar bg-warning-lt">
+                            <i class="ti ti-phone"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="text-secondary small fw-semibold text-uppercase tracking-wide">Phone</div>
+                            <div class="fw-semibold">{{ user_profile.business_phone|default:"—" }}</div>
+                        </div>
+                    </div>
+                    <div class="list-group-item px-4 py-3 d-flex align-items-center gap-3 border-bottom-0">
+                        <span class="avatar bg-danger-lt">
+                            <i class="ti ti-file-certificate"></i>
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="text-secondary small fw-semibold text-uppercase tracking-wide">GST Number</div>
+                            <div class="fw-semibold">{{ user_profile.business_gst|default:"—" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

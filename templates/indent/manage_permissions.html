@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<!-- Display Django messages -->
+{% if messages %}
+<div class="container-xl mt-3">
+    {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% else %}info{% endif %} alert-dismissible" role="alert">
+        <div class="d-flex">
+            <div>
+                {% if message.tags == 'error' %}
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                {% else %}
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M5 12l5 5l10 -10"></path></svg>
+                {% endif %}
+            </div>
+            <div class="ms-2">
+                {{ message }}
+            </div>
+        </div>
+        <a class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<style>
+    /* Premium Styling for interactive panel */
+    .user-list-card {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .select-user-item {
+        border-left: 3px solid transparent !important;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .select-user-item:hover {
+        background-color: rgba(32, 107, 196, 0.04) !important;
+        transform: translateX(2px);
+    }
+    
+    .select-user-item.active-user {
+        border-left: 3px solid #206bc4 !important;
+        background-color: rgba(32, 107, 196, 0.08) !important;
+    }
+    
+    .role-card {
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .role-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .role-card.selected-role {
+        border-color: #206bc4 !important;
+        background-color: rgba(32, 107, 196, 0.02);
+    }
+    
+    .role-card.admin-inherited {
+        opacity: 0.65;
+        cursor: not-allowed;
+        background-color: #f8f9fa;
+        border-color: #dee2e6 !important;
+    }
+    
+    .role-card-check {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #206bc4;
+        font-size: 1.25rem;
+        display: none;
+    }
+    
+    .role-card.selected-role .role-card-check,
+    .role-card.admin-inherited .role-card-check {
+        display: block;
+    }
+
+    .dept-card {
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .dept-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    .dept-card.selected-dept {
+        border-color: #206bc4 !important;
+        background-color: rgba(32, 107, 196, 0.02);
+    }
+    
+    .dept-card.selected-dept .role-card-check {
+        display: block;
+    }
+
+    .pulse-green {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #2fb344;
+        box-shadow: 0 0 0 0 rgba(47, 179, 68, 0.7);
+        animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(47, 179, 68, 0.7);
+        }
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 6px rgba(47, 179, 68, 0);
+        }
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(47, 179, 68, 0);
+        }
+    }
+</style>
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-primary" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><rect x="5" y="11" width="14" height="10" rx="2" /><circle cx="12" cy="16" r="1" /><path d="M8 11v-4a4 4 0 0 1 8 0v4" /></svg>
+                    User Roles Control Center
+                </h2>
+                <div class="text-muted mt-1">Assign system roles, groups, and administrator privileges to users with instant AJAX saving.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        <div class="row g-4">
+            
+            <!-- LEFT PANEL: User List -->
+            <div class="col-12 col-md-5 col-lg-4">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header pb-2 border-0 bg-transparent">
+                        <div class="input-icon w-100">
+                            <span class="input-icon-addon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="10" cy="10" r="7" /><line x1="21" y1="21" x2="15" y2="15" /></svg>
+                            </span>
+                            <input type="text" id="userSearch" class="form-control rounded-pill" placeholder="Search users...">
+                        </div>
+                    </div>
+                    <div class="list-group list-group-flush user-list-card" id="userListContainer">
+                        {% for u in users %}
+                        <div class="list-group-item list-group-item-action py-3 px-3 select-user-item" 
+                             data-user-id="{{ u.id }}"
+                             data-fullname="{{ u.get_full_name|default:u.username }}"
+                             data-username="{{ u.username }}"
+                             data-email="{{ u.email|default:'No email address' }}"
+                             data-is-admin="{% if u.is_superuser %}true{% else %}false{% endif %}"
+                             data-groups='[{% for g in u.groups.all %}"{{ g.name }}"{% if not forloop.last %},{% endif %}{% endfor %}]'
+                             data-departments='[{% for d in u.assigned_departments.all %}{{ d.id }}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                            <div class="d-flex align-items-center">
+                                <span class="avatar rounded me-3 bg-primary-lt fw-bold">
+                                    {{ u.first_name|first|default:u.username|first|upper }}
+                                </span>
+                                <div class="flex-fill">
+                                    <div class="font-weight-medium text-dark user-display-name">{{ u.get_full_name|default:u.username }}</div>
+                                    <div class="text-muted small user-display-email">{{ u.email|default:u.username }}</div>
+                                    <div class="mt-1 live-badges-container" id="badges-{{ u.id }}">
+                                        {% if u.is_superuser %}
+                                        <span class="badge bg-danger text-white mb-1">Administrator</span>
+                                        {% else %}
+                                            {% for group in u.groups.all %}
+                                                {% if group.name == 'Production' %}
+                                                <span class="badge bg-success text-white me-1 mb-1">Production</span>
+                                                {% elif group.name == 'Stock' %}
+                                                <span class="badge bg-primary text-white me-1 mb-1">Stock</span>
+                                                {% elif group.name == 'GRN' %}
+                                                <span class="badge bg-danger text-white me-1 mb-1">GRN</span>
+                                                {% elif group.name == 'Accounts' %}
+                                                <span class="badge bg-warning text-white me-1 mb-1">Accounts</span>
+                                                {% elif group.name == 'Vendor' %}
+                                                <span class="badge bg-info text-white me-1 mb-1">Vendor</span>
+                                                {% endif %}
+                                            {% empty %}
+                                            <span class="badge bg-light text-muted mb-1">No roles</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if not users %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-2"></i>
+                            <p class="mt-2">No users found.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RIGHT PANEL: Permissions detail control -->
+            <div class="col-12 col-md-7 col-lg-8">
+                <div class="card shadow-sm border-0 rounded-3 h-100 min-vh-50" id="permissionsDetailPane">
+                    
+                    <!-- PLACEHOLDER CARD (shown when no user is selected) -->
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center py-6" id="emptyStateContainer">
+                        <div class="avatar avatar-xl rounded bg-primary-lt mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9" /><rect x="9" y="9" width="6" height="6" rx="1" /><path d="M12 3v6" /></svg>
+                        </div>
+                        <h4 class="text-dark">Select a User</h4>
+                        <p class="text-muted text-center max-w-sm">Choose a user from the list on the left to configure their system roles and admin permissions.</p>
+                    </div>
+                    
+                    <!-- DYNAMIC CONTROL CENTER (hidden by default, populated by JS) -->
+                    <div class="card-body d-none" id="activeControlContainer">
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 border-bottom pb-3 gap-3">
+                            <div class="d-flex align-items-center">
+                                <span class="avatar avatar-md rounded bg-primary text-white fw-bold me-3" id="activeAvatar">
+                                    U
+                                </span>
+                                <div>
+                                    <h3 class="mb-0 text-dark" id="activeFullName">User Name</h3>
+                                    <span class="text-muted small" id="activeEmail">user@example.com</span>
+                                </div>
+                            </div>
+                            <!-- Live status indicator -->
+                            <div class="text-sm-end">
+                                <span id="saveStatus" class="badge bg-transparent border text-muted px-2 py-1">
+                                    <span class="pulse-green me-1"></span> Live Sync Enabled
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- ADMIN TOGGLE SECTION -->
+                        <div class="card bg-light-lt border-0 shadow-none p-3 mb-4 rounded-3 d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
+                            <div>
+                                <h4 class="mb-1 text-dark fw-bold"><i class="bi bi-shield-lock text-danger me-1"></i> System Administrator</h4>
+                                <p class="text-muted mb-0 small">Overrides groups. Grants root-level access to all features.</p>
+                            </div>
+                            <div class="form-check form-switch form-switch-lg m-0">
+                                <input class="form-check-input" type="checkbox" id="adminSwitch">
+                            </div>
+                        </div>
+                        
+                        <!-- GROUPS GRID -->
+                        <h4 class="text-dark fw-bold mb-1">Functional Capabilities Groups</h4>
+                        <p class="text-muted small mb-3">Click on a card below to assign or revoke that capability group.</p>
+                        
+                        <div class="row g-3">
+                            <!-- Production Card -->
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="card role-card p-3 h-100" data-group-name="Production">
+                                    <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="text-success mb-2 fs-2"><i class="bi bi-tools"></i></div>
+                                    <h4 class="font-weight-bold text-success mb-1">Production</h4>
+                                    <p class="text-muted small mb-0">Create projects, view assembly dashboards, request Semi-Finished Goods (SFG).</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Stock Card -->
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="card role-card p-3 h-100" data-group-name="Stock">
+                                    <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="text-primary mb-2 fs-2"><i class="bi bi-box-seam"></i></div>
+                                    <h4 class="font-weight-bold text-primary mb-1">Stock</h4>
+                                    <p class="text-muted small mb-0">View all indents, decide what to buy/split, issue physical inventory.</p>
+                                </div>
+                            </div>
+                            
+                            <!-- GRN Card -->
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="card role-card p-3 h-100" data-group-name="GRN">
+                                    <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="text-danger mb-2 fs-2"><i class="bi bi-file-earmark-check"></i></div>
+                                    <h4 class="font-weight-bold text-danger mb-1">GRN</h4>
+                                    <p class="text-muted small mb-0">Record Goods Receipt Notes (GRN), confirm incoming vendor deliveries.</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Accounts Card -->
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="card role-card p-3 h-100" data-group-name="Accounts">
+                                    <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="text-warning mb-2 fs-2"><i class="bi bi-currency-dollar"></i></div>
+                                    <h4 class="font-weight-bold text-warning mb-1">Accounts</h4>
+                                    <p class="text-muted small mb-0">Approve/Reject indents & POs, access comprehensive finance dashboards.</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Vendor Card -->
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="card role-card p-3 h-100" data-group-name="Vendor">
+                                    <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                                    <div class="text-info mb-2 fs-2"><i class="bi bi-truck"></i></div>
+                                    <h4 class="font-weight-bold text-info mb-1">Vendor</h4>
+                                    <p class="text-muted small mb-0">Manage vendor listings, handle PO distributions, track vendor quotes.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- DEPARTMENTS GRID -->
+                        <h4 class="text-dark fw-bold mb-1 mt-4">Assigned Departments</h4>
+                        <p class="text-muted small mb-3">Click on a card below to assign or revoke that department membership.</p>
+                        
+                        <div class="row g-3">
+                            {% for dept in departments %}
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="card dept-card p-3 h-100" data-dept-id="{{ dept.id }}" style="cursor: pointer; position: relative;">
+                                    <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                                    <h4 class="font-weight-bold text-dark mb-1">{{ dept.name }}</h4>
+                                    <span class="text-muted small">{{ dept.code|default:"Department Code" }}</span>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <div class="text-muted small">No departments configured in the system.</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Global variables for currently selected user state
+        let currentUserId = null;
+        let currentUserAdmin = false;
+        let currentUserGroups = [];
+        let currentUserDepartments = [];
+        
+        // Search functionality
+        const searchInput = document.getElementById('userSearch');
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.select-user-item');
+            items.forEach(item => {
+                const name = item.getAttribute('data-fullname').toLowerCase();
+                const email = item.getAttribute('data-email').toLowerCase();
+                const username = item.getAttribute('data-username').toLowerCase();
+                if (name.includes(query) || email.includes(query) || username.includes(query)) {
+                    item.classList.remove('d-none');
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+        });
+        
+        // User Selection
+        const userItems = document.querySelectorAll('.select-user-item');
+        const emptyState = document.getElementById('emptyStateContainer');
+        const controlContainer = document.getElementById('activeControlContainer');
+        const deptCards = document.querySelectorAll('.dept-card');
+        
+        userItems.forEach(item => {
+            item.addEventListener('click', function() {
+                // Remove active class from previous
+                userItems.forEach(i => i.classList.remove('active-user'));
+                this.classList.add('active-user');
+                
+                // Read User Details
+                currentUserId = this.getAttribute('data-user-id');
+                const fullName = this.getAttribute('data-fullname');
+                const email = this.getAttribute('data-email');
+                currentUserAdmin = this.getAttribute('data-is-admin') === 'true';
+                currentUserGroups = JSON.parse(this.getAttribute('data-groups') || '[]');
+                currentUserDepartments = JSON.parse(this.getAttribute('data-departments') || '[]');
+                
+                // Show controls, hide empty placeholder
+                emptyState.classList.add('d-none');
+                controlContainer.classList.remove('d-none');
+                
+                if (window.innerWidth < 768) {
+                    document.getElementById('permissionsDetailPane').scrollIntoView({behavior: 'smooth'});
+                }
+                
+                // Update header
+                document.getElementById('activeAvatar').innerText = fullName.charAt(0).toUpperCase();
+                document.getElementById('activeFullName').innerText = fullName;
+                document.getElementById('activeEmail').innerText = email;
+                
+                // Update Admin switch
+                const adminSwitch = document.getElementById('adminSwitch');
+                adminSwitch.checked = currentUserAdmin;
+                
+                // Render groups & department cards based on selection state
+                renderRoleCards();
+            });
+        });
+        
+        // Get CSRF Token Helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+        
+        // Render role & department cards with styles
+        function renderRoleCards() {
+            // Render Group Cards
+            const cards = document.querySelectorAll('.role-card');
+            cards.forEach(card => {
+                const groupName = card.getAttribute('data-group-name');
+                card.className = "card role-card p-3 h-100"; // Reset class
+                
+                if (currentUserGroups.includes(groupName)) {
+                    card.classList.add('selected-role');
+                }
+            });
+            
+            // Render Department Cards
+            deptCards.forEach(card => {
+                const deptId = parseInt(card.getAttribute('data-dept-id'));
+                card.className = "card dept-card p-3 h-100"; // Reset class
+                
+                if (currentUserDepartments.includes(deptId)) {
+                    card.classList.add('selected-dept');
+                }
+            });
+        }
+        
+        // Save via AJAX
+        function savePermissions() {
+            if (!currentUserId) return;
+            
+            const statusIndicator = document.getElementById('saveStatus');
+            statusIndicator.innerHTML = '<span class="spinner-border spinner-border-sm me-1 text-primary" role="status"></span> Syncing...';
+            statusIndicator.className = "badge bg-transparent border text-primary px-2 py-1";
+            
+            const formData = new FormData();
+            formData.append('user_id', currentUserId);
+            formData.append('is_admin', currentUserAdmin ? 'true' : 'false');
+            
+            currentUserGroups.forEach(g => {
+                formData.append('groups', g);
+            });
+            
+            currentUserDepartments.forEach(dId => {
+                formData.append('departments', dId);
+            });
+            
+            fetch("{% url 'manage_permissions' %}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrftoken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusIndicator.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="icon text-success me-1" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg> Changes Saved';
+                    statusIndicator.className = "badge bg-transparent border text-success px-2 py-1";
+                    
+                    // Reset status to green pulse after 2 seconds
+                    setTimeout(() => {
+                        statusIndicator.innerHTML = '<span class="pulse-green me-1"></span> Live Sync Enabled';
+                        statusIndicator.className = "badge bg-transparent border text-muted px-2 py-1";
+                    }, 2000);
+                    
+                    // Update variables & DOM data attributes of selected user in user-list
+                    const activeItem = document.querySelector(`.select-user-item[data-user-id="${currentUserId}"]`);
+                    if (activeItem) {
+                        activeItem.setAttribute('data-is-admin', data.is_admin ? 'true' : 'false');
+                        activeItem.setAttribute('data-groups', JSON.stringify(data.groups));
+                        activeItem.setAttribute('data-departments', JSON.stringify(data.departments));
+                        
+                        // Re-render live badges in the left panel list immediately
+                        const badgeContainer = document.getElementById(`badges-${currentUserId}`);
+                        badgeContainer.innerHTML = '';
+                        if (data.is_admin) {
+                            badgeContainer.innerHTML = '<span class="badge bg-danger text-white mb-1">Administrator</span>';
+                        } else {
+                            if (data.groups.length > 0) {
+                                const colors = {
+                                    'Production': 'bg-success text-white',
+                                    'Stock': 'bg-primary text-white',
+                                    'GRN': 'bg-danger text-white',
+                                    'Accounts': 'bg-warning text-white',
+                                    'Vendor': 'bg-info text-white'
+                                };
+                                data.groups.forEach(g => {
+                                    const badgeClass = colors[g] || 'bg-light text-muted';
+                                    badgeContainer.innerHTML += `<span class="badge ${badgeClass} me-1 mb-1">${g}</span>`;
+                                });
+                            } else {
+                                badgeContainer.innerHTML = '<span class="badge bg-light text-muted mb-1">No roles</span>';
+                            }
+                        }
+                    }
+                    
+                    currentUserAdmin = data.is_admin;
+                    document.getElementById('adminSwitch').checked = data.is_admin;
+                    currentUserGroups = data.groups;
+                    currentUserDepartments = data.departments;
+                    
+                    renderRoleCards();
+                } else {
+                    alert(data.error || "Failed to update permissions.");
+                    // Reset selected states from original user attributes
+                    const activeItem = document.querySelector(`.select-user-item[data-user-id="${currentUserId}"]`);
+                    if (activeItem) {
+                        currentUserAdmin = activeItem.getAttribute('data-is-admin') === 'true';
+                        currentUserGroups = JSON.parse(activeItem.getAttribute('data-groups') || '[]');
+                        currentUserDepartments = JSON.parse(activeItem.getAttribute('data-departments') || '[]');
+                        
+                        document.getElementById('adminSwitch').checked = currentUserAdmin;
+                        renderRoleCards();
+                    }
+                    statusIndicator.innerHTML = '<span class="text-danger me-1">●</span> Sync Failed';
+                    statusIndicator.className = "badge bg-transparent border text-danger px-2 py-1";
+                }
+            })
+            .catch(error => {
+                console.error("AJAX Error:", error);
+                alert("Network error. Changes were not saved.");
+                statusIndicator.innerHTML = '<span class="text-danger me-1">●</span> Sync Failed';
+                statusIndicator.className = "badge bg-transparent border text-danger px-2 py-1";
+            });
+        }
+        
+        // Admin Switch event listener
+        document.getElementById('adminSwitch').addEventListener('change', function() {
+            currentUserAdmin = this.checked;
+            if (currentUserAdmin) {
+                currentUserGroups = Array.from(document.querySelectorAll('.role-card')).map(card => card.getAttribute('data-group-name'));
+                currentUserDepartments = Array.from(document.querySelectorAll('.dept-card')).map(card => parseInt(card.getAttribute('data-dept-id')));
+            }
+            renderRoleCards();
+            savePermissions();
+        });
+        
+        // Group Card click event listener
+        const roleCards = document.querySelectorAll('.role-card');
+        roleCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const groupName = this.getAttribute('data-group-name');
+                if (currentUserGroups.includes(groupName)) {
+                    // Remove group
+                    currentUserGroups = currentUserGroups.filter(g => g !== groupName);
+                } else {
+                    // Add group
+                    currentUserGroups.push(groupName);
+                }
+                
+                renderRoleCards();
+                savePermissions();
+            });
+        });
+        
+        // Department Card click event listener
+        deptCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const deptId = parseInt(this.getAttribute('data-dept-id'));
+                if (currentUserDepartments.includes(deptId)) {
+                    // Remove department
+                    currentUserDepartments = currentUserDepartments.filter(id => id !== deptId);
+                } else {
+                    // Add department
+                    currentUserDepartments.push(deptId);
+                }
+                renderRoleCards();
+                savePermissions();
+            });
+        });
+    });
+</script>
+
+{% endblock %}

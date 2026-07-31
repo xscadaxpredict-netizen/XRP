@@ -60,7 +60,7 @@ def manage_module_visibility(request, user_id):
         if form.is_valid():
             form.save()
             module_visibility.sync_permissions()
-            return redirect('admin:auth_user_changelist')
+            return redirect('master_list', app_label='auth', model_name='user')
     else:
         form = ModuleVisibilityForm(instance=module_visibility)
 
@@ -169,6 +169,12 @@ def manage_submodule_visibility(request, user_id):
                 # Determine checkbox status
                 is_visible = f"submodule_{submodule.id}" in request.POST
 
+                # Clean up duplicates if they exist to prevent MultipleObjectsReturned
+                sub_vis_qs = SubModuleVisibility.objects.filter(user=user, submodule=submodule)
+                if sub_vis_qs.count() > 1:
+                    first_id = sub_vis_qs.first().id
+                    sub_vis_qs.exclude(id=first_id).delete()
+
                 # Update or create the SubModuleVisibility entry
                 SubModuleVisibility.objects.update_or_create(
                     user=user,
@@ -177,10 +183,10 @@ def manage_submodule_visibility(request, user_id):
                 )
 
         # Redirect after saving
-        return redirect('manage_submodule_visibility', user_id=user.id)
+        return redirect('master_list', app_label='auth', model_name='user')
 
     # Prepare a dictionary of modules with their submodules and visibility status
-    modules_with_submodules = {
+    user_visibility_data = {
         module: [
             {
                 'submodule': submodule,
@@ -194,7 +200,7 @@ def manage_submodule_visibility(request, user_id):
     # Render the template with the prepared context
     return render(request, 'admin/manage_submodule_visibility.html', {
         'user': user,
-        'modules_with_submodules': modules_with_submodules,
+        'user_visibility_data': user_visibility_data,
     })    
 
 

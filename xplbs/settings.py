@@ -42,6 +42,9 @@ INSTALLED_APPS = [
     'apage',
     'website',
     'Riva',
+    'indent',
+    'gstbillingapp',
+    'widget_tweaks',
     'rest_framework',
     'rest_framework.authtoken',
 ]

@@ -1,0 +1,236 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Quality Guarantee Certificate - Xpredict Labs</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Open+Sans:wght@400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: #f0ece0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .certificate {
+            width: 810px;
+            background: #fffdf5;
+            padding: 50px 60px;
+            position: relative;
+            box-shadow: 0 0 0 6px #8b6914, 0 0 0 12px #c8920a, 0 0 0 18px #8b6914, 0 8px 40px rgba(0, 0, 0, 0.3);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 0 Q20 10 40 0 Q30 20 40 40 Q20 30 0 40 Q10 20 0 0Z' fill='none' stroke='%23c8920a18' stroke-width='1'/%3E%3C/svg%3E");
+        }
+
+        h1.title {
+            font-family: 'Cinzel', serif;
+            font-size: 2.2rem;
+            color: #5a3a00;
+            text-align: center;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .tagline {
+            text-align: center;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 18px;
+            color: #333;
+        }
+
+        .body-text {
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            line-height: 1.7;
+            color: #222;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+
+        .info-block label {
+            display: block;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #5a3a00;
+        }
+
+        .info-block .val {
+            font-size: 1rem;
+            color: #222;
+            margin-top: 4px;
+        }
+
+        .seal {
+            display: block;
+            margin: 0 auto 20px;
+            width: 90px;
+        }
+
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 30px;
+        }
+
+        .sig-block .name {
+            font-weight: 700;
+            color: #3a2000;
+        }
+
+        .sig-block .role {
+            font-style: italic;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #5a006e;
+        }
+
+        .brand span {
+            background: #d01060;
+            color: white;
+            padding: 2px 8px;
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            border-radius: 2px;
+        }
+
+        .valid-until {
+            margin-top: 25px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #3a2000;
+        }
+
+        /* Action bar */
+        .action-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-act {
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+        }
+
+        @media print {
+            body {
+                background: white;
+                align-items: flex-start;
+                padding-top: 2in;
+            }
+
+            .action-bar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="certificate">
+        <h1 class="title">Quality Guaranteed</h1>
+        <div class="tagline">Quality terms and conditions</div>
+        <div class="body-text">
+            If during the warranty period a defect of manufacturing origin is detected in the product,
+            the seller or authorized service center undertakes to repair the fault free of charge,
+            provided that the product has been used in accordance with the accompanying instructions
+        </div>
+        <div class="info-row">
+            <div class="info-block">
+                <label>Product:</label>
+                <div class="val">{{ product_name }}</div>
+            </div>
+            <div class="info-block">
+                <label>Model:</label>
+                <div class="val">{{ model }}</div>
+            </div>
+            <div class="info-block">
+                <label>ID number:</label>
+                <div class="val">{{ id_number }}</div>
+            </div>
+        </div>
+        <svg class="seal" viewBox="0 0 90 90" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="45" cy="45" r="43" fill="none" stroke="#aaa" stroke-width="1.5" stroke-dasharray="4 3" />
+            <circle cx="45" cy="45" r="36" fill="#f0f0f0" stroke="#ccc" stroke-width="1" />
+            <text x="45" y="30" text-anchor="middle" font-size="8" fill="#888">★ ★ ★</text>
+            <text x="45" y="48" text-anchor="middle" font-weight="bold" font-size="7.5" fill="#666">QUALITY</text>
+            <text x="45" y="60" text-anchor="middle" font-weight="bold" font-size="7.5" fill="#666">ASSURANCE</text>
+        </svg>
+        <div class="signature-section">
+            <div class="sig-block">
+                <div class="name">{{ manager_name }}</div>
+                <div class="role">Quality Assurance Manager</div>
+            </div>
+            <div style="text-align:right">
+                <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs" style="height:40px;opacity:0.8;">
+            </div>
+        </div>
+        <div class="valid-until">Valid until: {{ valid_until }}</div>
+    </div>
+    <div class="action-bar">
+        <button class="btn-act" style="background:#002060;" onclick="window.print()">🖨️ Print / Save PDF</button>
+        <button class="btn-act" style="background:#002060;"
+            onclick="if(confirm('Attach the Guarantee Certificate to the deployment?')) { document.getElementById('loadingOverlay').style.display = 'flex'; document.getElementById('attachForm').submit(); }">
+            📎 Attach to Deployment
+        </button>
+        <button class="btn-act" style="background:#444;" onclick="window.history.back()">← Back</button>
+    </div>
+
+<style>
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; font-family: sans-serif; }
+.loading-spinner { border: 6px solid #f3f3f3; border-top: 6px solid #002060; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <h2 style="color: #002060; margin: 0;">Attaching Document...</h2>
+    <p style="color: #666; margin-top: 10px;">Please wait while the document is being processed.</p>
+</div>
+</body>
+
+<form id="attachForm" method="post" action="{% url 'attach_generated_doc' deployment.id %}" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="doc_type" value="guarantee">
+    <input type="hidden" name="product_name" value="{{ product_name }}">
+    <input type="hidden" name="model" value="{{ model }}">
+    <input type="hidden" name="id_number" value="{{ id_number }}">
+    <input type="hidden" name="valid_until" value="{{ valid_until }}">
+    <input type="hidden" name="manager_name" value="{{ manager_name }}">
+</form>
+
+</html>

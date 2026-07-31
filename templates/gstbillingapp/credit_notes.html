@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+{% load custom_tags %}
+
+{% block title %}Credit Notes | XsHoT ERP{% endblock %}
+
+{% block includecss %}
+<link rel="stylesheet" href="{% static 'gstbillingapp/DataTables/jquery.dataTables.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-4">Credit Notes</h3>
+
+<!-- Filter Bar -->
+<div class="xshot-filter-bar mb-4">
+    <a href="{% url 'credit_note_create' %}"
+        class="btn btn-primary rounded-pill btn-md d-inline-flex align-items-center gap-1">
+        <i class="ti ti-plus"></i> New Credit Note
+    </a>
+    <div class="search-box">
+        <i class="ti ti-search"></i>
+        <input type="text" id="cn-search" placeholder="Search..." class="form-control form-control-sm">
+    </div>
+</div>
+
+<!-- Table Card -->
+<div class="card xshot-table-card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table mb-0" id="cn-table">
+                <thead>
+                    <tr>
+                        <th>Credit Note #</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>GST No</th>
+                        <th>Phone</th>
+                        <th>Amount (₹)</th>
+                        <th>IGST</th>
+                        <th>CGST</th>
+                        <th>SGST</th>
+                        <th>Total (₹)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for credit_note in credit_notes %}
+                    <tr>
+                        <td class="fw-semibold text-primary">XPL{{ credit_note.credit_note_number }}</td>
+                        <td>{{ credit_note.credit_note_date }}</td>
+                        <td>{{ credit_note.credit_note_customer }}</td>
+                        <td><span class="text-muted small">{{ credit_note.credit_note_customer_gst }}</span></td>
+                        <td>{{ credit_note.credit_note_customer_phone }}</td>
+                        <td>{{ credit_note.credit_note_amt_without_gst }}</td>
+                        <td>{{ credit_note.credit_note_amt_igst }}</td>
+                        <td>{{ credit_note.credit_note_amt_cgst }}</td>
+                        <td>{{ credit_note.credit_note_amt_sgst }}</td>
+                        <td class="fw-bold">{{ credit_note.credit_note_amt_with_gst }}</td>
+                        <td style="white-space:nowrap;">
+                            <a href="{% url 'credit_note_viewer' credit_note.id %}"
+                                class="btn btn-sm btn-outline-primary rounded-pill me-1" title="View">
+                                <i class="ti ti-eye me-1"></i> View
+                            </a>
+                            <a href="{% url 'credit_note_edit' credit_note.id %}"
+                                class="btn btn-sm btn-outline-warning rounded-pill me-1" title="Edit">
+                                <i class="ti ti-edit me-1"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" title="Delete"
+                                data-bs-toggle="modal" data-bs-target="#cnDeleteModal"
+                                data-invoice-id="{{ credit_note.id }}"
+                                data-invoice-number="CN-XPL{{ credit_note.credit_note_number }}, for {{ credit_note.credit_note_customer }}">
+                                <i class="ti ti-trash me-1"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="cnDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="ti ti-trash text-danger" style="font-size:1.3rem;"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">Delete Credit Note</h5>
+                        <p class="text-muted small mb-0">This action cannot be undone</p>
+                    </div>
+                </div>
+            </div>
+            <form method="POST" action="{% url 'credit_note_delete' %}">
+                {% csrf_token %}
+                <div class="modal-body pt-3">
+                    <p>Are you sure you want to delete <strong><span class="invoice-number"></span></strong>?</p>
+                    <input type="hidden" name="invoice_id">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill"
+                        data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger rounded-pill">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block includejs %}
+<script src="{% static 'gstbillingapp/DataTables/jquery.dataTables.min.js' %}"></script>
+<script>
+    $('#cnDeleteModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        $(this).find('[name="invoice_id"]').val(button.data('invoice-id'));
+        $(this).find('.invoice-number').html(button.data('invoice-number'));
+    });
+    $(document).ready(function () {
+        var dt = $('#cn-table').DataTable({
+            "order": [],
+            "pageLength": 25,
+            "columnDefs": [{ "targets": 10, "orderable": false, "searchable": false }]
+        });
+        $('#cn-search').on('keyup', function () {
+            dt.search(this.value).draw();
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,737 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Product Delivery Documentation - {{ deployment.project.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: #f5f5f5;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            margin: 0 auto 20px;
+            padding: 14mm 16mm 14mm;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .15);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+                padding: 10mm 14mm 10mm;
+            }
+
+            .page:last-of-type {
+                page-break-after: auto;
+            }
+
+            .action-bar {
+                display: none;
+            }
+        }
+
+        /* Shared header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .page-header img {
+            height: 38px;
+            object-fit: contain;
+        }
+
+        .page-header .doc-title {
+            color: #002060;
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        /* Shared footer */
+        .page-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #888;
+        }
+
+        /* ══════════════════════════════════════
+   PAGE 1: DC MAIN + COVER (combined)
+══════════════════════════════════════ */
+        .dc-main-title {
+            text-align: center;
+            font-weight: 700;
+            font-size: 1rem;
+            text-decoration: underline;
+            margin-bottom: 2px;
+        }
+
+        .dc-sub-title {
+            text-align: center;
+            font-weight: 700;
+            font-size: 1rem;
+            text-decoration: underline;
+            margin-bottom: 14px;
+        }
+
+        .dc-field-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            align-items: stretch;
+            margin-bottom: 10px;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .dc-field-row .dc-lbl {
+            font-weight: 700;
+            font-size: 0.78rem;
+            display: flex;
+            align-items: flex-start;
+            padding-top: 6px;
+        }
+
+        .dc-field-row .dc-box {
+            border: 1px solid #aaa;
+            padding: 6px 10px;
+            min-height: 32px;
+            font-size: 0.82rem;
+        }
+
+        .txn-title {
+            font-weight: 700;
+            font-size: 0.82rem;
+            text-align: center;
+            margin: 12px 0 8px;
+        }
+
+        .txn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 20px;
+            font-size: 0.78rem;
+        }
+
+        .txn-grid .block {}
+
+        .txn-grid .block .bhead {
+            font-weight: 700;
+            font-size: 0.78rem;
+            margin-bottom: 4px;
+        }
+
+        .txn-line {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            font-size: 0.76rem;
+            margin-bottom: 3px;
+        }
+
+        .txn-line .lbl {
+            color: #444;
+        }
+
+        .txn-line .val {
+            min-height: 18px;
+            padding: 0 2px;
+        }
+
+        /* Cover divider within page 1 */
+        .cover-divider {
+            border-top: 2px dashed #bbb;
+            margin: 12px 0;
+        }
+
+        .cover-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 8px 8px;
+            font-size: 0.8rem;
+        }
+
+        .cover-grid .lbl {
+            color: #333;
+            padding-top: 2px;
+        }
+
+        .cover-grid .dotted {
+            border-top: 1px dotted #999;
+            border-bottom: 1px solid #333;
+            min-height: 20px;
+            padding: 2px 4px;
+            font-size: 0.8rem;
+        }
+
+        .cover-sigs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 16px;
+            font-size: 0.78rem;
+        }
+
+        .cover-sigs .sig-blk .line {
+            border-bottom: 1px solid #333;
+            min-height: 30px;
+            margin-top: 24px;
+        }
+
+        .cover-sigs .sig-blk label {
+            display: block;
+            margin-top: 8px;
+            color: #555;
+        }
+
+        /* ══════════════════════════════════════
+   PAGE 2: DETAILS / TRANSFER / MATERIALS
+══════════════════════════════════════ */
+        .sec-heading {
+            font-weight: 700;
+            font-size: 0.88rem;
+            margin-bottom: 6px;
+        }
+
+        .bul-list {
+            list-style: disc;
+            margin-left: 24px;
+            font-size: 0.82rem;
+            line-height: 1.8;
+        }
+
+        .detail-box {
+            border: 1px solid #bbb;
+            padding: 10px 12px;
+            min-height: 90px;
+            font-size: 0.82rem;
+            margin-bottom: 14px;
+        }
+
+        /* ══════════════════════════════════════
+   PAGE 3: SUB-SYSTEM
+══════════════════════════════════════ */
+        table.subsys {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        table.subsys th {
+            background: #f0f0f0;
+            border: 1px solid #bbb;
+            padding: 5px 10px;
+            font-size: 0.78rem;
+        }
+
+        table.subsys td {
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+        }
+
+        table.subsys td:last-child {
+            text-align: center;
+            font-weight: 700;
+            width: 50px;
+        }
+
+        .subsys-sigs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+            font-size: 0.8rem;
+        }
+
+        .subsys-sigs table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .subsys-sigs th,
+        .subsys-sigs td {
+            border: 1px solid #bbb;
+            padding: 7px 10px;
+            font-size: 0.78rem;
+        }
+
+        .subsys-sigs th {
+            font-weight: 700;
+            background: #f8f8f8;
+        }
+
+        /* ══════════════════════════════════════
+   PAGE 4: CONDITIONS
+══════════════════════════════════════ */
+        .cond-note {
+            font-weight: 700;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+
+        .cond-box {
+            border: 1px solid #bbb;
+            padding: 12px;
+            min-height: 260px;
+            font-size: 0.82rem;
+        }
+
+        .cond-sig-tbl {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 0.8rem;
+        }
+
+        .cond-sig-tbl th,
+        .cond-sig-tbl td {
+            border: 1px solid #bbb;
+            padding: 8px 12px;
+        }
+
+        .cond-sig-tbl th {
+            font-weight: 700;
+            background: #f8f8f8;
+        }
+
+        /* ══════════════════════════════════════
+   PAGE 5: APPENDIX A
+══════════════════════════════════════ */
+        .qc-box {
+            border: 1px solid #bbb;
+            padding: 14px;
+            font-size: 0.8rem;
+            line-height: 1.9;
+            white-space: pre-line;
+        }
+
+        .qc-sig-tbl {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 0.8rem;
+        }
+
+        .qc-sig-tbl th,
+        .qc-sig-tbl td {
+            border: 1px solid #bbb;
+            padding: 8px 12px;
+        }
+
+        .qc-sig-tbl th {
+            font-weight: 700;
+            background: #f8f8f8;
+        }
+
+        /* Action bar */
+        .action-bar {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .btn-act {
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 7px;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .25);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ══════════════ PAGE 1: DC HEADER + COVER (Combined) ══════════════ -->
+    <div class="page">
+        <div class="page-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs">
+            <div class="doc-title">Product Delivery Documentation</div>
+        </div>
+
+        <div class="dc-main-title">{{ machine_name }}</div>
+        <div class="dc-sub-title">Delivery Challan</div>
+
+        <div class="dc-field-row">
+            <div class="dc-lbl">DC NO</div>
+            <div class="dc-box">{{ dc_no }}</div>
+        </div>
+        <div class="dc-field-row">
+            <div class="dc-lbl">SPECIFIC PROJECT TITLE<br><span style="font-weight:400;">(if applicable)</span></div>
+            <div class="dc-box">{{ project_title }}</div>
+        </div>
+        <div class="dc-field-row">
+            <div class="dc-lbl">PURCHASE ORDER NO</div>
+            <div class="dc-box">{{ po_no }}</div>
+        </div>
+        <div class="dc-field-row">
+            <div class="dc-lbl">OVERALL TITLE OR DESCRIPTION OF DEPOSIT</div>
+            <div class="dc-box">{{ overall_description }}</div>
+        </div>
+
+        <div class="page-footer">
+            <span>{{ machine_name }}</span>
+            <span>1 of 6</span>
+            <span>Confidential</span>
+        </div>
+    </div>
+
+    <!-- ══════════════ PAGE 2: TRANSACTION DETAIL + COVER SIGS ══════════════ -->
+    <div class="page">
+        <div class="page-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs">
+            <div class="doc-title">Product Delivery Documentation</div>
+        </div>
+
+        <div class="txn-title">Transaction Detail</div>
+        <div class="txn-grid">
+            <div class="block">
+                <div class="bhead">Details of receiver at {{ receiver_org }}</div>
+                <div class="txn-line">
+                    <span class="lbl">Name:</span>
+                    <span class="val"></span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Contact (email):</span>
+                    <span class="val">{{ receiver_email }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Contact (Ph):</span>
+                    <span class="val">{{ receiver_phone }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Date:</span>
+                    <span class="val">{{ date_sent }}</span>
+                </div>
+                <br>
+                <div class="bhead">{{ receiver_org }}</div>
+                <div class="txn-line">
+                    <span class="lbl">Organisation:</span>
+                    <span class="val">{{ receiver_org }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Address:</span>
+                    <span class="val">{{ receiver_address }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Post Code:</span>
+                    <span class="val">{{ receiver_postcode }}</span>
+                </div>
+            </div>
+            <div class="block">
+                <div class="bhead">Depositor Details</div>
+                <div class="txn-line">
+                    <span class="lbl">Name:</span>
+                    <span class="val" style="font-weight:700;">{{ depositor_name }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Contact (email):</span>
+                    <span class="val">{{ depositor_email }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Contact (Ph):</span>
+                    <span class="val">{{ depositor_phone }}</span>
+                </div>
+                <div class="txn-line">
+                    <span class="lbl">Date:</span>
+                    <span class="val"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cover section (merged below) -->
+        <div class="cover-divider"></div>
+        <div class="cover-grid" style="align-items: center;">
+            <div class="lbl">Organisation:</div>
+            <div>
+                <div style="font-weight: 600;">Xpredict Automation Solutions Pvt Ltd</div>
+            </div>
+            <div class="lbl">Address:</div>
+            <div>
+                <div>{{ sender_address_1 }}, {{ sender_address_2 }}</div>
+            </div>
+            <div class="lbl">Post Code:</div>
+            <div>
+                <div>{{ sender_postcode }}</div>
+            </div>
+        </div>
+
+        <div class="cover-sigs">
+            <div class="sig-blk">
+                <div>Date sent: <strong>{{ date_sent }}</strong></div>
+                <div class="line"></div>
+                <label>Signature</label>
+                <div class="line"></div>
+                <label>Name of depositor in CAPS:</label>
+                <div style="font-weight:700;margin-top:3px;">{{ depositor_name }}</div>
+                <label>Date received:</label>
+                <div class="line"></div>
+            </div>
+            <div class="sig-blk">
+                <div style="color:#555;font-size:0.76rem;">Signature</div>
+                <div style="color:#555;font-size:0.76rem;margin-top:2px;">Name of receiver in CAPS:</div>
+                <div class="line" style="margin-top:6px;"></div>
+            </div>
+        </div>
+
+        <div class="page-footer">
+            <span>{{ machine_name }}</span>
+            <span>2 of 6</span>
+            <span>Confidential</span>
+        </div>
+    </div>
+
+    <!-- ══════════════ PAGE 2: DETAILS / TRANSFER INFO / MATERIALS ══════════════ -->
+    <div class="page">
+        <div class="page-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs">
+            <div class="doc-title">Product Delivery Documentation</div>
+        </div>
+
+        <div class="sec-heading">DETAILS</div>
+        <div class="sec-heading" style="margin-top:10px;">TRANSFER INFORMATION</div>
+        <div style="margin-bottom:14px; margin-left:10px; font-size:0.82rem; line-height:1.8;">
+            {{ transfer_info_text|linebreaksbr }}
+        </div>
+
+        <div class="sec-heading">PRINTS: Manuals</div>
+        <div style="font-size:0.8rem;font-weight:700;margin-bottom:4px;">Details</div>
+        <div class="detail-box">{{ prints_details|default:"As provided during installation" }}</div>
+
+        <div class="sec-heading">MATERIALS:</div>
+        <div class="detail-box" style="min-height:160px;">
+            {% if materials_text %}
+            {{ materials_text|linebreaks }}
+            {% else %}
+            <ul class="bul-list">
+                <li>{{ machine_name }} Settler</li>
+                <li>1.5 Hp Air Blower 3 Phase</li>
+                <li>Electrical Panel Box with relevant Power Supplies &amp; Actuators</li>
+                <li>Drain Pump Single Phase</li>
+                <li>Diffusers</li>
+                <li>Raw Feed Pump -1 Nos, Filter Feed Pump -1 (Both Single Phase)</li>
+                <li>Multimedia Filter</li>
+                <li>Bag Filter</li>
+                <li>CTO Filter</li>
+            </ul>
+            {% endif %}
+        </div>
+
+        <div class="page-footer">
+            <span>{{ machine_name }}</span>
+            <span>3 of 6</span>
+            <span>Confidential</span>
+        </div>
+    </div>
+
+    <!-- ══════════════ PAGE 3: SUB-SYSTEM + SIGNATURES ══════════════ -->
+    <div class="page">
+        <div class="page-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs">
+            <div class="doc-title">Product Delivery Documentation</div>
+        </div>
+
+        <div class="sec-heading">Sub System</div>
+        <table class="subsys">
+            <thead>
+                <tr>
+                    <th style="width:70%">Item / Sub-System</th>
+                    <th>Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in subsystem_items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.qty }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" style="color:#aaa;font-style:italic;text-align:center;">No sub-system items entered
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Depositor / Client signatures (same as Conditions page) -->
+        <div class="subsys-sigs" style="margin-top:auto;">
+            <table>
+                <tr>
+                    <th colspan="2">Depositor: {{ depositor_name }}</th>
+                </tr>
+                <tr>
+                    <td style="min-height:40px;min-width:120px;">Signature</td>
+                    <td>Date</td>
+                </tr>
+            </table>
+            <table>
+                <tr>
+                    <th colspan="2">Client: {{ receiver_org }}</th>
+                </tr>
+                <tr>
+                    <td style="min-height:40px;min-width:120px;">Signature</td>
+                    <td>Date</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="page-footer">
+            <span>{{ machine_name }}</span>
+            <span>4 of 6</span>
+            <span>Confidential</span>
+        </div>
+    </div>
+
+    <!-- ══════════════ PAGE 4: CONDITIONS ══════════════ -->
+    <div class="page">
+        <div class="page-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs">
+            <div class="doc-title">Product Delivery Documentation</div>
+        </div>
+
+        <div class="sec-heading">CONDITIONS</div>
+        <div class="cond-note" style="margin-top:8px;">
+            Please record any specific conditions of deposit {{ receiver_org }}, {{ receiver_location }}.<br>
+            Note: these MUST have been mutually agreed in advance.
+        </div>
+
+        <div class="cond-box">
+            Conditions and reference to agreements –<br><br>
+            {{ conditions_text }}
+        </div>
+
+        <table class="cond-sig-tbl">
+            <tr>
+                <th colspan="2">Depositor: {{ depositor_name }}</th>
+                <th colspan="2">Agreed &nbsp;{{ receiver_org }}</th>
+            </tr>
+            <tr>
+                <td style="min-width:100px;min-height:40px;">Signature</td>
+                <td>Date</td>
+                <td style="min-width:100px;">Signature</td>
+                <td>Date</td>
+            </tr>
+        </table>
+
+        <div class="page-footer">
+            <span>{{ machine_name }}</span>
+            <span>5 of 6</span>
+            <span>Confidential</span>
+        </div>
+    </div>
+
+    <!-- ══════════════ PAGE 5: APPENDIX A ══════════════ -->
+    <div class="page">
+        <div class="page-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs">
+            <div class="doc-title">Product Delivery Documentation</div>
+        </div>
+
+        <div class="sec-heading">APPENDIX A</div>
+        <div style="font-size:0.8rem;color:#555;margin-bottom:12px;">Out Put QC Assurance Matrix</div>
+
+        <div class="qc-box"><strong>QC Report Note:</strong>
+
+            Conclusion
+            {{ qc_conclusion }}
+
+            <strong>Last Run System Report:</strong>
+
+            Run test
+            Start Time: {{ run_start_time }} ({{ run_start_date }})
+            End Time: {{ run_end_time }} ({{ run_end_date }})
+
+            Status Report
+
+            {{ qc_status_report }}
+        </div>
+
+        <table class="qc-sig-tbl">
+            <tr>
+                <th colspan="2">Tester: {{ tester_name }}</th>
+                <th colspan="2">Examiner: {{ examiner_name }}</th>
+            </tr>
+            <tr>
+                <td style="min-width:120px;min-height:40px;">Signature</td>
+                <td>Date</td>
+                <td style="min-width:120px;">Signature</td>
+                <td>Date</td>
+            </tr>
+        </table>
+
+        <div class="page-footer">
+            <span>{{ machine_name }}</span>
+            <span>6 of 6</span>
+            <span>Confidential</span>
+        </div>
+    </div>
+
+    <!-- Attach form -->
+    <form id="attachForm" method="post" action="{% url 'attach_generated_doc' deployment.id %}" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="doc_type" value="dc">
+        <!-- Pass all original GET parameters dynamically -->
+        {% for key, value in request.GET.items %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+    </form>
+
+    <div class="action-bar">
+        <button class="btn-act" style="background:#00206075;" onclick="window.print()">🖨️ Print / Save PDF</button>
+        <button class="btn-act" style="background:#00206075;"
+            onclick="if(confirm('Attach this DC to the deployment?')) { document.getElementById('loadingOverlay').style.display = 'flex'; document.getElementById('attachForm').submit(); }">
+            📎 Attach to Deployment
+        </button>
+        <button class="btn-act" style="background:#444;" onclick="window.history.back()">← Back</button>
+    </div>
+
+<style>
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; font-family: sans-serif; }
+.loading-spinner { border: 6px solid #f3f3f3; border-top: 6px solid #002060; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <h2 style="color: #002060; margin: 0;">Attaching Document...</h2>
+    <p style="color: #666; margin-top: 10px;">Please wait while the document is being processed.</p>
+</div>
+</body>
+
+
+</html>

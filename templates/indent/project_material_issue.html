@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Issue Material to Project: {{ project.name }}</h2>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="id_stock_item" class="form-label">Stock Item</label>
+                    {{ form.stock_item }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_issued_qty" class="form-label">Quantity to Issue</label>
+                    {{ form.issued_qty }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_unit_price" class="form-label">Unit Price (₹)</label>
+                    {{ form.unit_price }}
+                    <small class="form-text text-muted">Auto-filled from last purchase. You can edit if needed.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Total Value</label>
+                    <div class="alert alert-info py-2" id="totalValue">₹0.00</div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">Issue Material</button>
+                    <a href="{% url 'project_detail' project.id %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Available Stock</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Name</th>
+                            <th>Available Quantity</th>
+                            <th>Last Purchase Price</th>
+                            <th>Department</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody">
+                        {% for stock in stock_items %}
+                        <tr>
+                            <td>{{ stock.product_code }}</td>
+                            <td>{{ stock.product_name }}</td>
+                            <td>
+                                <span class="badge {% if stock.quantity > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ stock.quantity }}
+                                </span>
+                            </td>
+                            <td id="price_{{ stock.id }}">-</td>
+                            <td>{{ stock.get_department_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Stock items with prices from backend
+    const stockPrices = {{ stock_items_with_prices| safe }};
+
+    // Populate last purchase prices in table
+    stockPrices.forEach(item => {
+        const priceCell = document.getElementById(`price_${item.id}`);
+        if (priceCell) {
+            priceCell.textContent = item.last_price > 0 ? `₹${item.last_price.toFixed(2)}` : '-';
+        }
+    });
+
+    // Auto-fill unit price when stock item is selected
+    const stockSelect = document.getElementById('id_stock_item');
+    const unitPriceInput = document.getElementById('id_unit_price');
+    const qtyInput = document.getElementById('id_issued_qty');
+    const totalValueDiv = document.getElementById('totalValue');
+
+    function updateTotalValue() {
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(unitPriceInput.value) || 0;
+        const total = qty * price;
+        totalValueDiv.textContent = `₹${total.toFixed(2)}`;
+    }
+
+    stockSelect.addEventListener('change', function () {
+        const selectedId = parseInt(this.value);
+        const selectedStock = stockPrices.find(item => item.id === selectedId);
+
+        if (selectedStock && selectedStock.last_price > 0) {
+            unitPriceInput.value = selectedStock.last_price.toFixed(2);
+        } else {
+            unitPriceInput.value = '0.00';
+        }
+
+        updateTotalValue();
+    });
+
+    qtyInput.addEventListener('input', updateTotalValue);
+    unitPriceInput.addEventListener('input', updateTotalValue);
+
+    // Initialize total value on page load
+    updateTotalValue();
+</script>
+{% endblock %}

@@ -70,6 +70,7 @@ urlpatterns = [
     path('export/pdf/', exportviews.export_maintenance_checklist_pdf, name='export_maintenance_checklist_pdf'),
     path('export/xlsx/', exportviews.export_maintenance_checklist_xlsx, name='export_maintenance_checklist_xlsx'),
     path('service-reports/export/pdf/', exportviews.export_service_reports_pdf, name='export_service_reports_pdf'),
+    path('service-reports/bulk-download/', views.bulk_download_service_reports, name='bulk_download_service_reports'),
     path('service-reports/export/csv/', exportviews.export_service_reports_csv, name='export_service_reports_csv'),
     path('service-reports/export/xlsx/', exportviews.export_service_reports_xlsx, name='export_service_reports_xlsx'),
     path('service-report/draft/', views.autosave_service_report, name='service_report_draft'),

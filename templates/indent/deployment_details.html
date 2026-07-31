@@ -1,0 +1,1233 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* High-Visibility Gallery UI */
+    .gallery-img {
+        height: 220px;
+        width: 100%;
+        object-fit: cover;
+        border-bottom: 2px solid #ddd;
+        background: #eee;
+    }
+    .gallery-toolbar {
+        background: #f1f3f5;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        border-top: 1px solid #dee2e6;
+    }
+    .btn-gallery-action {
+        font-size: 0.8rem !important;
+        font-weight: 800 !important;
+        padding: 8px 12px !important;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-transform: uppercase;
+        border-radius: 4px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    .card-gallery {
+        transition: all 0.25s ease;
+        border: 1px solid #ced4da !important;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+    .card-gallery:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.15) !important;
+        border-color: #adb5bd !important;
+    }
+</style>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1 text-primary"><i class="bi bi-truck"></i> Deployment: {{ project.name }}</h2>
+            <h5 class="text-muted mb-0">
+                Lead Department: {{ project.lead.name|default:"Not Assigned" }}
+                | Status: <span class="badge bg-secondary"
+                    style="color: #ffffff !important; font-weight: 700;">{{deployment.get_status_display }}</span>
+            </h5>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if project.status != 'completed' %}
+            <form method="post" onsubmit="return confirm('Are you sure you want to mark this project as COMPLETED? This will freeze further modifications.');">
+                {% csrf_token %}
+                <button type="submit" name="complete_project" class="btn btn-success fw-bold">
+                    <i class="bi bi-check-circle-fill me-1"></i> Complete Project
+                </button>
+            </form>
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary fw-bold dropdown-toggle shadow-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-plus-circle me-1"></i> Raise Indent
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" style="max-height: 250px; overflow-y: auto; z-index: 1050;">
+                    {% for d in departments_all %}
+                    <li><a class="dropdown-item" href="{% url 'project_indent_create' project.id d.id %}?from_deployment=1">{{ d.name }}</a></li>
+                    {% empty %}
+                    <li><span class="dropdown-item text-muted">No departments found</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% else %}
+            <span class="badge bg-success py-2 px-3 fs-6">
+                <i class="bi bi-check-all me-1"></i> Project Completed
+            </span>
+            {% endif %}
+            <a href="{% url 'project_detail' project.id %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Project
+            </a>
+        </div>
+    </div>
+
+    <!-- SFG Snapshot Breakdown Section -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom">
+            <h4 class="mb-0 fw-bold"><i class="bi bi-clipboard-data"></i> Department Status at Deployment</h4>
+            <small class="text-muted">Captured on: {{ deployment.deployed_at|date:"d M Y, H:i" }}</small>
+        </div>
+        <div class="card-body p-0">
+            <!-- Project Details Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <h5 class="mb-0 text-primary fw-bold"><i class="bi bi-info-circle me-2"></i>Project Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="text-muted small mb-1 fw-bold">Customer</label>
+                            <div class="fs-6">{{ project.name }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="text-muted small mb-1 fw-bold">Project Ref / OC No.</label>
+                            <div class="fs-6">{{ project.oc_number|default:"-" }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="text-muted small mb-1 fw-bold">Plan Start Date</label>
+                            <div class="fs-6">{{ project.plan_start|date:"d-M-Y"|default:"-" }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="text-muted small mb-1 fw-bold">Delivery / Plan End Date</label>
+                            <div class="fs-6">{% if project.delivery_date %}{{ project.delivery_date|date:"d-M-Y"
+                                }}{%else %}{{ project.plan_end|date:"d-M-Y"|default:"-" }}{% endif %}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small mb-1 fw-bold">Requirement</label>
+                            <div class="fs-6">{{ project.requirement|default:"Not specified" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small mb-1 fw-bold">Configuration</label>
+                            <div class="fs-6">{{ project.configuration|default:"Not specified" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="mb-3 text-secondary fw-bold" style="font-size: 1.1rem; padding-left: 1.5rem;">All Department
+                Material Requirements Status</h5>
+
+            {% if snapshot %}
+            <div class="accordion accordion-flush bg-white rounded shadow-sm border mb-4 mx-4" id="departmentAccordion">
+                {% for dept in snapshot %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-dept-{{ dept.id }}">
+                        <button class="accordion-button collapsed fw-bold fs-5 text-dark bg-light" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapse-dept-{{ dept.id }}"
+                            aria-expanded="false" aria-controls="collapse-dept-{{ dept.id }}">
+                            <i class="bi bi-building me-2 text-primary"></i> {{ dept.name }}
+                            <div class="ms-auto d-flex align-items-center gap-3">
+                                <div class="text-end" style="min-width: 150px;">
+                                    <small class="text-muted d-block fw-bold" style="font-size: 0.7rem;">Procurement
+                                        Progress (GRN)</small>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-info" role="progressbar"
+                                            style="width: {{ dept.procurement_progress }}%"></div>
+                                    </div>
+                                    <small class="fw-bold text-info" style="font-size: 0.8rem;">{{ dept.procurement_progress }}% Procured</small>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse-dept-{{ dept.id }}" class="accordion-collapse collapse"
+                        aria-labelledby="heading-dept-{{ dept.id }}" data-bs-parent="#departmentAccordion">
+                        <div class="accordion-body p-3 bg-white">
+
+                            {% if dept.requirements %}
+                            <!-- Nested Requirements Accordion -->
+                            <div class="accordion accordion-flush bg-white rounded shadow-sm border"
+                                id="reqAccordion-{{ dept.id }}">
+                                {% for req in dept.requirements %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading-req-{{ req.id }}">
+                                        <button
+                                            class="accordion-button collapsed d-flex justify-content-between align-items-center"
+                                            type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapse-req-{{ req.id }}" aria-expanded="false"
+                                            aria-controls="collapse-req-{{ req.id }}">
+                                            <span class="text-primary fw-bold"><i
+                                                    class="bi bi-diagram-3 me-2"></i>{{req.name}}</span>
+
+                                            <div class="ms-auto d-flex gap-4 align-items-center">
+                                                <div style="width: 120px;">
+                                                    <small class="text-muted d-block text-end"
+                                                        style="font-size: 0.65rem;">Procured</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-info"
+                                                            style="width: {{ req.procurement_progress }}%"></div>
+                                                    </div>
+                                                </div>
+                                                <span
+                                                    class="badge {% if req.procurement_progress == 100 %}bg-success{% else %}bg-info{% endif %}"
+                                                    style="color: #fff !important;">
+                                                    {{ req.procurement_progress }}%
+                                                </span>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-req-{{ req.id }}" class="accordion-collapse collapse"
+                                        aria-labelledby="heading-req-{{ req.id }}"
+                                        data-bs-parent="#reqAccordion-{{ dept.id }}">
+                                        <div class="accordion-body p-0">
+                                            {% if req.items %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-hover mb-0 align-middle">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th class="ps-3 w-50">Material Name</th>
+                                                            <th class="text-center">Required Qty</th>
+                                                            <th class="text-center">Procured (GRN)</th>
+                                                            <th class="text-center">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for item in req.items %}
+                                                        <tr>
+                                                            <td class="ps-3 fw-bold text-secondary">{{ item.item_name }}</td>
+                                                            <td class="text-center">{{ item.requested }}</td>
+                                                            <td class="text-center">
+                                                                {% if item.received >= item.requested %}
+                                                                <span class="text-success fw-bold">{{ item.received }}</span>
+                                                                {% elif item.received > 0 %}
+                                                                <span class="text-info fw-bold">{{ item.received }}</span>
+                                                                {% else %}
+                                                                <span class="text-muted">{{ item.received }}</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td class="text-center">
+                                                                {% if item.received >= item.requested %}
+                                                                <span class="badge bg-success text-white">Fully Procured</span>
+                                                                {% elif item.received > 0 %}
+                                                                <span class="badge bg-warning text-white">Partial Receipt</span>
+                                                                {% else %}
+                                                                <span class="badge bg-secondary text-white">Awaiting GRN</span>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {% else %}
+                                            <div class="p-3 text-muted fst-italic">No materials required for this
+                                                group.
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <!-- End Nested Requirements Accordion -->
+                            {% else %}
+                            <div class="text-muted fst-italic">No active requirements for this department.
+                            </div>
+                            {% endif %}
+
+                            <div class="mt-3 pt-2 border-top d-flex gap-2">
+                                {% if project.status != 'completed' %}
+                                <a href="{% url 'project_indent_create' project.id dept.id %}?from_deployment=1" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Raise Material Indent
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'indent_list' %}?project={{ project.id }}&department={{ dept.id }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-list-ul"></i> View Material Indents
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-4 mx-4 mb-4 bg-white rounded shadow-sm text-center text-muted border">No departmental
+                requirements
+                available for this deployment.</div>
+            {% endif %}
+        </div>
+
+        <!-- Tabs for Loading & Documents -->
+        <ul class="nav nav-tabs mb-4 border-bottom-0 gap-2" id="deploymentTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold fs-5 shadow-sm rounded-top px-3 py-2" id="loading-tab" data-bs-toggle="tab"
+                    data-bs-target="#loading" type="button" role="tab" aria-controls="loading" aria-selected="true">
+                    <i class="bi bi-box-seam"></i> Loading ({{ loading_images|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold fs-5 shadow-sm rounded-top px-3 py-2" id="unloading-tab" data-bs-toggle="tab"
+                    data-bs-target="#unloading" type="button" role="tab" aria-controls="unloading" aria-selected="false">
+                    <i class="bi bi-truck-flatbed"></i> Unloading ({{ unloading_images|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold fs-5 shadow-sm rounded-top px-3 py-2" id="docs-tab" data-bs-toggle="tab"
+                    data-bs-target="#docs" type="button" role="tab" aria-controls="docs" aria-selected="false">
+                    <i class="bi bi-file-earmark-text"></i> Dispatch Docs
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold fs-5 shadow-sm rounded-top px-3 py-2 border-0" id="generate-tab" data-bs-toggle="tab"
+                    data-bs-target="#generate" type="button" role="tab" aria-controls="generate" aria-selected="false">
+                    <i class="bi bi-file-earmark-pdf"></i> Generate Docs
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="deploymentTabsContent">
+            <!-- LOADING TAB -->
+            <div class="tab-pane fade show active border rounded p-4 bg-white shadow-sm" id="loading" role="tabpanel"
+                aria-labelledby="loading-tab">
+                <h4 class="mb-3">Machine Loading Images</h4>
+
+                <form method="post" enctype="multipart/form-data"
+                    class="mb-4 bg-light p-3 rounded border border-dashed">
+                    {% csrf_token %}
+                    <input type="hidden" name="image_type" value="loading">
+                    <div class="row align-items-center">
+                        <div class="col-md-9">
+                            <label class="form-label fw-bold">Upload Loading Images</label>
+                            {{ image_form.image }}
+                            <small class="text-muted d-block mt-1">Select multiple machine loading images (.jpg, .png)</small>
+                        </div>
+                        <div class="col-md-3 text-end mt-3 mt-md-0">
+                            <button type="submit" name="upload_images" class="btn btn-primary w-100">
+                                <i class="bi bi-cloud-arrow-up"></i> Upload Loading
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="row g-3">
+                    {% for img in loading_images %}
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="card shadow-sm border card-gallery">
+                            <a href="{{ img.image.url }}" target="_blank">
+                                <img src="{{ img.image.url }}" class="gallery-img" alt="Loading Image">
+                            </a>
+                            <div class="card-body p-0">
+                                <div class="gallery-toolbar">
+                                    <form method="post" onsubmit="return confirm('Delete this image?');" class="flex-grow-1 mb-0">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="image_id" value="{{ img.id }}">
+                                        <input type="hidden" name="back_to" value="loading">
+                                        <button type="submit" name="delete_image" class="btn btn-danger btn-gallery-action w-100">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                    <a href="{{ img.image.url }}" download class="btn btn-primary btn-gallery-action">
+                                        <i class="bi bi-download"></i> Download
+                                    </a>
+                                </div>
+                                <div class="px-2 py-1 bg-light text-center border-top">
+                                    <small class="text-muted fw-bold" style="font-size: 0.6rem;">UPLOADED: {{ img.uploaded_at|date:"d M, H:i" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-5 text-muted bg-light border border-dashed rounded">
+                        <i class="bi bi-image fs-1 d-block mb-2 text-secondary"></i>
+                        <p>No machine loading images uploaded yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- UNLOADING TAB -->
+            <div class="tab-pane fade border rounded p-4 bg-white shadow-sm" id="unloading" role="tabpanel"
+                aria-labelledby="unloading-tab">
+                <h4 class="mb-3">Machine Unloading Images</h4>
+
+                <form method="post" enctype="multipart/form-data"
+                    class="mb-4 bg-light p-3 rounded border border-dashed">
+                    {% csrf_token %}
+                    <input type="hidden" name="image_type" value="unloading">
+                    <div class="row align-items-center">
+                        <div class="col-md-9">
+                            <label class="form-label fw-bold">Upload Unloading Images</label>
+                            {{ image_form.image }}
+                            <small class="text-muted d-block mt-1">Select multiple machine unloading images (.jpg, .png)</small>
+                        </div>
+                        <div class="col-md-3 text-end mt-3 mt-md-0">
+                            <button type="submit" name="upload_images" class="btn btn-success w-100">
+                                <i class="bi bi-cloud-arrow-up"></i> Upload Unloading
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="row g-3">
+                    {% for img in unloading_images %}
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="card shadow-sm border card-gallery">
+                            <a href="{{ img.image.url }}" target="_blank">
+                                <img src="{{ img.image.url }}" class="gallery-img" alt="Unloading Image">
+                            </a>
+                            <div class="card-body p-0">
+                                <div class="gallery-toolbar">
+                                    <form method="post" onsubmit="return confirm('Delete this image?');" class="flex-grow-1 mb-0">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="image_id" value="{{ img.id }}">
+                                        <input type="hidden" name="back_to" value="unloading">
+                                        <button type="submit" name="delete_image" class="btn btn-danger btn-gallery-action w-100">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                    <a href="{{ img.image.url }}" download class="btn btn-success btn-gallery-action">
+                                        <i class="bi bi-download"></i> Download
+                                    </a>
+                                </div>
+                                <div class="px-2 py-1 bg-light text-center border-top">
+                                    <small class="text-muted fw-bold" style="font-size: 0.6rem;">UPLOADED: {{ img.uploaded_at|date:"d M, H:i" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-5 text-muted bg-light border border-dashed rounded">
+                        <i class="bi bi-truck-flatbed fs-1 d-block mb-2 text-secondary"></i>
+                        <p>No unloading images uploaded yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- DOCUMENTS TAB -->
+            <div class="tab-pane fade border rounded p-4 bg-white shadow-sm" id="docs" role="tabpanel"
+                aria-labelledby="docs-tab">
+                <h4 class="mb-4">Dispatch Documents</h4>
+
+                <div class="row g-4">
+                    {% for doc_name, data in documents_grouped.items %}
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border p-3 h-100">
+                            <label class="form-label fw-bold border-bottom pb-2 mb-3 fs-5">
+                                {{ doc_name }}
+                            </label>
+
+                            <!-- Upload Form -->
+                            <form method="post" enctype="multipart/form-data" class="mb-3 d-flex gap-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="document_type" value="{{ data.key }}">
+                                <input type="file" name="files" multiple class="form-control form-control-md" required>
+                                <button type="submit" name="upload_document" class="btn btn-md btn-success text-nowrap">
+                                    <i class="bi bi-upload"></i> Upload
+                                </button>
+                            </form>
+
+                            <!-- Uploaded Files List -->
+                            {% if data.files %}
+                            <div class="list-group list-group-flush rounded border mt-2">
+                                {% for doc in data.files %}
+                                <div
+                                    class="list-group-item d-flex justify-content-between align-items-center bg-light px-3 py-3 gap-3">
+                                    <div class="d-flex align-items-center flex-grow-1 overflow-hidden">
+                                        <div class="me-3 fs-3 text-secondary">
+                                            <i class="bi bi-file-earmark-text"></i>
+                                        </div>
+                                        <span class="text-truncate fw-medium" title="{{ doc.file.name }}">
+                                            {{ doc.file.name|slice:"16:" }}
+                                        </span>
+                                    </div>
+
+                                    <div class="d-flex gap-2 shadow-sm flex-shrink-0 ms-2">
+                                        <a href="{{ doc.file.url }}" target="_blank"
+                                            class="btn btn-outline-primary btn-sm fw-bold px-3 d-flex align-items-center"
+                                            title="View">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-eye me-1" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
+                                                <path
+                                                    d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
+                                            </svg> View
+                                        </a>
+                                        <a href="{{ doc.file.url }}" download
+                                            class="btn btn-outline-success btn-sm fw-bold px-3 d-flex align-items-center"
+                                            title="Download">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
+                                                <path
+                                                    d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
+                                            </svg> Download
+                                        </a>
+                                        <form method="post" class="d-inline m-0"
+                                            onsubmit="return confirm('Delete this {{ doc_name }} document?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="doc_id" value="{{ doc.id }}">
+                                            <button type="submit" name="delete_document"
+                                                class="btn btn-outline-danger btn-sm fw-bold px-3 d-flex align-items-center h-100"
+                                                title="Delete">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                    fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                                    <path
+                                                        d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                                                    <path
+                                                        d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-muted small mt-2 fst-italic">No files uploaded yet.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="tab-pane fade border rounded p-4 bg-white shadow-sm" id="generate" role="tabpanel"
+                aria-labelledby="generate-tab">
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <h4 class="mb-0">Generate Official Documents</h4>
+                    <span class="badge bg-light text-dark border">Select a document type to generate PDF</span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary fw-bold shadow-sm d-flex align-items-center gap-2"
+                        data-bs-toggle="modal" data-bs-target="#warrantyModal">
+                        <i class="bi bi-shield-check fs-5"></i> Warranty
+                    </button>
+                    
+                    <button class="btn btn-outline-success fw-bold shadow-sm d-flex align-items-center gap-2"
+                        data-bs-toggle="modal" data-bs-target="#guaranteeModal">
+                        <i class="bi bi-patch-check fs-5"></i> Guarantee
+                    </button>
+                    
+                    <button class="btn btn-outline-dark fw-bold shadow-sm d-flex align-items-center gap-2"
+                        data-bs-toggle="modal" data-bs-target="#dcModal">
+                        <i class="bi bi-truck fs-5"></i> DC
+                    </button>
+                    
+                    <button class="btn btn-outline-secondary fw-bold shadow-sm d-flex align-items-center gap-2"
+                        data-bs-toggle="modal" data-bs-target="#commissioningModal">
+                        <i class="bi bi-clipboard-check fs-5"></i> Commissioning
+                    </button>
+                    
+                    <button class="btn btn-outline-info fw-bold shadow-sm d-flex align-items-center gap-2"
+                        data-bs-toggle="modal" data-bs-target="#handoverModal">
+                        <i class="bi bi-file-earmark-person fs-5"></i> Handover
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WARRANTY MODAL -->
+    <div class="modal fade" id="warrantyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="get" action="{% url 'generate_warranty' deployment.id %}" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Warranty Certificate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Customer Name</label>
+                        <input type="text" name="customer_name" class="form-control"
+                            value="{{ deployment.project.enquiry.customer.company_name|default:'' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date of Commissioning</label>
+                        <input type="date" name="commissioning_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ID Number / Model</label>
+                        <input type="text" name="id_number" class="form-control" value="HDR0018">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warranty Period</label>
+                        <input type="text" name="warranty_period" class="form-control" value="ONE YEAR" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quality Assurance Manager</label>
+                        <input type="text" name="manager_name" class="form-control" value="Karthik Shetty" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary w-100">Generate PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- GUARANTEE MODAL -->
+    <div class="modal fade" id="guaranteeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="get" action="{% url 'generate_guarantee' deployment.id %}" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Guarantee Certificate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Product Name</label>
+                        <input type="text" name="product_name" class="form-control"
+                            value="{{ deployment.project.enquiry.subproduct.name|default:'' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Model</label>
+                        <input type="text" name="model" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ID Number</label>
+                        <input type="text" name="id_number" class="form-control" value="HDR0018">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valid Until</label>
+                        <input type="date" name="valid_until" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quality Assurance Manager</label>
+                        <input type="text" name="manager_name" class="form-control" value="Karthik Shetty" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn text-white w-100" style="background-color: #002060;">Generate
+                        Guarantee
+                        Certificate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DELIVERY CHALLAN MODAL -->
+    <div class="modal fade" id="dcModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <form method="get" action="{% url 'generate_dc' deployment.id %}" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Product Delivery Documentation (6 pages)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+
+                    <!-- ── SECTION 1: DC HEADER (Page 5) ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">📄 Delivery Challan Details</div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Machine / Product Name</label>
+                                <input type="text" name="machine_name" class="form-control"
+                                    value="{{ deployment.project.name }}" placeholder="e.g. HIDREC EZ1000 25KLD">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">DC No</label>
+                                <input type="text" name="dc_no" class="form-control" placeholder="e.g. DO-DC-25-12-001">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Specific Project Title</label>
+                                <input type="text" name="project_title" class="form-control"
+                                    placeholder="e.g. STP HIDREC EZ1000 25KLD">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Purchase Order No</label>
+                                <input type="text" name="po_no" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Overall Title / Description of Deposit</label>
+                                <input type="text" name="overall_description" class="form-control"
+                                    placeholder="e.g. ALL BUILT Automatic STP HIDREC EZ1000 25KLD">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Date Sent</label>
+                                <input type="date" name="date_sent" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── SECTION 2: RECEIVER DETAILS ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">🏢 Receiver / Customer Details</div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Organisation (Customer)</label>
+                                <input type="text" name="receiver_org" class="form-control" placeholder="Company name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Location</label>
+                                <input type="text" name="receiver_location" class="form-control"
+                                    placeholder="City / Area">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Address</label>
+                                <input type="text" name="receiver_address" class="form-control"
+                                    placeholder="Street, Phase, Area, City">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Post Code</label>
+                                <input type="text" name="receiver_postcode" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Receiver Email</label>
+                                <input type="email" name="receiver_email" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Receiver Phone</label>
+                                <input type="text" name="receiver_phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── SECTION 3: DEPOSITOR DETAILS ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">👤 Depositor Details (From Xpredict)</div>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Depositor Name</label>
+                                <input type="text" name="depositor_name" class="form-control"
+                                    placeholder="Your name in CAPS">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Depositor Email</label>
+                                <input type="email" name="depositor_email" class="form-control"
+                                    value="services@xpredictlabs.com">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Depositor Phone</label>
+                                <input type="text" name="depositor_phone" class="form-control" value="9901245511">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── SECTION 4: SUB-SYSTEM ITEMS (Page 2) ── -->
+                    <!-- ── SECTION 4: SUB-SYSTEM ITEMS (Page 2) ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">⚙️ Sub-System Items (Page 3)</div>
+                        <div style="max-height:300px;overflow-y:auto;">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:75%">Item / Sub-System Name</th>
+                                        <th>Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><input type="text" name="item_name_1" class="form-control form-control-sm"
+                                                value="CONTROL PANEL"></td>
+                                        <td><input type="text" name="item_qty_1" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_2" class="form-control form-control-sm"
+                                                value="HMI"></td>
+                                        <td><input type="text" name="item_qty_2" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_3" class="form-control form-control-sm"
+                                                value="XCON CONTROL BOARD">
+                                        </td>
+                                        <td><input type="text" name="item_qty_3" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_4" class="form-control form-control-sm"
+                                                value="CURRENT SENSOR"></td>
+                                        <td><input type="text" name="item_qty_4" class="form-control form-control-sm"
+                                                value="2"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_5" class="form-control form-control-sm"
+                                                value="LSP PUMP"></td>
+                                        <td><input type="text" name="item_qty_5" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_6" class="form-control form-control-sm"
+                                                value="FFP PUMP"></td>
+                                        <td><input type="text" name="item_qty_6" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_7" class="form-control form-control-sm"
+                                                value="AIR BLOWER 3 PHASE">
+                                        </td>
+                                        <td><input type="text" name="item_qty_7" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_8" class="form-control form-control-sm"
+                                                value="DRAIN PUMP"></td>
+                                        <td><input type="text" name="item_qty_8" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_9" class="form-control form-control-sm"
+                                                value="PUMP SENSOR"></td>
+                                        <td><input type="text" name="item_qty_9" class="form-control form-control-sm"
+                                                value="2"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_10" class="form-control form-control-sm"
+                                                value="PLUMBING"></td>
+                                        <td><input type="text" name="item_qty_10" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_11" class="form-control form-control-sm"
+                                                value="STRUCTURAL"></td>
+                                        <td><input type="text" name="item_qty_11" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_12" class="form-control form-control-sm"
+                                                value="OUTER BODY"></td>
+                                        <td><input type="text" name="item_qty_12" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_13" class="form-control form-control-sm"
+                                                value="SETTLER"></td>
+                                        <td><input type="text" name="item_qty_13" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_14" class="form-control form-control-sm"
+                                                value="FRP"></td>
+                                        <td><input type="text" name="item_qty_14" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_15" class="form-control form-control-sm"
+                                                value="CTO FILTER"></td>
+                                        <td><input type="text" name="item_qty_15" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_16" class="form-control form-control-sm"
+                                                value="BAG FILTER"></td>
+                                        <td><input type="text" name="item_qty_16" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_17" class="form-control form-control-sm"
+                                                value="1000 Litres TANK"></td>
+                                        <td><input type="text" name="item_qty_17" class="form-control form-control-sm"
+                                                value="4"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_18" class="form-control form-control-sm"
+                                                value="MEDIA FOR FILTER"></td>
+                                        <td><input type="text" name="item_qty_18" class="form-control form-control-sm"
+                                                value="FULL"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_19" class="form-control form-control-sm"
+                                                value="MBBR MEDIA"></td>
+                                        <td><input type="text" name="item_qty_19" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_20" class="form-control form-control-sm"
+                                                value="AIR DIFFUSERS"></td>
+                                        <td><input type="text" name="item_qty_20" class="form-control form-control-sm"
+                                                value="3"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_21" class="form-control form-control-sm"
+                                                value="DOSING PUMP"></td>
+                                        <td><input type="text" name="item_qty_21" class="form-control form-control-sm"
+                                                value="1"></td>
+                                    </tr>
+                                    <!-- Add a few extra blank rows just in case -->
+                                    <tr>
+                                        <td><input type="text" name="item_name_22" class="form-control form-control-sm"
+                                                placeholder="Additional Item">
+                                        </td>
+                                        <td><input type="text" name="item_qty_22" class="form-control form-control-sm"
+                                                placeholder=""></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_23" class="form-control form-control-sm"
+                                                placeholder="Additional Item">
+                                        </td>
+                                        <td><input type="text" name="item_qty_23" class="form-control form-control-sm"
+                                                placeholder=""></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_24" class="form-control form-control-sm"
+                                                placeholder="Additional Item">
+                                        </td>
+                                        <td><input type="text" name="item_qty_24" class="form-control form-control-sm"
+                                                placeholder=""></td>
+                                    </tr>
+                                    <tr>
+                                        <td><input type="text" name="item_name_25" class="form-control form-control-sm"
+                                                placeholder="Additional Item">
+                                        </td>
+                                        <td><input type="text" name="item_qty_25" class="form-control form-control-sm"
+                                                placeholder=""></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ── SECTION 5: DETAILS / MATERIALS (Page 2) ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">📦 Details / Transfer Info / Materials (Page 2)</div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Transfer Information (one item per line)</label>
+                            <textarea name="transfer_info_text" class="form-control"
+                                rows="6">Electro Mechanicals&#10;Structure &amp; Outer Body&#10;Tanks &amp; Plumbing&#10;Sensor Package&#10;Fully Assembled Control Panel&#10;Electrical and other Components&#10;Other Sub-Assemblies</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Prints: Manuals — Details text</label>
+                            <textarea name="prints_details" class="form-control"
+                                rows="2">As provided during installation</textarea>
+                        </div>
+
+                        <label class="form-label">Materials list (one item per line)</label>
+                        <textarea name="materials_text" class="form-control" rows="8"
+                            placeholder="e.g.&#10;Hidrec EZ 1000 Settler&#10;1.5 Hp Air Blower 3 Phase&#10;Electrical Panel Box..."></textarea>
+                    </div>
+
+                    <!-- ── SECTION 6: CONDITIONS (Page 4) ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">📋 Conditions (Page 4)</div>
+                        <label class="form-label">Conditions and reference to agreements</label>
+                        <textarea name="conditions_text" class="form-control" rows="4"
+                            placeholder="Enter any special conditions agreed with the customer..."></textarea>
+                    </div>
+
+                    <!-- ── SECTION 6: APPENDIX A / QC (Page 4) ── -->
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-bold text-dark mb-2">🔬 Appendix A – QC Assurance Matrix (Page 4)</div>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label">QC Conclusion</label>
+                                <input type="text" name="qc_conclusion" class="form-control"
+                                    value="All systems tested for a minimum continuous operation as per test procedure set internally.">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Run Start Date</label>
+                                <input type="date" name="run_start_date" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Run Start Time</label>
+                                <input type="time" name="run_start_time" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Run End Date</label>
+                                <input type="date" name="run_end_date" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Run End Time</label>
+                                <input type="time" name="run_end_time" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Status Report</label>
+                                <textarea name="qc_status_report" class="form-control" rows="6">Power cable: Normal
+SMPS: Normal
+HMI: Normal
+XCON Controller: Normal
+Current Sensors: Normal
+DRS Sensors: Normal
+Timers: Normal
+Fluid Systems: Normal, no leaks
+Rotary Switches: Normal
+Indicators: Normal
+Pumps: Normal
+Air Blower: Normal</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Tester Name</label>
+                                <input type="text" name="tester_name" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Examiner Name</label>
+                                <input type="text" name="examiner_name" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn text-white w-100" style="background-color: #002060;">Generate
+                        Product
+                        Delivery Documentation (6
+                        pages)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- COMMISSIONING MODAL -->
+    <div class="modal fade" id="commissioningModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <form method="get" action="{% url 'generate_commissioning' deployment.id %}" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Erection & Commissioning Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height:75vh;overflow-y:auto;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Client Name</label>
+                            <input type="text" name="client_name" class="form-control" value="TATA STEEL LIMITED.">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Project / Machine Name</label>
+                            <input type="text" name="project_name" class="form-control" value="HIDREC EC1000 STP">
+                        </div>
+
+                        <div class="col-md-12">
+                            <h6 class="mt-3 fw-bold border-bottom pb-2">Project Overview</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Scope of Supply</label>
+                            <input type="text" name="scope_of_supply" class="form-control"
+                                value="Sewage treatment plant">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">PO for Supply</label>
+                            <input type="text" name="po_supply" class="form-control" value="2300073076/810">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">PO for E&C</label>
+                            <input type="text" name="po_ec" class="form-control" value="2300073076/810">
+                        </div>
+
+                        <div class="col-md-12">
+                            <h6 class="mt-3 fw-bold border-bottom pb-2">Milestone Record Dates</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Supply Completion</label>
+                            <input type="text" name="supply_completion_date" class="form-control" value="11-April-2025">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">I&C Start</label>
+                            <input type="text" name="ic_start_date" class="form-control" value="17-April-2025">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">I&C Completion</label>
+                            <input type="text" name="ic_completion_date" class="form-control" value="03-May-2025">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Automation Trials Completion</label>
+                            <input type="text" name="automation_trials_date" class="form-control" value="13-May-2025">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Commissioning Date</label>
+                            <input type="text" name="commissioning_date" class="form-control" value="04-June-2025">
+                        </div>
+
+                        <div class="col-md-12">
+                            <h6 class="mt-3 fw-bold border-bottom pb-2">Meeting Attendees (List one per line)</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">From Client</label>
+                            <textarea name="attendees_client" class="form-control" rows="3">Mr. Nilesh Bhajan
+Mr. Akshat Gupta
+Mr. Ramlal (operator)</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">From Xpredict</label>
+                            <textarea name="attendees_xpredict" class="form-control" rows="3">Mr. Kushal Dhole
+Mr. Madhu S
+Mr. Sudeep</textarea>
+                        </div>
+
+                        <div class="col-md-12">
+                            <h6 class="mt-3 fw-bold border-bottom pb-2">Discussion Points and Status</h6>
+                            <textarea name="discussion_points" class="form-control" rows="4">All tasks related to supply, installation, commissioning, automation trials, PLC implementation, safety features, and treatment readiness were completed successfully. Detailed scope items from 01 to 26 have been executed and verified by TSL Team covered in table below.
+
+Treated water sampling is being carried out, STP system maturation for final compliance awaited.</textarea>
+                        </div>
+
+                        <div class="col-md-12">
+                            <h6 class="mt-3 fw-bold border-bottom pb-2">Consumables & Stock Kept (List one per line)
+                            </h6>
+                            <textarea name="consumables" class="form-control" rows="5">EC Reactor Cells - 4 Nos
+Safety Gear - 3 Sets
+MBBR Media - 3 Bags
+Bog Mesh - 20 Nos (1.2 mtr X 1.2 mtr)
+EAOP Reactor Cell - 2 Nos
+Plumbing Items General Spares</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn text-white w-100" style="background-color: #002060;">Generate
+                        E&C
+                        Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- HANDOVER MODAL -->
+    <div class="modal fade" id="handoverModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form method="get" action="{% url 'generate_handover' deployment.id %}" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Handover Document</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Fields marked with <strong>✦</strong> are auto-filled from
+                        project
+                        data.</p>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Handover Date</label>
+                            <input type="date" name="handover_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">DC No</label>
+                            <input type="text" name="dc_no" class="form-control" placeholder="e.g. DO-DC-25-12-001">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PO No</label>
+                            <input type="text" name="po_no" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Handed Over By</label>
+                            <input type="text" name="handed_over_by" class="form-control" required
+                                placeholder="Your name">
+                        </div>
+                        <div class="col-12">
+                            <hr class="my-2"><small class="text-muted fw-bold">CLIENT / RECEIVER DETAILS</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Customer Company Name ✦</label>
+                            <input type="text" name="customer_name" class="form-control"
+                                value="{{ deployment.project.enquiry.customer.company_name|default:'' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Name of Employee (Receiver)</label>
+                            <input type="text" name="employee_name" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Employee No</label>
+                            <input type="text" name="employee_no" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Location ✦</label>
+                            <input type="text" name="location" class="form-control"
+                                value="{{ deployment.project.enquiry.customer.address|default:'' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Division</label>
+                            <input type="text" name="division" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Accepted By (Client Rep)</label>
+                            <input type="text" name="client_rep" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <hr class="my-2"><small class="text-muted fw-bold">ASSET DETAILS</small>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Particulars / Asset Description ✦</label>
+                            <input type="text" name="particulars" class="form-control"
+                                value="{{ deployment.project.enquiry.subproduct.name|default:'' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Project Ref No ✦</label>
+                            <input type="text" name="project_ref" class="form-control"
+                                value="{{ deployment.project.enquiry.enq_id }}" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn text-white w-100" style="background-color: #002060;">Generate
+                        Handover
+                        Document</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .border-dashed {
+            border-style: dashed !important;
+            border-width: 2px !important;
+        }
+
+        .object-fit-cover {
+            object-fit: cover !important;
+        }
+
+        .nav-tabs .nav-link {
+            color: #495057;
+            background-color: #f8f9fa;
+            border-bottom: none;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            background-color: #fff;
+            border-bottom: 2px solid white;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, .1) !important;
+        }
+    </style>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let hash = window.location.hash;
+            if (hash) {
+                let targetTab = document.querySelector('button[data-bs-target="' + hash + '"]');
+                if (targetTab) {
+                    let tab = new bootstrap.Tab(targetTab);
+                    tab.show();
+                }
+            }
+        });
+    </script>
+    </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const generateForms = document.querySelectorAll('#generate form');
+    generateForms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const overlay = document.createElement('div');
+            overlay.innerHTML = `
+                <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                    <div class="spinner-border text-primary" style="width:4rem;height:4rem;border-width:0.3rem;"></div>
+                    <h3 class="mt-4 text-primary fw-bold">Generating Document...</h3>
+                    <p class="text-muted mt-2">Please wait while the PDF template is being prepared.</p>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        });
+    });
+});
+</script>
+
+    {% endblock %}

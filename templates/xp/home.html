@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container-fluid mt-4 pb-5" style="background: #f8fafc; min-height: 100vh;">
@@ -42,7 +43,10 @@
                         <h2 class="font-weight-bold text-white mb-1" style="font-size: 1.8rem; letter-spacing: -0.02em;">
                             Hello, {{ request.user.first_name|default:request.user.username }}! 👋
                         </h2>
-                        <p class="text-white-50 mb-0 small">Welcome back to your Xpredict dashboard. Here is your overview for today.</p>
+                        <p class="text-white-50 mb-3 small">Welcome back to your Xpredict dashboard. Here is your overview for today.</p>
+                        <a href="{% url 'todo_calendar' %}" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm text-decoration-none" style="color: #1e3a8a;">
+                            <i class="bi bi-calendar-check me-2"></i>Tasks & Calendar
+                        </a>
                     </div>
                     <div class="d-none d-md-block text-end">
                         <span class="text-white-50 d-block small" id="current-day-name">Today</span>
@@ -203,6 +207,23 @@
             </div>
         </div>
         
+    </div>
+
+    <!-- India Operations Map Row -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <div>
+                        <h3 class="card-title font-weight-bold mb-1" style="font-size: 1.25rem;">📍 India Operations Map</h3>
+                        <p class="text-muted small mb-0">Active projects, support sites, and industrial hubs monitored nationwide</p>
+                    </div>
+                </div>
+                <div class="card-body p-4 d-flex justify-content-center align-items-center" style="background-color: #ffffff;">
+                    <img src="{% static 'img/india_operations_map.png' %}" alt="India Operations Map" class="img-fluid" style="max-height: 600px; width: auto;">
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

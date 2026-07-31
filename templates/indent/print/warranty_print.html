@@ -1,0 +1,291 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warranty Certificate - Xpredict Labs</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: #f0ece0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .certificate {
+            width: 780px;
+            background: #fdf8f0;
+            border: 12px solid #5a3a1a;
+            padding: 40px 55px;
+            position: relative;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .certificate::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border: 2px solid #8b6914;
+            pointer-events: none;
+        }
+
+        /* Header row: logo left, seal right */
+        .cert-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+        .cert-logo {
+            height: 60px;
+            object-fit: contain;
+        }
+
+        .seal-svg {
+            width: 100px;
+            height: 100px;
+            flex-shrink: 0;
+        }
+
+        /* Title */
+        h1.title {
+            font-family: 'Merriweather', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #3a2000;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #c0a060;
+            padding-bottom: 15px;
+        }
+
+        /* Fields */
+        .field-row {
+            display: grid;
+            grid-template-columns: 230px 1fr;
+            align-items: baseline;
+            margin-bottom: 16px;
+        }
+
+        .field-label {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #3a2000;
+        }
+
+        .field-value {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #222;
+            border-bottom: 1px solid #c0a060;
+            padding-bottom: 4px;
+            min-width: 200px;
+        }
+
+        /* Body text between fields */
+        .cert-body {
+            position: relative;
+            background-image: repeating-linear-gradient(45deg,
+                    transparent,
+                    transparent 8px,
+                    rgba(180, 140, 80, 0.07) 8px,
+                    rgba(180, 140, 80, 0.07) 9px);
+            padding: 24px 0;
+            margin-bottom: 20px;
+        }
+
+        /* Signature section */
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #c0a060;
+        }
+
+        .sig-block {
+            text-align: left;
+        }
+
+        .sig-block .sig-line {
+            border-top: 1px solid #3a2000;
+            width: 160px;
+            margin-bottom: 6px;
+        }
+
+        .sig-block .name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #3a2000;
+        }
+
+        .sig-block .role {
+            font-style: italic;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .disclaimer {
+            margin-top: 25px;
+            font-size: 0.75rem;
+            color: #777;
+            border-top: 1px solid #c0a060;
+            padding-top: 12px;
+            line-height: 1.6;
+        }
+
+        /* Print + attach buttons */
+        .action-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-action {
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .certificate {
+                box-shadow: none;
+            }
+
+            .action-bar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="certificate">
+        <!-- Header: logo + seal -->
+        <div class="cert-header">
+            <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs" class="cert-logo">
+            <svg class="seal-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="48" fill="#7a5200" />
+                <circle cx="50" cy="50" r="41" fill="#c8920a" />
+                <circle cx="50" cy="50" r="35" fill="#e0a800" />
+                <circle cx="50" cy="50" r="30" fill="#f5c842" />
+                <text x="50" y="35" text-anchor="middle" font-size="9" fill="#5a3800">★ ★ ★</text>
+                <text x="50" y="52" text-anchor="middle" font-weight="bold" font-size="7.5" font-family="sans-serif"
+                    fill="#3a2000">QUALITY</text>
+                <text x="50" y="63" text-anchor="middle" font-weight="bold" font-size="7.5" font-family="sans-serif"
+                    fill="#3a2000">ASSURANCE</text>
+                <text x="50" y="76" text-anchor="middle" font-size="6" fill="#5a3800">CERTIFIED</text>
+            </svg>
+        </div>
+
+        <!-- Title -->
+        <h1 class="title">Warranty Certificate</h1>
+        <div class="subtitle">Xpredict Automation Solutions Pvt Ltd · Bangalore - 560090</div>
+
+        <!-- Fields -->
+        <div class="cert-body">
+            <div class="field-row">
+                <span class="field-label">Customer Name :</span>
+                <span class="field-value">{{ customer_name }}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Date of Commissioning :</span>
+                <span class="field-value">{{ commissioning_date }}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">ID Number :</span>
+                <span class="field-value">{{ id_number }}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Warranty Period :</span>
+                <span class="field-value">{{ warranty_period }}</span>
+            </div>
+        </div>
+
+        <!-- Signature -->
+        <div class="signature-section">
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="name">{{ manager_name }}</div>
+                <div class="role">Quality Assurance Manager</div>
+            </div>
+            <div style="text-align:right;">
+                <img src="{% static 'xlogo.jpeg' %}" alt="Xpredict Labs" style="height:40px;opacity:0.7;">
+            </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            The warranty is valid only in the presence of this certificate, as well as: original purchase document
+            (receipt / invoice), correctly and completely filled out warranty card.
+        </div>
+    </div>
+
+    <!-- Attach hidden form -->
+    <form id="attachForm" method="post" action="{% url 'attach_generated_doc' deployment.id %}" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="doc_type" value="warranty">
+        <input type="hidden" name="customer_name" value="{{ customer_name }}">
+        <input type="hidden" name="commissioning_date" value="{{ commissioning_date }}">
+        <input type="hidden" name="id_number" value="{{ id_number }}">
+        <input type="hidden" name="warranty_period" value="{{ warranty_period }}">
+        <input type="hidden" name="manager_name" value="{{ manager_name }}">
+    </form>
+
+    <div class="action-bar">
+        <button class="btn-action" style="background:#002060;" onclick="window.print()">🖨️ Print / Save PDF</button>
+        <button class="btn-action" style="background:#002060;"
+            onclick="if(confirm('Attach the Warranty Certificate to the deployment?')) { document.getElementById('loadingOverlay').style.display = 'flex'; document.getElementById('attachForm').submit(); }">
+            📎 Attach to Deployment
+        </button>
+        <button class="btn-action" style="background:#444;" onclick="window.history.back()">← Back</button>
+    </div>
+
+<style>
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; font-family: sans-serif; }
+.loading-spinner { border: 6px solid #f3f3f3; border-top: 6px solid #002060; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <h2 style="color: #002060; margin: 0;">Attaching Document...</h2>
+    <p style="color: #666; margin-top: 10px;">Please wait while the document is being processed.</p>
+</div>
+</body>
+
+
+</html>

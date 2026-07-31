@@ -36,8 +36,8 @@ from .models import Site
 # Register the Site model with the admin interface
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ('name', 'zone')
-    search_fields = ('name', 'zone__name')
+    list_display = ('name', 'zone', 'sim_card_number')
+    search_fields = ('name', 'zone__name', 'sim_card_number')
 
 # -------------------------------MOM------------------------
 from django.contrib import admin

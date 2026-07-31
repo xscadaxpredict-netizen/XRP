@@ -30,6 +30,13 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+	{% if '/xshot/' in request.path or '/xshot' in request.path %}
+	<link rel="stylesheet" href="{% static 'gstbillingapp/custom.css' %}?v=2">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+	{% endif %}
+
+	{% block includecss %}{% endblock %}
+
 	<style>
 		@import url('https://rsms.me/inter/inter.css');
 
@@ -226,6 +233,13 @@
 </head>
 
 <body>
+	<script>
+		try {
+			localStorage.setItem('tablerTheme', 'light');
+			localStorage.removeItem('theme');
+		} catch (e) {}
+		if (document.body) document.body.removeAttribute('data-bs-theme');
+	</script>
 	<script src="{% static 'js/demo-theme.min.js' %}"></script>
 	<div class="page">
 		<!-- Navbar -->
@@ -242,28 +256,13 @@
 					</a>
 				</h1>
 				<div class="navbar-nav flex-row order-md-last">
-					<div class="d-flex align-items-center">
-						<a href="?theme=dark" class="nav-link px-0 hide-theme-dark theme-toggle-btn me-2" title="Enable dark mode"
-							data-bs-toggle="tooltip" data-bs-placement="bottom">
-							<svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
-								viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-								stroke-linecap="round" stroke-linejoin="round">
-								<path stroke="none" d="M0 0h24v24H0z" fill="none" />
-								<path
-									d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
-							</svg>
+					<div class="d-none d-md-flex">
+						<!-- Master Settings -->
+						{% if user.is_staff or user.is_superuser %}
+						<a href="{% url 'master_dashboard' %}" class="nav-link px-0 me-3 text-muted" title="Master Settings" data-bs-toggle="tooltip" data-bs-placement="bottom">
+							<i class="bi bi-gear fs-2"></i>
 						</a>
-						<a href="?theme=light" class="nav-link px-0 hide-theme-light theme-toggle-btn me-2" title="Enable light mode"
-							data-bs-toggle="tooltip" data-bs-placement="bottom">
-							<svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
-								viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-								stroke-linecap="round" stroke-linejoin="round">
-								<path stroke="none" d="M0 0h24v24H0z" fill="none" />
-								<path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
-								<path
-									d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" />
-							</svg>
-						</a>
+						{% endif %}
 
 						{% if user.is_staff or user.is_superuser %}
 						{% get_global_settings as global_settings %}
@@ -606,8 +605,15 @@
 
 
 		<div class="page-wrapper">
+			{% if '/xshot/' in request.path or '/xshot' in request.path %}
+			<div class="container-fluid px-4 py-4">
+			{% endif %}
 
 			{% block content %}{% endblock content %}
+
+			{% if '/xshot/' in request.path or '/xshot' in request.path %}
+			</div>
+			{% endif %}
 
 
 			<footer class="footer footer-transparent d-print-none">
@@ -646,8 +652,8 @@
 	<script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
 	<!-- Include jQuery (required for Bootstrap 4) -->
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<!-- Include Bootstrap JS -->
-	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+	<!-- Include Bootstrap JS (Commented out to fix Tabler/Bootstrap 5 conflict) -->
+	<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script> -->
 	<!-- jQuery (Required for Select2) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -725,6 +731,7 @@
 		});
 	  </script>
 		
+	{% block includejs %}{% endblock %}
 	{% block extra_scripts %}{% endblock extra_scripts %}
 </body>
 

@@ -1,0 +1,227 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Commissioning Report - Xpredict Labs</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .report {
+            width: 800px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            color: #222;
+        }
+
+        .header-box {
+            border: 1px solid #000;
+            text-align: center;
+            padding: 12px;
+            margin-bottom: 25px;
+        }
+
+        .header-box h2 {
+            font-size: 1.15rem;
+            margin-bottom: 5px;
+        }
+
+        .header-box h3 {
+            font-size: 0.95rem;
+            font-weight: normal;
+        }
+
+        .info-row {
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+        }
+
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #555;
+            margin-bottom: 10px;
+            margin-top: 25px;
+        }
+
+        .milestone-text {
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+
+        .bullet-list {
+            list-style-type: none;
+            padding-left: 20px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .bullet-list li::before {
+            content: '➢  ';
+            font-weight: bold;
+            margin-right: 5px;
+            color: #555;
+        }
+
+        .check-list {
+            list-style-type: none;
+            padding-left: 20px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .check-list li::before {
+            content: '✓  ';
+            font-weight: bold;
+            margin-right: 5px;
+            color: #555;
+        }
+
+        .attendee-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .attendee-table td {
+            border: 1px solid #000;
+            padding: 6px 12px;
+            vertical-align: top;
+        }
+
+        .attendee-table td.header-cell {
+            background-color: #f2f2f2;
+        }
+
+        .action-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-act {
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .report {
+                box-shadow: none;
+                padding: 10px;
+            }
+
+            .action-bar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="report">
+        <div class="header-box">
+            <h2>Erection and Commissioning Report – {{ project_name }}</h2>
+            <h3>(MATERIAL SUPPLY / PROJECT COMMISSIONING SIGNOFF)</h3>
+        </div>
+
+        <div class="info-row"><strong>Client:</strong> {{ client_name }}</div>
+        <div class="info-row"><strong>Supplier:</strong> {{ supplier_name }}</div>
+
+        <div class="section-title">Project Overview</div>
+        <div class="info-row">Scope of Supply & I&C of {{ scope_of_supply }}</div>
+        <ul class="bullet-list">
+            <li>PO for Supply: {{ po_supply }}</li>
+            <li>PO for E&C: {{ po_ec }}</li>
+        </ul>
+
+        <div class="section-title">Project Execution Milestone Record:</div>
+        <div class="milestone-text">Thank you for your order and continuous support. With your assistance, we have
+            smoothly executed this order. Your partnership is greatly appreciated.</div>
+        <ul class="check-list">
+            <li>Supply Completion Date: {{ supply_completion_date }}</li>
+            <li>Installation & Commissioning Start Date: {{ ic_start_date }}</li>
+            <li>Installation & Commissioning Completion Date: {{ ic_completion_date }}</li>
+            <li>Automation Trials Completion Date: {{ automation_trials_date }}</li>
+            <li>Commissioning Date: {{ commissioning_date }}</li>
+        </ul>
+
+        <div class="section-title">Meeting Attendees</div>
+        <table class="attendee-table">
+            <tr>
+                <td class="header-cell">From Client</td>
+                <td class="header-cell">From {{ supplier_name }}</td>
+            </tr>
+            <tr>
+                <td>{{ attendees_client|linebreaksbr }}</td>
+                <td>{{ attendees_xpredict|linebreaksbr }}</td>
+            </tr>
+        </table>
+
+        <div class="section-title">Discussion Points and Status</div>
+        <div style="font-size: 0.95rem; line-height: 1.6;">{{ discussion_points|linebreaksbr }}</div>
+
+        <div class="section-title">Consumables & Stock Kept in Site</div>
+        <div style="font-size: 0.95rem; line-height: 1.6; padding-left: 15px;">{{ consumables|linebreaksbr }}</div>
+    </div>
+
+    <!-- Hidden Form for Attaching -->
+    <form id="attachForm" method="post" action="{% url 'attach_generated_doc' deployment.id %}" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="doc_type" value="commissioning">
+        {% for key, value in request.GET.items %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+    </form>
+
+    <div class="action-bar">
+        <button class="btn-act" style="background:#002060;" onclick="window.print()">🖨️ Print / Save PDF</button>
+        <button class="btn-act" style="background:#002060;"
+            onclick="if(confirm('Attach the Commissioning Report to the deployment?')) { document.getElementById('loadingOverlay').style.display = 'flex'; document.getElementById('attachForm').submit(); }">
+            📎 Attach to Deployment
+        </button>
+        <button class="btn-act" style="background:#444;" onclick="window.history.back()">← Back</button>
+    </div>
+
+<style>
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; font-family: sans-serif; }
+.loading-spinner { border: 6px solid #f3f3f3; border-top: 6px solid #002060; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <h2 style="color: #002060; margin: 0;">Attaching Document...</h2>
+    <p style="color: #666; margin-top: 10px;">Please wait while the document is being processed.</p>
+</div>
+</body>
+
+
+</html>

@@ -1,4 +1,5 @@
-document.getElementById('add-note-btn').addEventListener('click', function() {
+var el_add_note_btn = document.getElementById('add-note-btn');
+if (el_add_note_btn) el_add_note_btn.addEventListener('click', function() {
     // Get the container for the notes
     var container = document.getElementById('notes-container');
     

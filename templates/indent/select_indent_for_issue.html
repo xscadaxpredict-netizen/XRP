@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Select Indent to Issue Materials - {{ project.name }}</h2>
+        </div>
+        <div class="card-body">
+            {% if indents %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Indent Number</th>
+                            <th>Department</th>
+                            <th>Created Date</th>
+                            <th>Items Count</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for indent in indents %}
+                        <tr>
+                            <td><strong>{{ indent.indent_number }}</strong></td>
+                            <td>{{ indent.department }}</td>
+                            <td>{{ indent.created_at|date:"d M Y" }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ indent.items.count }} items</span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if indent.status == 'draft' %}bg-secondary text-white
+                                    {% elif indent.status == 'approved' %}bg-success text-white
+                                    {% elif indent.status == 'po' %}bg-info text-white
+                                    {% elif indent.status == 'rejected' %}bg-danger text-white
+                                    {% else %}bg-secondary text-white{% endif %}">
+                                    {{ indent.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'project_material_issue_from_indent_detail' project.id indent.id %}"
+                                    class="btn btn-primary btn-sm">
+                                    Issue Materials
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No indents found for this project.
+            </div>
+            {% endif %}
+
+            <div class="mt-3">
+                <a href="{% url 'project_detail' project.id %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
