@@ -66,8 +66,8 @@
 					<tr>
 						<th scope="row">Customer Name</th>
 						<td class="form-input-td customer_search_area">
-							<input autocomplete="off" name="customer-name"
-								type="text" class="form-control customer_search_input" id="customer-name-input"
+							<input autocomplete="off" name="customer-name" type="text"
+								class="form-control customer_search_input" id="customer-name-input"
 								placeholder="Customer Name" required>
 							<div id="customer_search_bar"></div>
 						</td>
@@ -297,7 +297,7 @@
 
 		</form>
 
-</div>
+	</div>
 </div>
 <script>
 	document.getElementById('same-as-billing-checkbox').addEventListener('change', function () {
@@ -395,5 +395,5 @@
 {% block includejs %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'gstbillingapp/js/fuse-3.4.6.min.js' %}"></script>
-<script src="{% static 'gstbillingapp/js/main.js' %}"></script>
+<script src="{% static 'gstbillingapp/js/main.js' %}?v=3.0"></script>
 {% endblock %}

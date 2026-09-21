@@ -603,6 +603,43 @@ class SiteAMC(models.Model):
     def __str__(self):
         return f"AMC for {self.site.name}"
 
+    @property
+    def current_year_water_reports_count(self):
+        current_year = timezone.now().year
+        if hasattr(self, '_prefetched_objects_cache') and 'water_reports' in self._prefetched_objects_cache:
+            return sum(1 for r in self.water_reports.all() if r.uploaded_at and r.uploaded_at.year == current_year)
+        return self.water_reports.filter(uploaded_at__year=current_year).count()
+
+    @property
+    def water_reports_count(self):
+        return self.total_water_reports_count
+
+    @property
+    def total_water_reports_count(self):
+        if hasattr(self, '_prefetched_objects_cache') and 'water_reports' in self._prefetched_objects_cache:
+            return len(self.water_reports.all())
+        return self.water_reports.count()
+
+    def get_water_reports_by_year(self):
+        from collections import defaultdict
+        current_year = timezone.now().year
+        reports = list(self.water_reports.all().order_by('-uploaded_at', '-id'))
+        years_dict = defaultdict(list)
+        for report in reports:
+            year = report.uploaded_at.year if report.uploaded_at else current_year
+            years_dict[year].append(report)
+
+        result = []
+        for y in sorted(years_dict.keys(), reverse=True):
+            cnt = len(years_dict[y])
+            result.append({
+                'year': y,
+                'is_current': (y == current_year),
+                'count': cnt,
+                'reports': years_dict[y],
+            })
+        return result
+
 class SiteAMCHistory(models.Model):
     amc = models.ForeignKey(SiteAMC, on_delete=models.CASCADE, related_name='history')
     amc_start_date = models.DateField(null=True, blank=True)
@@ -615,6 +652,31 @@ class SiteAMCHistory(models.Model):
 
     def __str__(self):
         return f"History for {self.amc.site.name} on {self.created_at.strftime('%Y-%m-%d')}"
+
+
+class SiteAMCWaterReport(models.Model):
+    amc = models.ForeignKey(SiteAMC, on_delete=models.CASCADE, related_name='water_reports')
+    file = models.FileField(upload_to='amc_water_reports/')
+    report_date = models.DateField(default=timezone.now, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_water_reports')
+
+    class Meta:
+        ordering = ['-uploaded_at', '-id']
+
+    def __str__(self):
+        return f"Water Report for {self.amc.site.name} ({self.filename})"
+
+    @property
+    def filename(self):
+        import os
+        return os.path.basename(self.file.name)
+
+    @property
+    def upload_year(self):
+        if self.uploaded_at:
+            return self.uploaded_at.year
+        return timezone.now().year
 
 
 class Bike(models.Model):

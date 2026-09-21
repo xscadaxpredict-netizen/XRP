@@ -1,16 +1,19 @@
-
 {% extends "base.html" %}
 {% block content %}
 <style>
-    table, th, td {
-      border: 1px solid black;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 6px;
-      text-align: left;
-    }
-  </style>
+  table,
+  th,
+  td {
+    border: 1px solid black;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 6px;
+    text-align: left;
+  }
+</style>
 <div class="container">
   <h2 class="text-center mb-4">Client Service Report</h2>
 
@@ -34,7 +37,15 @@
   {% comment %} SECTION: Electronic Items {% endcomment %}
   <h4>Electronic Items</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Item</th><th>Checked</th><th>Repair</th><th>Replacement</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Checked</th>
+        <th>Repair</th>
+        <th>Replacement</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for status in electronic_item_statuses %}
       <tr>
@@ -50,7 +61,15 @@
 
   <h4>Electronic Panel Status</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Panel</th><th>Checked</th><th>Repair</th><th>Replacement</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Panel</th>
+        <th>Checked</th>
+        <th>Repair</th>
+        <th>Replacement</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for status in panel_statuses %}
       <tr>
@@ -66,7 +85,15 @@
 
   <h4>Chemical Item Status</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Item</th><th>Checked</th><th>Repair</th><th>Replacement</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Checked</th>
+        <th>Repair</th>
+        <th>Replacement</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for status in chemical_item_statuses %}
       <tr>
@@ -82,7 +109,15 @@
 
   <h4>Pump Status</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Pump</th><th>Checked</th><th>Repair</th><th>Replacement</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Pump</th>
+        <th>Checked</th>
+        <th>Repair</th>
+        <th>Replacement</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for status in pump_statuses %}
       <tr>
@@ -98,7 +133,15 @@
 
   <h4>Miscellaneous Item Status</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Item</th><th>Checked</th><th>Repair</th><th>Replacement</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Checked</th>
+        <th>Repair</th>
+        <th>Replacement</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for status in miscellaneous_item_statuses %}
       <tr>
@@ -114,7 +157,15 @@
 
   <h4>Wastewater Parameter Status</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Parameter</th><th>Checked</th><th>Repair</th><th>Replacement</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Parameter</th>
+        <th>Checked</th>
+        <th>Repair</th>
+        <th>Replacement</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for status in wastewater_parameter_statuses %}
       <tr>
@@ -130,7 +181,17 @@
 
   <h4>Machine Run Times</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Run Type</th><th>Run Time</th><th>End Time</th><th>Checked</th><th>Pass</th><th>Fail</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Run Type</th>
+        <th>Run Time</th>
+        <th>End Time</th>
+        <th>Checked</th>
+        <th>Pass</th>
+        <th>Fail</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for run in machine_run_times %}
       <tr>
@@ -148,7 +209,14 @@
 
   <h4>Tool Status</h4>
   <table border="1" width="100%" cellspacing="0" cellpadding="4">
-    <thead><tr><th>Tool</th><th>Quantity</th><th>Taken</th><th>Remark</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Quantity</th>
+        <th>Taken</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
     <tbody>
       {% for tool in tool_statuses %}
       <tr>
@@ -168,187 +236,197 @@
   <p>{{ service_report.spares_details }}</p>
 
 
-{% if attachments %}
+  {% if attachments %}
   <h4>Attachments</h4>
   <div class="row">
     {% for file in attachments %}
-      <div class="col-md-3 mb-3">
-        <div class="card shadow-sm p-2 text-center">
-          <img src="{{ file.file.url }}" alt="Attachment {{ forloop.counter }}" class="img-thumbnail" style="max-width: 120px; height: auto;">
-          <small class="text-muted d-block mt-2">{{ file.file.name|slice:"-30:" }}</small>
-        </div>
+    <div class="col-md-3 mb-3">
+      <div class="card shadow-sm p-2 text-center">
+        <img src="{{ file.file.url }}" alt="Attachment {{ forloop.counter }}" class="img-thumbnail"
+          style="max-width: 120px; height: auto;">
+        <small class="text-muted d-block mt-2">{{ file.file.name|slice:"-30:" }}</small>
       </div>
+    </div>
     {% endfor %}
   </div>
-{% endif %}
+  {% endif %}
 
   <h4>Service Person</h4>
   <p><strong>Name:</strong> {{ service_report.service_person_name }}</p>
   <img src="{{ service_report.service_person_signature }}" style="max-width:300px;"><br>
 
-  <h4>Client Signature</h4>
-  <form method="POST" onsubmit="return captureSignature()">
+  <h4 class="mt-4">Client Signature</h4>
+
+  {% if error %}
+  <div class="alert alert-danger font-weight-bold" role="alert" style="background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+    ⚠️ {{ error }}
+  </div>
+  {% endif %}
+
+  <div id="signatureWarning" class="alert alert-danger" role="alert" style="display:none; background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: 600;">
+    ⚠️ You haven't signed yet! Please draw your signature in the box below before submitting.
+  </div>
+
+  <form method="POST" id="clientSignForm" onsubmit="return captureSignature(event)">
     {% csrf_token %}
-    <label>Name:</label>
-    <input type="text" name="client_name" required value="{{ service_report.client_name|default_if_none:'' }}"><br><br>
-    <label>Client Remark:</label>
-    <textarea name="client_remark" class="form-control" rows="3" placeholder="e.g., Technician was professional and helpful.">{{ service_report.client_remark|default_if_none:'' }}</textarea><br><br>
-  
-    <label>Signature:</label><br>
-    <canvas id="clientSignature" width="400" height="150" style="border:1px solid #000;"></canvas><br>
-  
+    <div style="margin-bottom: 15px;">
+      <label><strong>Name:</strong> <span style="color: red;">*</span></label><br>
+      <input type="text" name="client_name" required value="{{ service_report.client_name|default_if_none:'' }}" style="width: 100%; max-width: 400px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label><strong>Client Remark:</strong></label><br>
+      <textarea name="client_remark" rows="3" style="width: 100%; max-width: 500px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px;"
+        placeholder="e.g., Technician was professional and helpful.">{{ service_report.client_remark|default_if_none:'' }}</textarea>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <label><strong>Signature:</strong> <span style="color: red;">*</span></label><br>
+      <small style="color: #6c757d; display: block; margin-bottom: 6px;">Please draw your signature using your finger (on mobile) or mouse.</small>
+      <canvas id="clientSignature" width="400" height="150" style="border: 2px dashed #6c757d; border-radius: 6px; background-color: #ffffff; cursor: crosshair; touch-action: none;"></canvas><br>
+      <button type="button" class="btn btn-secondary btn-sm" style="margin-top: 6px;" onclick="clearSignature()">Clear Signature</button>
+    </div>
+
     <input type="hidden" name="client_signature" id="clientSignatureData">
-    <button type="submit" class="btn btn-success">Submit</button>
-    <button type="button" class="btn btn-secondary" onclick="clearSignature()">Clear</button>
+    <div style="margin-top: 20px;">
+      <button type="submit" class="btn btn-success" style="padding: 10px 24px; font-size: 16px; font-weight: bold;">Submit</button>
+    </div>
   </form>
 </div>
-{% comment %} <script>
-    const canvas = document.getElementById("clientSignature");
-    const ctx = canvas.getContext("2d");
-    let drawing = false;
-  
-    // Drawing logic
-    canvas.addEventListener("mousedown", () => drawing = true);
-    canvas.addEventListener("mouseup", () => {
-      drawing = false;
-      ctx.beginPath();
-    });
-    canvas.addEventListener("mousemove", draw);
-  
-    function draw(e) {
-      if (!drawing) return;
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#000";
-      ctx.lineTo(e.offsetX, e.offsetY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
-    }
-  
-    function clearSignature() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  
-    function captureSignature() {
-      const signatureData = canvas.toDataURL();
-      document.getElementById("clientSignatureData").value = signatureData;
-      return true;  // Allow form submission
-    }
-  </script>
 
 <script>
-    const canvas = document.getElementById("clientSignature");
-    const ctx = canvas.getContext("2d");
-    let drawing = false;
-    
-    canvas.addEventListener("mousedown", () => drawing = true);
-    canvas.addEventListener("mouseup", () => {
-      drawing = false;
-      ctx.beginPath();
-    });
-    canvas.addEventListener("mousemove", e => {
-      if (!drawing) return;
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#000";
-      ctx.lineTo(e.offsetX, e.offsetY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
-    });
-    
-    // This is the critical function
-    function captureSignature() {
-      const dataURL = canvas.toDataURL();
-      if (!dataURL || dataURL.length < 100) {
-        alert("Please draw your signature before submitting.");
-        return false;
-      }
-      document.getElementById("clientSignatureData").value = dataURL;
-      return true;
-    }
-    </script> {% endcomment %}
+  const canvas = document.getElementById("clientSignature");
+  const ctx = canvas.getContext("2d");
+  let hasDrawn = false;
+  let drawing = false;
 
-    <script>
-      const canvas = document.getElementById("clientSignature");
-      const ctx = canvas.getContext("2d");
-      let drawing = false;
-    
-      // Set canvas size responsive (optional)
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    
-      // Mouse events
-      canvas.addEventListener("mousedown", (e) => {
-        drawing = true;
-        draw(e);
-      });
-    
-      canvas.addEventListener("mouseup", () => {
-        drawing = false;
-        ctx.beginPath();
-      });
-    
-      canvas.addEventListener("mousemove", draw);
-    
-      // Touch events
-      canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        drawing = true;
-        drawTouch(e);
-      });
-    
-      canvas.addEventListener("touchmove", (e) => {
-        e.preventDefault();
-        drawTouch(e);
-      });
-    
-      canvas.addEventListener("touchend", (e) => {
-        e.preventDefault();
-        drawing = false;
-        ctx.beginPath();
-      });
-    
-      function draw(e) {
-        if (!drawing) return;
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#000";
-        ctx.lineTo(e.offsetX, e.offsetY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(e.offsetX, e.offsetY);
-      }
-    
-      function drawTouch(e) {
-        if (!drawing) return;
-        const rect = canvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-    
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#000";
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-      }
-    
-      function clearSignature() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    
-      function captureSignature() {
-        const signatureData = canvas.toDataURL();
-        if (!signatureData || signatureData.length < 100) {
-          alert("Please draw your signature before submitting.");
-          return false;
+  function getCanvasCoords(e, touch) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = touch ? touch.clientX : e.clientX;
+    const clientY = touch ? touch.clientY : e.clientY;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
+
+  function markDrawingActive() {
+    hasDrawn = true;
+    const warning = document.getElementById("signatureWarning");
+    if (warning) warning.style.display = "none";
+    canvas.style.borderColor = "#28a745";
+    canvas.style.boxShadow = "none";
+  }
+
+  // Mouse events
+  canvas.addEventListener("mousedown", (e) => {
+    drawing = true;
+    markDrawingActive();
+    const pos = getCanvasCoords(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  });
+
+  canvas.addEventListener("mouseup", () => {
+    drawing = false;
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    drawing = false;
+  });
+
+  canvas.addEventListener("mousemove", (e) => {
+    if (!drawing) return;
+    const pos = getCanvasCoords(e);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#000000";
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    hasDrawn = true;
+  });
+
+  // Touch events (for mobile devices)
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    drawing = true;
+    markDrawingActive();
+    const touch = e.touches[0];
+    const pos = getCanvasCoords(e, touch);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }, { passive: false });
+
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (!drawing) return;
+    const touch = e.touches[0];
+    const pos = getCanvasCoords(e, touch);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#000000";
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    hasDrawn = true;
+  }, { passive: false });
+
+  canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    drawing = false;
+  }, { passive: false });
+
+  function clearSignature() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawn = false;
+    document.getElementById("clientSignatureData").value = "";
+    canvas.style.borderColor = "#6c757d";
+    canvas.style.boxShadow = "none";
+    const warning = document.getElementById("signatureWarning");
+    if (warning) warning.style.display = "none";
+  }
+
+  // Check pixel buffer to ensure canvas actually has drawn pixels
+  function isCanvasBlank(cnv) {
+    try {
+      const context = cnv.getContext("2d");
+      const pixelData = context.getImageData(0, 0, cnv.width, cnv.height).data;
+      let nonTransparentCount = 0;
+      for (let i = 3; i < pixelData.length; i += 4) {
+        if (pixelData[i] > 20) {
+          nonTransparentCount++;
+          if (nonTransparentCount > 30) {
+            return false;
+          }
         }
-        document.getElementById("clientSignatureData").value = signatureData;
-        return true;
       }
-    </script>
+      return true;
+    } catch (err) {
+      return !hasDrawn;
+    }
+  }
+
+  function captureSignature(e) {
+    if (!hasDrawn || isCanvasBlank(canvas)) {
+      if (e && e.preventDefault) e.preventDefault();
+      const warning = document.getElementById("signatureWarning");
+      if (warning) {
+        warning.innerText = "⚠️ You haven't signed yet! Please draw your signature in the box before submitting.";
+        warning.style.display = "block";
+      }
+      canvas.style.borderColor = "#dc3545";
+      canvas.style.boxShadow = "0 0 10px rgba(220, 53, 69, 0.4)";
+      canvas.scrollIntoView({ behavior: "smooth", block: "center" });
+      alert("You haven't signed yet! Please draw your signature before submitting.");
+      return false;
+    }
+
+    const signatureData = canvas.toDataURL("image/png");
+    document.getElementById("clientSignatureData").value = signatureData;
+    return true;
+  }
+</script>
 {% endblock %}

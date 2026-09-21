@@ -22,8 +22,8 @@
             <tr>
                 <th>Credit Note Number</th>
                 <td>
-                    <input name="invoice-number" type="number" class="form-control" value="{{ credit_note.credit_note_number }}"
-                        readonly>
+                    <input name="invoice-number" type="number" class="form-control"
+                        value="{{ credit_note.credit_note_number }}" readonly>
                 </td>
 
                 <th>Date</th>
@@ -177,7 +177,8 @@
                 </td>
 
                 <td class="ms-3">
-                    <input class="form-check-input" name="igstcheck" type="checkbox" {% if invoice_data.igstcheck %}checked{% endif %}>
+                    <input class="form-check-input" name="igstcheck" type="checkbox" {% if invoice_data.igstcheck
+                        %}checked{% endif %}>
                     <label>IGST</label>
                 </td>
             </tr>
@@ -199,7 +200,8 @@
                 <td>
                     <select name="bank_id" id="bank_id" class="form-select custom-dropdown" required>
                         {% for bank in banks %}
-                        <option value="{{ bank.id }}" {% if credit_note.bank and bank.id == credit_note.bank.id %}selected{% endif %}>
+                        <option value="{{ bank.id }}" {% if credit_note.bank and bank.id==credit_note.bank.id
+                            %}selected{% endif %}>
                             {{ bank.bank_name }} - {{ bank.account_number }}
                         </option>
                         {% endfor %}
@@ -263,32 +265,40 @@
                 <td class="invoice-item-slno">{{ forloop.counter }}</td>
 
                 <td>
-                    <select name="invoice-product" class="form-control product_search_input" placeholder="Select or Add Product">
+                    <select name="invoice-product" class="form-control product_search_input"
+                        placeholder="Select or Add Product">
                         <option value="{{ item.invoice_product }}">{{ item.invoice_product }}</option>
                     </select>
                 </td>
                 <td><input name="invoice-hsn" class="form-control" value="{{ item.invoice_hsn }}"></td>
                 <td><input name="invoice-unit" class="form-control" value="{{ item.invoice_unit }}"></td>
-                <td><input type="number" step="any" min="0" name="invoice-qty" class="form-control" value="{{ item.invoice_qty }}"></td>
-                <td><input type="number" step="any" min="0" name="invoice-rate-with-gst" class="form-control" value="{{ item.invoice_rate_with_gst }}">
+                <td><input type="number" step="any" min="0" name="invoice-qty" class="form-control"
+                        value="{{ item.invoice_qty }}"></td>
+                <td><input type="number" step="any" min="0" name="invoice-rate-with-gst" class="form-control"
+                        value="{{ item.invoice_rate_with_gst }}">
                 </td>
-                <td><input type="number" step="any" min="0" name="invoice-gst-percentage" class="form-control" value="{{ item.invoice_gst_percentage }}">
+                <td><input type="number" step="any" min="0" name="invoice-gst-percentage" class="form-control"
+                        value="{{ item.invoice_gst_percentage }}">
                 </td>
 
                 <td><input type="number" step="any" min="0" name="invoice-rate-without-gst" class="form-control"
                         value="{{ item.invoice_rate_without_gst }}" readonly></td>
                 <td><input type="number" step="any" min="0" name="invoice-amt-without-gst" class="form-control"
                         value="{{ item.invoice_amt_without_gst }}" readonly></td>
-                <td><input type="number" step="any" min="0" name="invoice-amt-sgst" class="form-control" value="{{ item.invoice_amt_sgst }}" readonly>
+                <td><input type="number" step="any" min="0" name="invoice-amt-sgst" class="form-control"
+                        value="{{ item.invoice_amt_sgst }}" readonly>
                 </td>
-                <td><input type="number" step="any" min="0" name="invoice-amt-cgst" class="form-control" value="{{ item.invoice_amt_cgst }}" readonly>
+                <td><input type="number" step="any" min="0" name="invoice-amt-cgst" class="form-control"
+                        value="{{ item.invoice_amt_cgst }}" readonly>
                 </td>
-                <td><input type="number" step="any" min="0" name="invoice-amt-igst" class="form-control" value="{{ item.invoice_amt_igst }}" readonly>
+                <td><input type="number" step="any" min="0" name="invoice-amt-igst" class="form-control"
+                        value="{{ item.invoice_amt_igst }}" readonly>
                 </td>
-                <td><input type="number" step="any" min="0" name="invoice-amt-with-gst" class="form-control" value="{{ item.invoice_amt_with_gst }}"
-                        readonly></td>
+                <td><input type="number" step="any" min="0" name="invoice-amt-with-gst" class="form-control"
+                        value="{{ item.invoice_amt_with_gst }}" readonly></td>
                 <td class="text-center align-middle">
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-invoice-row" tabindex="-1" title="Delete Row">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-invoice-row" tabindex="-1"
+                        title="Delete Row">
                         <i class="ti ti-trash"></i>
                     </button>
                 </td>
@@ -325,6 +335,6 @@
 {% block includejs %}
 
 <script src="{% static 'gstbillingapp/js/fuse-3.4.6.min.js' %}"></script>
-<script src="{% static 'gstbillingapp/js/main.js' %}"></script>
+<script src="{% static 'gstbillingapp/js/main.js' %}?v=3.0"></script>
 
 {% endblock %}

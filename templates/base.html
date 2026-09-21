@@ -53,56 +53,69 @@
 			opacity: 1;
 			transition: opacity 0.25s ease-out, transform 0.25s ease-out;
 		}
+
 		.page-wrapper.fade-out {
 			opacity: 0 !important;
 			transform: translateY(-10px) !important;
 		}
-		
+
 		/* Premium Dropdown Styles */
 		.dropdown-menu {
 			border-radius: 12px !important;
 			border: 1px solid rgba(0, 0, 0, 0.08) !important;
 			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
 			overflow: hidden;
-			z-index: 1080 !important; /* Float above all content, forms, and navbars */
-			margin-top: 6px !important; /* Prevent overlapping with the trigger buttons */
+			z-index: 1080 !important;
+			/* Float above all content, forms, and navbars */
+			margin-top: 6px !important;
+			/* Prevent overlapping with the trigger buttons */
 		}
+
 		[data-bs-theme=dark] .dropdown-menu {
 			border: 1px solid rgba(255, 255, 255, 0.08) !important;
 			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
 		}
+
 		.dropdown-item {
 			transition: background-color 0.15s ease, color 0.15s ease;
 		}
+
 		.dropdown-item:hover {
 			background-color: rgba(13, 110, 253, 0.06);
 			color: #0d6efd;
 		}
-		
+
 		/* Sleek Header & Navbar Styles */
 		header.navbar {
 			backdrop-filter: blur(8px);
 			background: rgba(255, 255, 255, 0.85) !important;
 			border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-			z-index: 1040 !important; /* Primary top navbar is higher */
+			z-index: 1040 !important;
+			/* Primary top navbar is higher */
 		}
+
 		.navbar-expand-md .navbar {
 			backdrop-filter: blur(8px);
 			background: rgba(255, 255, 255, 0.85) !important;
 			border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-			z-index: 1030 !important; /* Secondary navbar is slightly lower */
+			z-index: 1030 !important;
+			/* Secondary navbar is slightly lower */
 		}
+
 		[data-bs-theme=dark] header.navbar {
 			background: rgba(30, 39, 53, 0.85) !important;
 			border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 		}
+
 		[data-bs-theme=dark] .navbar-expand-md .navbar {
 			background: rgba(30, 39, 53, 0.85) !important;
 			border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 		}
+
 		.navbar-brand-image {
 			transition: transform 0.2s ease;
 		}
+
 		.navbar-brand-image:hover {
 			transform: scale(1.03);
 		}
@@ -118,11 +131,13 @@
 			transition: background-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
 			color: var(--tblr-body-color) !important;
 		}
+
 		.theme-toggle-btn:hover {
 			background-color: rgba(13, 110, 253, 0.08) !important;
 			color: #0d6efd !important;
 			transform: scale(1.05);
 		}
+
 		[data-bs-theme=dark] .theme-toggle-btn:hover {
 			background-color: rgba(255, 255, 255, 0.08) !important;
 			color: #3b82f6 !important;
@@ -143,21 +158,24 @@
 			border-radius: 6px;
 			transition: color 0.2s ease, background-color 0.2s ease;
 		}
-		.navbar-nav .nav-link:hover, 
+
+		.navbar-nav .nav-link:hover,
 		.navbar-nav .nav-item.show .nav-link {
 			color: #0d6efd !important;
 			background-color: rgba(13, 110, 253, 0.05);
 		}
+
 		[data-bs-theme=dark] .navbar-nav .nav-link:hover,
 		[data-bs-theme=dark] .navbar-nav .nav-item.show .nav-link {
 			color: #3b82f6 !important;
 			background-color: rgba(59, 130, 246, 0.1);
 		}
-		
+
 		/* Rotate caret animation on show dropdown */
 		.navbar-nav .dropdown-toggle::after {
 			transition: transform 0.2s ease;
 		}
+
 		.navbar-nav .nav-item.show .dropdown-toggle::after {
 			transform: rotate(180deg);
 		}
@@ -167,19 +185,24 @@
 			width: 6px;
 			height: 6px;
 		}
+
 		::-webkit-scrollbar-track {
 			background: transparent;
 		}
+
 		::-webkit-scrollbar-thumb {
 			background: rgba(0, 0, 0, 0.12);
 			border-radius: 10px;
 		}
+
 		::-webkit-scrollbar-thumb:hover {
 			background: rgba(0, 0, 0, 0.22);
 		}
+
 		[data-bs-theme=dark] ::-webkit-scrollbar-thumb {
 			background: rgba(255, 255, 255, 0.12);
 		}
+
 		[data-bs-theme=dark] ::-webkit-scrollbar-thumb:hover {
 			background: rgba(255, 255, 255, 0.22);
 		}
@@ -190,6 +213,7 @@
 			background: rgba(255, 255, 255, 0.5) !important;
 			padding: 1.5rem 0;
 		}
+
 		[data-bs-theme=dark] .footer {
 			border-top: 1px solid rgba(255, 255, 255, 0.05);
 			background: rgba(30, 39, 53, 0.5) !important;
@@ -197,38 +221,43 @@
 
 		@media (max-width: 400px) {
 			.navbar-brand img {
-				width: 100px; /* Reduce logo size */
+				width: 100px;
+				/* Reduce logo size */
 			}
-			
+
 			.navbar-nav {
 				flex-wrap: wrap;
 				justify-content: space-between;
 			}
 
 		}
+
 		@media (max-width: 576px) {
 			.not {
 				left: 62% !important;
 				transform: translateX(-60%) !important;
 			}
+
 			.container-fluid {
 				padding-left: 12px !important;
 				padding-right: 12px !important;
 			}
+
 			header.navbar .navbar-nav {
 				flex-direction: row !important;
 				gap: 4px;
 			}
+
 			header.navbar .theme-toggle-btn {
 				width: 32px !important;
 				height: 32px !important;
 			}
+
 			.badge {
 				white-space: normal !important;
 				text-align: center;
 			}
 		}
-
 	</style>
 </head>
 
@@ -237,7 +266,7 @@
 		try {
 			localStorage.setItem('tablerTheme', 'light');
 			localStorage.removeItem('theme');
-		} catch (e) {}
+		} catch (e) { }
 		if (document.body) document.body.removeAttribute('data-bs-theme');
 	</script>
 	<script src="{% static 'js/demo-theme.min.js' %}"></script>
@@ -259,7 +288,8 @@
 					<div class="d-none d-md-flex">
 						<!-- Master Settings -->
 						{% if user.is_staff or user.is_superuser %}
-						<a href="{% url 'master_dashboard' %}" class="nav-link px-0 me-3 text-muted" title="Master Settings" data-bs-toggle="tooltip" data-bs-placement="bottom">
+						<a href="{% url 'master_dashboard' %}" class="nav-link px-0 me-3 text-muted"
+							title="Master Settings" data-bs-toggle="tooltip" data-bs-placement="bottom">
 							<i class="bi bi-gear fs-2"></i>
 						</a>
 						{% endif %}
@@ -267,9 +297,15 @@
 						{% if user.is_staff or user.is_superuser %}
 						{% get_global_settings as global_settings %}
 						<div class="nav-item d-none d-md-flex align-items-center mx-2">
-							<div class="form-check form-switch m-0" title="Restrict Transaction Date: {% if not global_settings or global_settings.restrict_transaction_date %}ON{% else %}OFF{% endif %}" data-bs-toggle="tooltip" data-bs-placement="bottom">
-								<input class="form-check-input cursor-pointer" type="checkbox" id="restrictDateToggle" {% if not global_settings or global_settings.restrict_transaction_date %}checked{% endif %} onchange="window.location.href='{% url 'toggle_transaction_date_restriction' %}';">
-								<label class="form-check-label d-none d-md-inline text-muted" for="restrictDateToggle" style="cursor: pointer; font-size: 0.8rem; font-weight: 500;">Date Limits</label>
+							<div class="form-check form-switch m-0"
+								title="Restrict Transaction Date: {% if not global_settings or global_settings.restrict_transaction_date %}ON{% else %}OFF{% endif %}"
+								data-bs-toggle="tooltip" data-bs-placement="bottom">
+								<input class="form-check-input cursor-pointer" type="checkbox" id="restrictDateToggle"
+									data-url="{% url 'toggle_transaction_date_restriction' %}"
+									{% if not global_settings or global_settings.restrict_transaction_date %}checked{% endif %}
+									onchange="window.location.href = this.dataset.url;">
+								<label class="form-check-label d-none d-md-inline text-muted" for="restrictDateToggle"
+									style="cursor: pointer; font-size: 0.8rem; font-weight: 500;">Date Limits</label>
 							</div>
 						</div>
 						{% endif %}
@@ -284,8 +320,8 @@
 								<span class="badge bg-red text-white" style="font-size: 0.65rem; padding: 2px 5px;" >{{ unread_count|add:length }}</span>
 							</a> -->
 
-							<!-- Dropdown Menu -->
-							<!-- <div class=" not dropdown-menu dropdown-menu-end p-0 shadow-lg rounded-3 " style="width: 300px; max-height: 400px; overflow-y: auto;">
+						<!-- Dropdown Menu -->
+						<!-- <div class=" not dropdown-menu dropdown-menu-end p-0 shadow-lg rounded-3 " style="width: 300px; max-height: 400px; overflow-y: auto;">
 								<div class="card border-0">
 									
 									<div class="card-header bg-primary text-white py-2">
@@ -298,9 +334,9 @@
 											Recent Notifications
 										</h5>
 									</div> -->
-									
-									<!-- Notification List -->
-									<!-- <div class="list-group list-group-flush">
+
+						<!-- Notification List -->
+						<!-- <div class="list-group list-group-flush">
 										{% for notification in notifications %}
 										<div class="list-group-item d-flex align-items-start">
 
@@ -326,8 +362,8 @@
 										{% endfor %}
 									</div> -->
 
-									<!-- Follow-up Updates Section -->
-									<!-- <div class="card mt-3">
+						<!-- Follow-up Updates Section -->
+						<!-- <div class="card mt-3">
 										<div class="card-header">
 											<h5 class="card-title">CRM Notifications</h5>
 										</div>
@@ -360,8 +396,8 @@
 										</div>
 									</div> -->
 
-									<!-- Footer -->
-									<!-- <div class="card-footer bg-light text-center py-2">
+						<!-- Footer -->
+						<!-- <div class="card-footer bg-light text-center py-2">
 										<a href="#" class="text-primary text-decoration-none">View All</a>
 									</div>
 								</div>
@@ -369,43 +405,60 @@
 						</div> -->
 						<!-- Help Dropdown -->
 						<div class="nav-item dropdown d-flex me-3">
-							<a href="#" class="nav-link px-0 theme-toggle-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Help & Manuals">
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-help">
-									<path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+							<a href="#" class="nav-link px-0 theme-toggle-btn" data-bs-toggle="dropdown"
+								aria-expanded="false" title="Help & Manuals">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+									fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+									stroke-linejoin="round"
+									class="icon icon-tabler icons-tabler-outline icon-tabler-help">
+									<path stroke="none" d="M0 0h24v24H0z" fill="none" />
 									<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
 									<path d="M12 17l0 .01" />
 									<path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4" />
 								</svg>
 							</a>
-						
-							<div class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 help-dropdown p-0 overflow-hidden" style="width: 320px; max-width: 90vw; border: none;">
+
+							<div class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 help-dropdown p-0 overflow-hidden"
+								style="width: 320px; max-width: 90vw; border: none;">
 								<div class="card border-0 m-0">
-									<div class="card-header py-2.5 text-center" style="background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;">
-										<strong class="text-white" style="letter-spacing: 0.5px; font-size: 0.9rem;">Help & Manuals</strong>
+									<div class="card-header py-2.5 text-center"
+										style="background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;">
+										<strong class="text-white"
+											style="letter-spacing: 0.5px; font-size: 0.9rem;">Help & Manuals</strong>
 									</div>
 									<div class="list-group list-group-flush help-dropdown-body">
-										<div class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center py-3">
+										<div
+											class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center py-3">
 											<div class="d-flex align-items-center">
 												<i class="bi bi-file-earmark-pdf text-danger fs-3 me-2"></i>
-												<span class="fw-semibold text-dark" style="font-size: 0.85rem;">User Manual</span>
+												<span class="fw-semibold text-dark" style="font-size: 0.85rem;">User
+													Manual</span>
 											</div>
-											<div class="btn-group btn-group-sm mt-2 mt-md-0 flex-md-nowrap w-100 w-md-auto">
-												<a href="{% static 'manuals/UserManual.pdf' %}" target="_blank" class="btn btn-outline-primary btn-sm flex-fill flex-md-unset">View</a>
-												<a href="{% static 'manuals/UserManual.pdf' %}" download class="btn btn-outline-success btn-sm flex-fill flex-md-unset">Download</a>
+											<div
+												class="btn-group btn-group-sm mt-2 mt-md-0 flex-md-nowrap w-100 w-md-auto">
+												<a href="{% static 'manuals/UserManual.pdf' %}" target="_blank"
+													class="btn btn-outline-primary btn-sm flex-fill flex-md-unset">View</a>
+												<a href="{% static 'manuals/UserManual.pdf' %}" download
+													class="btn btn-outline-success btn-sm flex-fill flex-md-unset">Download</a>
 											</div>
 										</div>
-						
+
 										{% if user.is_superuser %}
 										<div class="dropdown-divider my-0"></div>
-						
-										<div class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center py-3">
+
+										<div
+											class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center py-3">
 											<div class="d-flex align-items-center">
 												<i class="bi bi-file-earmark-pdf-fill text-danger fs-3 me-2"></i>
-												<span class="fw-semibold text-dark" style="font-size: 0.85rem;">Admin Manual</span>
+												<span class="fw-semibold text-dark" style="font-size: 0.85rem;">Admin
+													Manual</span>
 											</div>
-											<div class="btn-group btn-group-sm mt-2 mt-md-0 flex-md-nowrap w-100 w-md-auto">
-												<a href="{% static 'manuals/ADMINMANUAL.pdf' %}" target="_blank" class="btn btn-outline-primary btn-sm flex-fill flex-md-unset">View</a>
-												<a href="{% static 'manuals/ADMINMANUAL.pdf' %}" download class="btn btn-outline-success btn-sm flex-fill flex-md-unset">Download</a>
+											<div
+												class="btn-group btn-group-sm mt-2 mt-md-0 flex-md-nowrap w-100 w-md-auto">
+												<a href="{% static 'manuals/ADMINMANUAL.pdf' %}" target="_blank"
+													class="btn btn-outline-primary btn-sm flex-fill flex-md-unset">View</a>
+												<a href="{% static 'manuals/ADMINMANUAL.pdf' %}" download
+													class="btn btn-outline-success btn-sm flex-fill flex-md-unset">Download</a>
 											</div>
 										</div>
 										{% endif %}
@@ -425,88 +478,110 @@
 										<div class="fs-2 fw-medium text-dark">{{ user.username }} </div>
 									</div>
 									<span class="avatar avatar-sm rounded-circle border border-2 border-primary-subtle"
-      										style="background-image: url('{{ user.userprofile.profile_picture.url }}'); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+										style="background-image: url('{{ user.userprofile.profile_picture.url }}'); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
 									</span>
 								</a>
-								<div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow p-0 overflow-hidden" style="width: 22rem; max-width: 90vw; border: none;">
+								<div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow p-0 overflow-hidden"
+									style="width: 22rem; max-width: 90vw; border: none;">
 									<div class="card border-0 m-0">
 										<!-- Card Header -->
-										<div class="card-header d-flex flex-column align-items-center text-center p-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.08) 0%, rgba(13, 110, 253, 0.02) 100%); border-bottom: 1px solid rgba(0,0,0,0.05);">
-											<span class="avatar avatar-xl rounded-circle border border-3 border-white mb-2 shadow"
-      												style="background-image: url('{{ user.userprofile.profile_picture.url }}'); width: 64px; height: 64px;">
+										<div class="card-header d-flex flex-column align-items-center text-center p-4"
+											style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.08) 0%, rgba(13, 110, 253, 0.02) 100%); border-bottom: 1px solid rgba(0,0,0,0.05);">
+											<span
+												class="avatar avatar-xl rounded-circle border border-3 border-white mb-2 shadow"
+												style="background-image: url('{{ user.userprofile.profile_picture.url }}'); width: 64px; height: 64px;">
 											</span>
 											<h5 class="mb-1 text-dark fw-bold">{{ user.username }}</h5>
 											<span class="badge bg-blue-lt px-2.5 py-1" style="font-size: 0.75rem;">
 												{% for group in user.groups.all %}
-													{{ group.name }}{% if not forloop.last %}, {% endif %}
+												{{ group.name }}{% if not forloop.last %}, {% endif %}
 												{% empty %}
-													User
+												User
 												{% endfor %}
 											</span>
 										</div>
-								
+
 										<!-- Card Body -->
 										<div class="card-body p-3">
 											<div class="row g-3">
 												<div class="col-6">
-													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+													<div class="d-flex align-items-center text-muted mb-1"
+														style="font-size: 0.75rem;">
 														<i class="bi bi-person-badge me-2 text-primary"></i>
 														<strong>Employee ID</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{ user.userprofile.employee_id|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{
+														user.userprofile.employee_id|default:"-" }}</p>
 												</div>
-												
+
 												<div class="col-6">
-													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+													<div class="d-flex align-items-center text-muted mb-1"
+														style="font-size: 0.75rem;">
 														<i class="bi bi-geo-alt me-2 text-primary"></i>
 														<strong>Zone</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium text-truncate" style="font-size: 0.85rem;" title="{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{% else %}No zone assigned{% endif %}">
-														{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{% else %}-{% endif %}
+													<p class="mb-0 text-dark fw-medium text-truncate"
+														style="font-size: 0.85rem;"
+														title="{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{% else %}No zone assigned{% endif %}">
+														{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{%
+														else %}-{% endif %}
 													</p>
 												</div>
 
 												<div class="col-6">
-													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+													<div class="d-flex align-items-center text-muted mb-1"
+														style="font-size: 0.75rem;">
 														<i class="bi bi-cake2 me-2 text-primary"></i>
 														<strong>Date of Birth</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{ user.userprofile.date_of_birth|date:"d M Y"|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{
+														user.userprofile.date_of_birth|date:"d M Y"|default:"-" }}</p>
 												</div>
 
 												<div class="col-6">
-													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+													<div class="d-flex align-items-center text-muted mb-1"
+														style="font-size: 0.75rem;">
 														<i class="bi bi-briefcase me-2 text-primary"></i>
 														<strong>Division</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium text-truncate" style="font-size: 0.85rem;" title="{% if user.userprofile.division %}{{ user.userprofile.division.name }}{% else %}No division assigned{% endif %}">
-														{% if user.userprofile.division %}{{ user.userprofile.division.name }}{% else %}-{% endif %}
+													<p class="mb-0 text-dark fw-medium text-truncate"
+														style="font-size: 0.85rem;"
+														title="{% if user.userprofile.division %}{{ user.userprofile.division.name }}{% else %}No division assigned{% endif %}">
+														{% if user.userprofile.division %}{{
+														user.userprofile.division.name }}{% else %}-{% endif %}
 													</p>
 												</div>
 
 												<div class="col-12">
-													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+													<div class="d-flex align-items-center text-muted mb-1"
+														style="font-size: 0.75rem;">
 														<i class="bi bi-envelope me-2 text-primary"></i>
 														<strong>Email</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium text-truncate" style="font-size: 0.85rem;">{{ user.userprofile.email|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium text-truncate"
+														style="font-size: 0.85rem;">{{
+														user.userprofile.email|default:"-" }}</p>
 												</div>
 
 												<div class="col-12">
-													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+													<div class="d-flex align-items-center text-muted mb-1"
+														style="font-size: 0.75rem;">
 														<i class="bi bi-telephone me-2 text-primary"></i>
 														<strong>Contact Number</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{ user.userprofile.contact_number|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{
+														user.userprofile.contact_number|default:"-" }}</p>
 												</div>
 											</div>
 										</div>
-								
+
 										<!-- Card Footer with Logout Button -->
-										<div class="card-footer bg-light p-3" style="border-top: 1px solid rgba(0,0,0,0.05);">
+										<div class="card-footer bg-light p-3"
+											style="border-top: 1px solid rgba(0,0,0,0.05);">
 											<form method="post" action="{% url 'logout' %}">
 												{% csrf_token %}
-												<button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-pill d-flex align-items-center justify-content-center">
+												<button type="submit"
+													class="btn btn-outline-danger btn-sm w-100 rounded-pill d-flex align-items-center justify-content-center">
 													<i class="bi bi-box-arrow-right me-2"></i> Logout
 												</button>
 											</form>
@@ -574,7 +649,8 @@
 										{% endif %}
 									</li>
 									{% endfor %}
-								{% comment %} </ul>
+									{% comment %}
+								</ul>
 							</div> {% endcomment %}
 							</li>
 						</ul>
@@ -607,11 +683,11 @@
 		<div class="page-wrapper">
 			{% if '/xshot/' in request.path or '/xshot' in request.path %}
 			<div class="container-fluid px-4 py-4">
-			{% endif %}
+				{% endif %}
 
-			{% block content %}{% endblock content %}
+				{% block content %}{% endblock content %}
 
-			{% if '/xshot/' in request.path or '/xshot' in request.path %}
+				{% if '/xshot/' in request.path or '/xshot' in request.path %}
 			</div>
 			{% endif %}
 
@@ -655,56 +731,56 @@
 	<!-- Include Bootstrap JS (Commented out to fix Tabler/Bootstrap 5 conflict) -->
 	<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script> -->
 	<!-- jQuery (Required for Select2) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-<!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet">
+	<!-- Select2 CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet">
 
-<!-- Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
-	
-	  <script>
+	<!-- Select2 JS -->
+	<script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+
+	<script>
 		(function () {
-		  try {
-			if (window.Mobile) {
-			  window.Mobile.postMessage(
-				JSON.stringify({
-				  type: "MOBILE_TOKEN",
-				  token: "{{ request.user.mobilesession.token }}"
-				})
-			  );
+			try {
+				if (window.Mobile) {
+					window.Mobile.postMessage(
+						JSON.stringify({
+							type: "MOBILE_TOKEN",
+							token: "{{ request.user.mobilesession.token }}"
+						})
+					);
+				}
+			} catch (e) {
+				console.log("Mobile bridge error", e);
 			}
-		  } catch (e) {
-			console.log("Mobile bridge error", e);
-		  }
 		})();
-	  </script>
-	  <script>
+	</script>
+	<script>
 		(function () {
-		  try {
-			if (window.Mobile) {
-			  window.Mobile.postMessage(
-				JSON.stringify({
-				  type: "MOBILE_TOKEN",
-				  token: "{{ request.user.mobilesession.token }}"
-				})
-			  );
+			try {
+				if (window.Mobile) {
+					window.Mobile.postMessage(
+						JSON.stringify({
+							type: "MOBILE_TOKEN",
+							token: "{{ request.user.mobilesession.token }}"
+						})
+					);
+				}
+			} catch (e) {
+				console.log("Mobile bridge error", e);
 			}
-		  } catch (e) {
-			console.log("Mobile bridge error", e);
-		  }
 		})();
-	  </script>
+	</script>
 
-	  <script>
+	<script>
 		// Global Page Transition Animations
-		document.addEventListener("DOMContentLoaded", function() {
+		document.addEventListener("DOMContentLoaded", function () {
 			const wrapper = document.querySelector(".page-wrapper");
 
 			// Intercept links with class 'transition-link' globally
 			const transitionLinks = document.querySelectorAll(".transition-link");
 			transitionLinks.forEach(link => {
-				link.addEventListener("click", function(e) {
+				link.addEventListener("click", function (e) {
 					e.preventDefault();
 					const targetUrl = this.getAttribute("href");
 					if (wrapper) {
@@ -718,7 +794,7 @@
 		});
 
 		// Handle browser Back/Forward Cache (bfcache) restoration
-		window.addEventListener("pageshow", function(event) {
+		window.addEventListener("pageshow", function (event) {
 			const wrapper = document.querySelector(".page-wrapper");
 			if (wrapper) {
 				wrapper.classList.remove("fade-out");
@@ -729,8 +805,8 @@
 				container.classList.add("visible");
 			});
 		});
-	  </script>
-		
+	</script>
+
 	{% block includejs %}{% endblock %}
 	{% block extra_scripts %}{% endblock extra_scripts %}
 </body>

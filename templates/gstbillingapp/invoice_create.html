@@ -71,8 +71,8 @@
 					<tr>
 						<th scope="row">Customer Name</th>
 						<td class="form-input-td customer_search_area">
-							<input autocomplete="off" name="customer-name"
-								type="text" class="form-control customer_search_input" id="customer-name-input"
+							<input autocomplete="off" name="customer-name" type="text"
+								class="form-control customer_search_input" id="customer-name-input"
 								placeholder="Customer Name" required>
 							<div id="customer_search_bar"></div>
 						</td>
@@ -202,69 +202,76 @@
 				</tbody>
 			</table>
 
-				<!-- Cumulative Billing (Milestone Billing) UI -->
-				<div class="form-check mb-2 mt-3">
-					<input type="checkbox" class="form-check-input" id="toggleCumulativeBillingCheckbox" name="is_cumulative_billing" value="true">
-					<label class="form-check-label fw-bold" for="toggleCumulativeBillingCheckbox">Enable Milestone Billing Summary</label>
-				</div>
-				<table class="table table-bordered mt-2" id="cumulativeBillingSection" style="display: none;">
-					<thead>
-						<tr>
-							<th class="table-active" scope="col" colspan="2">Milestone Billing Summary</th>
-						</tr>
-					</thead>
-					<tbody class="two-col-form">
-						<tr>
-							<th scope="row">Contract Value</th>
-							<td class="form-input-td">
-								<input type="number" step="any" min="0" class="form-control cumulative-input" name="total_project_value" id="total_project_value" value="0" placeholder="e.g. 100000">
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">Already Claimed</th>
-							<td class="form-input-td">
-								<div class="input-group">
-									<input type="text" class="form-control" name="previous_invoice_number" id="previous_invoice_number" placeholder="Inv No. (e.g. XPL123)">
-									<input type="number" step="any" min="0" class="form-control cumulative-input w-50" name="previously_billed" id="previously_billed" value="0" placeholder="Amt">
-								</div>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">Now Claiming</th>
-							<td class="form-input-td">
-								<input type="number" step="any" min="0" class="form-control cumulative-input" name="present_quote_amount" id="present_quote_amount" value="0" readonly>
-								<small class="text-muted">Auto-pulled from invoice total</small>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">Balance</th>
-							<td class="form-input-td">
-								<input type="number" step="any" class="form-control text-danger fw-bold" id="remaining_balance" value="0" readonly>
-							</td>
-						</tr>
-					</tbody>
-				</table>
+			<!-- Cumulative Billing (Milestone Billing) UI -->
+			<div class="form-check mb-2 mt-3">
+				<input type="checkbox" class="form-check-input" id="toggleCumulativeBillingCheckbox"
+					name="is_cumulative_billing" value="true">
+				<label class="form-check-label fw-bold" for="toggleCumulativeBillingCheckbox">Enable Milestone Billing
+					Summary</label>
+			</div>
+			<table class="table table-bordered mt-2" id="cumulativeBillingSection" style="display: none;">
+				<thead>
+					<tr>
+						<th class="table-active" scope="col" colspan="2">Milestone Billing Summary</th>
+					</tr>
+				</thead>
+				<tbody class="two-col-form">
+					<tr>
+						<th scope="row">Contract Value</th>
+						<td class="form-input-td">
+							<input type="number" step="any" min="0" class="form-control cumulative-input"
+								name="total_project_value" id="total_project_value" value="0" placeholder="e.g. 100000">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Already Claimed</th>
+						<td class="form-input-td">
+							<div class="input-group">
+								<input type="text" class="form-control" name="previous_invoice_number"
+									id="previous_invoice_number" placeholder="Inv No. (e.g. XPL123)">
+								<input type="number" step="any" min="0" class="form-control cumulative-input w-50"
+									name="previously_billed" id="previously_billed" value="0" placeholder="Amt">
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Now Claiming</th>
+						<td class="form-input-td">
+							<input type="number" step="any" min="0" class="form-control cumulative-input"
+								name="present_quote_amount" id="present_quote_amount" value="0" readonly>
+							<small class="text-muted">Auto-pulled from invoice total</small>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Balance</th>
+						<td class="form-input-td">
+							<input type="number" step="any" class="form-control text-danger fw-bold"
+								id="remaining_balance" value="0" readonly>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 
-				<!-- Terms and Conditions Table (Initially Hidden) -->
-				<table class="table table-bordered mt-2" id="termsTable" style="display: none;">
-					<thead>
-						<tr>
-							<th class="table-active" scope="col" colspan="4">Terms and Conditions</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td colspan="4">
-								<textarea name="terms_and_conditions" class="form-control" rows="3"
-									placeholder="Enter terms and conditions"></textarea>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-				<div class="form-check mb-4">
-					<input type="checkbox" class="form-check-input" id="toggleTermsCheckbox">
-					<label class="form-check-label fw-bold" for="toggleTermsCheckbox">Show Terms and Conditions</label>
-				</div>
+			<!-- Terms and Conditions Table (Initially Hidden) -->
+			<table class="table table-bordered mt-2" id="termsTable" style="display: none;">
+				<thead>
+					<tr>
+						<th class="table-active" scope="col" colspan="4">Terms and Conditions</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td colspan="4">
+							<textarea name="terms_and_conditions" class="form-control" rows="3"
+								placeholder="Enter terms and conditions"></textarea>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<div class="form-check mb-4">
+				<input type="checkbox" class="form-check-input" id="toggleTermsCheckbox">
+				<label class="form-check-label fw-bold" for="toggleTermsCheckbox">Show Terms and Conditions</label>
+			</div>
 
 			<div class="table-responsive">
 				<table class="table table-bordered" id="invoice-form-items-table">
@@ -366,7 +373,7 @@
 			document.getElementById('shipping-address-input').value = document.getElementById('customer-address-input').value;
 			document.getElementById('shipping-phone-input').value = document.getElementById('customer-phone-input').value;
 			document.getElementById('shipping-gst-input').value = document.getElementById('customer-gst-input').value;
-			if(document.getElementById('customer-pan-input')) {
+			if (document.getElementById('customer-pan-input')) {
 				document.getElementById('shipping-tin-input').value = document.getElementById('customer-pan-input').value;
 			}
 		} else {
@@ -421,23 +428,23 @@
 			const total = parseFloat(totalProjectValue.value) || 0;
 			const prev = parseFloat(previouslyBilled.value) || 0;
 			const current = parseFloat(invoiceTotalInput.value) || 0;
-			
+
 			presentQuoteAmount.value = current.toFixed(2);
 			const remaining = total - prev - current;
 			remainingBalance.value = remaining.toFixed(2);
 		}
 	}
 
-	cumulativeCheckbox.addEventListener("change", function() {
+	cumulativeCheckbox.addEventListener("change", function () {
 		cumulativeSection.style.display = this.checked ? "table" : "none";
 		updateCumulativeCalculations();
 	});
 
 	totalProjectValue.addEventListener("input", updateCumulativeCalculations);
 	previouslyBilled.addEventListener("input", updateCumulativeCalculations);
-	
+
 	// Set up an observer or interval to watch for invoice total changes since it might be updated by other JS
-	setInterval(function() {
+	setInterval(function () {
 		if (cumulativeCheckbox.checked) {
 			const currentTotal = parseFloat(invoiceTotalInput.value) || 0;
 			const displayedQuote = parseFloat(presentQuoteAmount.value) || 0;
@@ -494,5 +501,5 @@
 {% block includejs %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="{% static 'gstbillingapp/js/fuse-3.4.6.min.js' %}"></script>
-<script src="{% static 'gstbillingapp/js/main.js' %}"></script>
+<script src="{% static 'gstbillingapp/js/main.js' %}?v=3.0"></script>
 {% endblock %}

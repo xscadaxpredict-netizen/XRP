@@ -25,3 +25,41 @@ set_pass.py
 list_users.py
 media/
 modal.html
+
+# --- Added for standard Python/Django project ---
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database
+db.sqlite3
+db.sqlite3-journal
+
+# Django specific
+*.log
+*.pot
+*.py[cod]
+*$py.class
+staticfiles/
+static_root/
+
+# IDE / Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

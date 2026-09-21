@@ -1,11 +1,10 @@
 from django.contrib.auth.models import Group
 
 def user_role(request):
-    if request.user.is_authenticated:
-        user = request.user
+    user = getattr(request, 'user', None)
+    if user and getattr(user, 'is_authenticated', False):
         groups = user.groups.values_list('name', flat=True)  # Get the names of groups
         group_name = groups[0] if groups else "No Role"  # Assuming one role per user
-        print(f"role : ",user_role)
         return {
             'username': user.username,
             'user_role': group_name
@@ -31,17 +30,18 @@ def group_buttons(request):
 from .models import ModuleVisibility 
 
 def modules_with_submodules(request):
-    if not request.user.is_authenticated:
+    user = getattr(request, 'user', None)
+    if not user or not getattr(user, 'is_authenticated', False):
         return {}  # Return an empty context for unauthenticated users
 
     # Ensure ModuleVisibility exists for the logged-in user
-    module_visibility, _ = ModuleVisibility.objects.get_or_create(user=request.user)
+    module_visibility, _ = ModuleVisibility.objects.get_or_create(user=user)
     enabled_modules = module_visibility.get_enabled_modules()
 
     # Prefetch SubmoduleVisibility for the user to avoid repeated queries
     submodule_visibility_map = {
         submodule.submodule_id: submodule.is_visible
-        for submodule in request.user.submodule_visibility.all()
+        for submodule in user.submodule_visibility.all()
     }
 
     # Prepare modules and submodules based on visibility

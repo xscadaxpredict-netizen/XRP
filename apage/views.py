@@ -158,6 +158,8 @@ from .models import MaintenanceChecklist
 def maintenance_checklist(request):
     user = request.user
     user_role = user.groups.first().name if user.groups.first() else None 
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
     if user_role == 'Admin':
         checklists = MaintenanceChecklist.objects.all().order_by('-date')
     else:
@@ -280,6 +282,8 @@ from django.utils.timezone import now
 def mom(request):
     user=request.user
     user_role = user.groups.first().name if user.groups.first() else None
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
     # Fetch all MOM records ordered by the most recent
     if user_role == 'Admin':
         mom_records = MOM.objects.all().order_by('-id')
@@ -785,10 +789,11 @@ from django.http import JsonResponse
 
 def safe_get_or_create(model, **kwargs):
     qs = model.objects.filter(**kwargs)
-
+    first_obj = qs.first()
+    
     # If duplicates exist, return the first one safely
-    if qs.exists():
-        return qs.first(), False
+    if first_obj:
+        return first_obj, False
 
     # If none exists, create one
     return model.objects.create(**kwargs), True
@@ -803,6 +808,8 @@ def servicereport(request):
 
     user = request.user
     user_role = user.groups.first().name if user.groups.first() else None
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
 
     # Base queryset
     if user_role == 'Admin':
@@ -1309,29 +1316,33 @@ def autosave_service_report(request):
         return JsonResponse({"status": "error"})
 
     # ─────────────────────────────
-    # 1. Resolve CONTEXT first
-    # ─────────────────────────────
-    site_id = request.POST.get("site")
-    date_of_visit = parse_date(request.POST.get("date_of_visit"))
-
-    if not site_id or not date_of_visit:
-        # ⛔ No context → do not autosave
-        return JsonResponse({"status": "skipped", "reason": "context_incomplete"})
-
-    site = Site.objects.filter(id=site_id).first()
-    if not site:
-        return JsonResponse({"status": "skipped", "reason": "invalid_site"})
-
-    # ─────────────────────────────
-    # 2. Find or create draft 
+    # 1. Find or create draft 
     # ─────────────────────────────
     report_id = request.POST.get("report_id")
+    
     if report_id and report_id.isdigit():
         # If ID is provided, target specifically that report (Edit Mode)
-        report = ServiceReport.objects.filter(id=report_id, created_by=request.user).first()
+        user = request.user
+        is_admin = user.is_superuser or user.is_staff or (user.groups.first() and user.groups.first().name == 'Admin')
+        if is_admin:
+            report = ServiceReport.objects.filter(id=report_id).first()
+        else:
+            report = ServiceReport.objects.filter(id=report_id, created_by=user).first()
         if not report:
             return JsonResponse({"status": "error", "message": "Report not found or permission denied"})
     else:
+        # Resolve CONTEXT first for new drafts
+        site_id = request.POST.get("site")
+        date_of_visit = parse_date(request.POST.get("date_of_visit"))
+
+        if not site_id or not date_of_visit:
+            # ⛔ No context → do not autosave
+            return JsonResponse({"status": "skipped", "reason": "context_incomplete"})
+
+        site = Site.objects.filter(id=site_id).first()
+        if not site:
+            return JsonResponse({"status": "skipped", "reason": "invalid_site"})
+
         # Standard draft resolution by context (New Mode)
         report = ServiceReport.objects.filter(
             created_by=request.user,
@@ -1353,6 +1364,27 @@ def autosave_service_report(request):
     if not report_id and report.is_draft is False:
         return JsonResponse({"status": "locked"})
 
+def is_valid_drawn_signature(sig):
+    if not sig or not isinstance(sig, str):
+        return False
+    sig = sig.strip()
+    if not sig or sig in ("None", "null") or not sig.startswith("data:image"):
+        return False
+    try:
+        import base64
+        import io
+        from PIL import Image
+        _, enc = sig.split(",", 1)
+        img = Image.open(io.BytesIO(base64.b64decode(enc)))
+        if img.mode == "RGBA":
+            alpha = img.split()[-1]
+            bbox = alpha.getbbox()
+            return bool(bbox and (bbox[2] - bbox[0] > 5 or bbox[3] - bbox[1] > 5))
+        extrema = img.convert("L").getextrema()
+        return bool(extrema and extrema[0] != extrema[1])
+    except Exception:
+        return False
+
     # ─────────────────────────────
     # 3. SAFE field updates (NO ERASE)
     # ─────────────────────────────
@@ -1361,7 +1393,7 @@ def autosave_service_report(request):
             setattr(report, field, value)
 
     def safe_set_signature(field, value):
-        if value and value.startswith("data:image"):
+        if is_valid_drawn_signature(value):
             setattr(report, field, value)
 
     safe_set("customer_name", request.POST.get("customer_name"))
@@ -1375,18 +1407,35 @@ def autosave_service_report(request):
     safe_set_signature("service_person_signature", request.POST.get("service_person_signature"))
     safe_set_signature("client_signature", request.POST.get("client_signature"))
 
-    report.in_time = parse_time(request.POST.get("in_time")) or report.in_time
-    report.out_time = parse_time(request.POST.get("out_time")) or report.out_time
-    report.date_of_complaint = parse_date(request.POST.get("date_of_complaint")) or report.date_of_complaint
-    safe_set("service_person_signature", request.POST.get("service_person_signature"))
+    in_time_val = request.POST.get("in_time")
+    if in_time_val:
+        report.in_time = parse_time(in_time_val) or report.in_time
+    out_time_val = request.POST.get("out_time")
+    if out_time_val:
+        report.out_time = parse_time(out_time_val) or report.out_time
+    doc_val = request.POST.get("date_of_complaint")
+    if doc_val:
+        report.date_of_complaint = parse_date(doc_val) or report.date_of_complaint
 
+    # Date of visit and Site
+    d_visit = request.POST.get("date_of_visit")
+    if d_visit:
+        report.date_of_visit = parse_date(d_visit) or report.date_of_visit
+
+    site_val = request.POST.get("site")
+    if site_val and str(site_val).isdigit():
+        report.site = Site.objects.filter(id=site_val).first() or report.site
 
     # Zone / State (safe)
-    if request.POST.get("zone"):
+    if request.POST.get("zone") and str(request.POST.get("zone")).isdigit():
         report.zone = Zone.objects.filter(id=request.POST.get("zone")).first() or report.zone
 
-    if request.POST.get("state"):
-        report.state = State.objects.filter(name=request.POST.get("state")).first() or report.state
+    state_val = request.POST.get("state")
+    if state_val:
+        if str(state_val).isdigit():
+            report.state = State.objects.filter(id=state_val).first() or report.state
+        else:
+            report.state = State.objects.filter(name=state_val).first() or report.state
 
     # Remarks & spares (append-safe)
     remarks = [v.strip() for k, v in request.POST.items() if k.startswith("remark_orm_") and v.strip()]
@@ -1404,18 +1453,6 @@ def autosave_service_report(request):
     # 4. Related objects → UPDATE, NEVER DELETE
     # ─────────────────────────────
     save_all_statuses(report, request)   # must use update_or_create internally
-
-    for tool in Tool.objects.all():
-        qty = request.POST.get(f"quantity_{tool.id}", "")
-        ToolStatus.objects.update_or_create(
-            service_report=report,
-            tool=tool,
-            defaults={
-                "quantity": int(qty) if qty.isdigit() else 0,
-                "remark": request.POST.get(f"remark_tools_{tool.id}", ""),
-                "taken_status": request.POST.get(f"taken_status_{tool.id}") == "on",
-            }
-        )
 
     return JsonResponse({
         "status": "saved",
@@ -1479,8 +1516,8 @@ def save_all_statuses(report, request, mode="autosave"):
     # ─────────────────────────────
     # Save all category statuses (SAFE)
     # ─────────────────────────────
-    save_category(ElectronicItemStatus, ElectronicItem, "item", "", "remark_eitems_")
-    save_category(ElectronicPanelStatus, ElectronicPanel, "panel", "", "remark_epanels_")
+    save_category(ElectronicItemStatus, ElectronicItem, "item", "eitems", "remark_eitems_")
+    save_category(ElectronicPanelStatus, ElectronicPanel, "panel", "epanels", "remark_epanels_")
     save_category(ChemicalItemStatus, ChemicalItem, "item", "chemical", "remark_chemical_")
     save_category(PumpStatus, Pump, "pump", "pump", "remark_pump_")
     save_category(MiscellaneousItemStatus, MiscellaneousItem, "item", "miscellaneous", "remark_miscellaneous_")
@@ -1495,9 +1532,6 @@ def save_all_statuses(report, request, mode="autosave"):
         remark = request.POST.get(f"remark_tools_{tool_id}", "").strip()
         taken = request.POST.get(f"taken_status_{tool_id}") == "on"
 
-        if not any([qty, remark, taken]):
-            continue
-
         ToolStatus.objects.update_or_create(
             service_report=report,
             tool=tool,
@@ -1511,8 +1545,21 @@ def save_all_statuses(report, request, mode="autosave"):
     # ─────────────────────────────
     # Machine Run Times (SAFE)
     # ─────────────────────────────
-    run_cycle_count = int(request.POST.get("run_cycle_count", 0))
+    # 1. Handle existing MachineRunTime objects by their DB IDs
+    for run in MachineRunTime.objects.filter(service_report=report):
+        run_time_val = request.POST.get(f"run_time_{run.id}")
+        if run_time_val is not None:
+            run.run_time = run_time_val or run.run_time
+            end_time_val = request.POST.get(f"end_time_{run.id}")
+            run.end_time = end_time_val or run.end_time
+            run.checked = request.POST.get(f"checked_run_{run.id}") == "on"
+            run.pass_status = request.POST.get(f"pass_run_{run.id}") == "on"
+            run.fail_status = request.POST.get(f"fail_run_{run.id}") == "on"
+            run.remark = request.POST.get(f"remark_run_{run.id}", "").strip()
+            run.save()
 
+    # 2. Handle dynamically added run cycles during creation (1..run_cycle_count)
+    run_cycle_count = int(request.POST.get("run_cycle_count", 0))
     for i in range(1, run_cycle_count + 1):
         run_time = request.POST.get(f"run_time_{i}")
         end_time = request.POST.get(f"end_time_{i}")
@@ -1524,14 +1571,43 @@ def save_all_statuses(report, request, mode="autosave"):
             service_report=report,
             run_type=f"Run cycle {i}",
             defaults={
-                "run_time": parse_time(run_time) if run_time else None,
-                "end_time": parse_time(end_time) if end_time else None,
+                "run_time": run_time,
+                "end_time": end_time,
                 "checked": request.POST.get(f"checked_run_{i}") == "on",
                 "pass_status": request.POST.get(f"pass_run_{i}") == "on",
                 "fail_status": request.POST.get(f"fail_run_{i}") == "on",
                 "remark": request.POST.get(f"remark_run_{i}", "").strip(),
             }
         )
+
+    # 3. Handle newly added runs during edit mode (new_run_time_...)
+    new_run_count = int(request.POST.get("new_machine_run_count", 0))
+    if new_run_count > 0:
+        base_cycle_count = int(request.POST.get("run_cycle_count", 0))
+        for i in range(1, new_run_count + 1):
+            raw_type = request.POST.get(f"new_run_type_{i}", "").strip()
+            r_type = raw_type if raw_type else f"Run cycle {base_cycle_count + i}"
+            run_time = request.POST.get(f"new_run_time_{i}")
+            end_time = request.POST.get(f"new_end_time_{i}")
+            if not run_time and not end_time:
+                continue
+
+            import datetime as dt
+            rt = (parse_time(run_time) if run_time else None) or dt.time(0, 0)
+            et = (parse_time(end_time) if end_time else None) or dt.time(0, 0)
+
+            MachineRunTime.objects.update_or_create(
+                service_report=report,
+                run_type=r_type,
+                defaults={
+                    "run_time": rt,
+                    "end_time": et,
+                    "checked": request.POST.get(f"new_checked_run_{i}") == "on",
+                    "pass_status": request.POST.get(f"new_pass_run_{i}") == "on",
+                    "fail_status": request.POST.get(f"new_fail_run_{i}") == "on",
+                    "remark": request.POST.get(f"new_remark_run_{i}", "").strip(),
+                }
+            )
 
 
 
@@ -1808,144 +1884,191 @@ def edit_service_report(request, report_id):
 
     if request.method == 'POST':
         auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
-        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
-        # Service Report basic fields
-        service_report.service_name = request.POST.get('service_name') or service_report.service_name
-        service_report.date_of_visit = request.POST.get('date_of_visit')
-        zone_id = request.POST.get('zone')
-        site_id = request.POST.get('site')
-        service_report.zone = Zone.objects.filter(id=zone_id).first() if zone_id else None
-        service_report.site = Site.objects.filter(id=site_id).first() if site_id else None
-        service_report.phone_no = request.POST.get('phone_no')
-        service_report.reason_of_visit = request.POST.get('reason_of_visit')
-        service_report.in_time = request.POST.get('in_time')
-        service_report.out_time = request.POST.get('out_time')
-        service_report.customer_name = request.POST.get('customer_name')
-        service_report.contact_number = request.POST.get('contact_number')
-        service_report.location = request.POST.get('location')
-        service_report.status_of_call = request.POST.get('status_of_call')
-        service_report.date_of_complaint = request.POST.get('date_of_complaint')
+        is_api = (
+            auth_header.startswith('Token ')
+            or request.headers.get('Accept') == 'application/json'
+            or request.content_type == 'application/json'
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        )
 
-        # Signatures & Names
-        service_report.service_person_name = request.POST.get('service_person_name')
-        service_report.client_name = request.POST.get('client_name')
-        service_report.service_person_signature = request.POST.get('service_person_signature')
-        service_report.client_signature = request.POST.get('client_signature')
-
-        # Handle State
-        state_id = request.POST.get('state')
-        if state_id:
-            state_obj = State.objects.filter(name=state_id).first()
-            if state_obj:
-                service_report.state = state_obj
-            if not state_obj and str(state_id).isdigit():
-                state_obj = State.objects.filter(id=state_id).first()
-                if state_obj:
-                    service_report.state = state_obj
-
-        # Handle Remarks
-        remarks = [v.strip() for k, v in request.POST.items() if k.startswith('remark_orm_') and v.strip()]
-        spares = [v.strip() for k, v in request.POST.items() if k.startswith('spare_') and v.strip()]
-        service_report.other_remarks = '\n'.join(remarks)
-        service_report.spares_details = '\n'.join(spares)
-
-        # Handle Attachments
-        to_remove = request.POST.getlist('remove_attachment')
-        if to_remove:
-            ServiceReportAttachment.objects.filter(id__in=to_remove).delete()
-
-        for f in request.FILES.getlist('new_attachment'):
-            ServiceReportAttachment.objects.create(service_report=service_report, file=f)
-
-        # ❗ Helper to update dynamic items
-        def update_status(obj, prefix):
-            obj.checked = f'checked_{prefix}{obj.id}' in request.POST
-            obj.repair = f'repair_{prefix}{obj.id}' in request.POST
-            obj.replacement = f'replacement_{prefix}{obj.id}' in request.POST
-            obj.remark = request.POST.get(f'remark_{prefix}{obj.id}', '')
-            obj.save()
-
-        # Update all item statuses (keep correct prefixes)
-        # Update all item statuses (keep correct prefixes)
-        for item in electronic_items:
-            update_status(item, 'eitems_')
-
-        for panel in electronic_panels:
-            update_status(panel, 'epanels_')
-
-        for item in chemical_items:
-            update_status(item, 'chemical_')
-
-        for pump in pumps:
-            update_status(pump, 'pump_')
-
-        for item in miscellaneous_items:
-            update_status(item, 'miscellaneous_')
-
-        for param in wastewater_parameters:
-            update_status(param, 'wastewater_')
-
-        # Machine run times
-        for run in machine_runs:
-            run.run_time = request.POST.get(f'run_time_{run.id}') or run.run_time
-            run.end_time = request.POST.get(f'end_time_{run.id}') or run.end_time
-            run.checked = f'checked_run_{run.id}' in request.POST
-            run.pass_status = f'pass_run_{run.id}' in request.POST
-            run.fail_status = f'fail_run_{run.id}' in request.POST
-            run.remark = request.POST.get(f'remark_run_{run.id}', '')
-            run.save()
-
-        # Tools
-        for tool in tools:
-            qty = request.POST.get(f'quantity_{tool.id}', '')
-            tool.quantity = int(qty) if qty.isdigit() else 0
-            tool.remark = request.POST.get(f'remark_tools_{tool.id}', '')
-            tool.taken_status = f'taken_status_{tool.id}' in request.POST
-            tool.save()
-
-        # Handle New Machine Run Times
         try:
-            new_run_count = int(request.POST.get('new_machine_run_count', 0))
-        except ValueError:
-            new_run_count = 0
+            # Service Report basic fields
+            service_report.service_name = request.POST.get('service_name') or service_report.service_name
+            visit_date_val = request.POST.get('date_of_visit')
+            parsed_visit_date = parse_date(visit_date_val) if visit_date_val else None
+            if parsed_visit_date:
+                service_report.date_of_visit = parsed_visit_date
 
-        for i in range(1, new_run_count + 1):
-            r_type = request.POST.get(f'new_run_type_{i}')
-            if r_type:  # basic validation
-                MachineRunTime.objects.create(
+            zone_id = request.POST.get('zone')
+            site_id = request.POST.get('site')
+            service_report.zone = Zone.objects.filter(id=zone_id).first() if (zone_id and str(zone_id).isdigit()) else None
+            service_report.site = Site.objects.filter(id=site_id).first() if (site_id and str(site_id).isdigit()) else None
+            service_report.phone_no = request.POST.get('phone_no') or None
+            service_report.reason_of_visit = request.POST.get('reason_of_visit') or None
+            in_time_val = request.POST.get('in_time')
+            service_report.in_time = parse_time(in_time_val) if in_time_val else None
+            out_time_val = request.POST.get('out_time')
+            service_report.out_time = parse_time(out_time_val) if out_time_val else None
+            service_report.customer_name = request.POST.get('customer_name') or None
+            service_report.contact_number = request.POST.get('contact_number') or None
+            service_report.location = request.POST.get('location') or None
+            service_report.status_of_call = request.POST.get('status_of_call') or None
+            doc_val = request.POST.get('date_of_complaint')
+            service_report.date_of_complaint = parse_date(doc_val) if doc_val else None
+
+            # Signatures & Names
+            service_report.service_person_name = request.POST.get('service_person_name') or None
+            service_report.client_name = request.POST.get('client_name') or None
+            sp_sig = request.POST.get('service_person_signature')
+            if is_valid_drawn_signature(sp_sig):
+                service_report.service_person_signature = sp_sig
+            cl_sig = request.POST.get('client_signature')
+            if is_valid_drawn_signature(cl_sig):
+                service_report.client_signature = cl_sig
+                service_report.client_signed = True
+
+            # Handle State
+            state_id = request.POST.get('state')
+            if state_id:
+                if str(state_id).isdigit():
+                    service_report.state = State.objects.filter(id=state_id).first()
+                else:
+                    service_report.state = State.objects.filter(name=state_id).first()
+            else:
+                service_report.state = None
+
+            # Handle Remarks
+            remarks = [v.strip() for k, v in request.POST.items() if k.startswith('remark_orm_') and v.strip()]
+            spares = [v.strip() for k, v in request.POST.items() if k.startswith('spare_') and v.strip()]
+            service_report.other_remarks = '\n'.join(remarks)
+            service_report.spares_details = '\n'.join(spares)
+
+            # Handle Attachments
+            to_remove = request.POST.getlist('remove_attachment')
+            if to_remove:
+                ServiceReportAttachment.objects.filter(id__in=to_remove).delete()
+
+            for f in request.FILES.getlist('new_attachment'):
+                ServiceReportAttachment.objects.create(service_report=service_report, file=f)
+
+            # Helper to update dynamic items
+            def update_status(obj, prefix, base_attr):
+                base_id = getattr(obj, base_attr).id
+                obj.checked = f'checked_{prefix}{base_id}' in request.POST
+                obj.repair = f'repair_{prefix}{base_id}' in request.POST
+                obj.replacement = f'replacement_{prefix}{base_id}' in request.POST
+                obj.remark = request.POST.get(f'remark_{prefix}{base_id}', '')
+                obj.save()
+
+            # Update all item statuses (keep correct prefixes)
+            for item in electronic_items:
+                update_status(item, 'eitems_', 'item')
+
+            for panel in electronic_panels:
+                update_status(panel, 'epanels_', 'panel')
+
+            for item in chemical_items:
+                update_status(item, 'chemical_', 'item')
+
+            for pump in pumps:
+                update_status(pump, 'pump_', 'pump')
+
+            for item in miscellaneous_items:
+                update_status(item, 'miscellaneous_', 'item')
+
+            for param in wastewater_parameters:
+                update_status(param, 'wastewater_', 'parameter')
+
+            # Machine run times
+            for run in machine_runs:
+                raw_rt = request.POST.get(f'run_time_{run.id}')
+                raw_et = request.POST.get(f'end_time_{run.id}')
+                if raw_rt:
+                    parsed_rt = parse_time(raw_rt)
+                    if parsed_rt:
+                        run.run_time = parsed_rt
+                if raw_et:
+                    parsed_et = parse_time(raw_et)
+                    if parsed_et:
+                        run.end_time = parsed_et
+                run.checked = f'checked_run_{run.id}' in request.POST
+                run.pass_status = f'pass_run_{run.id}' in request.POST
+                run.fail_status = f'fail_run_{run.id}' in request.POST
+                run.remark = request.POST.get(f'remark_run_{run.id}', '')
+                run.save()
+
+            # Tools
+            for tool in tools:
+                base_id = tool.tool.id
+                qty = request.POST.get(f'quantity_{base_id}', '')
+                tool.quantity = int(qty) if qty.isdigit() else 0
+                tool.remark = request.POST.get(f'remark_tools_{base_id}', '')
+                tool.taken_status = f'taken_status_{base_id}' in request.POST
+                tool.save()
+
+            # Handle New Machine Run Times
+            try:
+                new_run_count = int(request.POST.get('new_machine_run_count', 0))
+            except ValueError:
+                new_run_count = 0
+
+            base_cycle_count = int(request.POST.get('run_cycle_count', 0))
+            import datetime as dt
+            for i in range(1, new_run_count + 1):
+                raw_type = request.POST.get(f'new_run_type_{i}', '').strip()
+                r_type = raw_type if raw_type else f"Run cycle {base_cycle_count + i}"
+                raw_nrt = request.POST.get(f'new_run_time_{i}')
+                raw_net = request.POST.get(f'new_end_time_{i}')
+                if not raw_nrt and not raw_net:
+                    continue
+                rt = (parse_time(raw_nrt) if raw_nrt else None) or dt.time(0, 0)
+                et = (parse_time(raw_net) if raw_net else None) or dt.time(0, 0)
+                MachineRunTime.objects.update_or_create(
                     service_report=service_report,
                     run_type=r_type,
-                    run_time=request.POST.get(f'new_run_time_{i}') or None,
-                    end_time=request.POST.get(f'new_end_time_{i}') or None,
-                    checked=f'new_checked_run_{i}' in request.POST,
-                    pass_status=f'new_pass_run_{i}' in request.POST,
-                    fail_status=f'new_fail_run_{i}' in request.POST,
-                    remark=request.POST.get(f'new_remark_run_{i}', '')
+                    defaults={
+                        'run_time': rt,
+                        'end_time': et,
+                        'checked': f'new_checked_run_{i}' in request.POST,
+                        'pass_status': f'new_pass_run_{i}' in request.POST,
+                        'fail_status': f'new_fail_run_{i}' in request.POST,
+                        'remark': request.POST.get(f'new_remark_run_{i}', '').strip(),
+                    }
                 )
 
+            # Reset status if it was rejected/draft so it can be reviewed again
+            if service_report.status == 'rejected' or service_report.is_draft:
+                service_report.status = 'pending'
+                service_report.rejection_reason = None
+            service_report.is_draft = False
+            service_report.save()
 
-        
-        # Reset status if it was rejected/draft so it can be reviewed again
-        service_report.status = 'pending'
-        service_report.rejection_reason = None
-        service_report.is_draft = False
-        service_report.save()
-
-        if is_api:
-            attachments = []
-            for a in ServiceReportAttachment.objects.filter(service_report=service_report):
-                attachments.append({
-                    'id': a.id,
-                    'file_url': a.file.url if a.file else '',
-                    'name': a.file.name if a.file else ''
+            from django.urls import reverse
+            if is_api:
+                attachments = []
+                for a in ServiceReportAttachment.objects.filter(service_report=service_report):
+                    attachments.append({
+                        'id': a.id,
+                        'file_url': a.file.url if a.file else '',
+                        'name': a.file.name if a.file else ''
+                    })
+                return JsonResponse({
+                    "status": "success",
+                    "report_id": service_report.id,
+                    "redirect_url": reverse('servicereport'),
+                    "attachments": attachments
                 })
-            return JsonResponse({
-                "status": "success", 
-                "report_id": service_report.id,
-                "attachments": attachments
-            })
 
-        return redirect('servicereport')
+            return redirect('servicereport')
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            if is_api:
+                return JsonResponse({"status": "error", "message": str(e)}, status=500)
+            from django.contrib import messages
+            messages.error(request, f"Error saving report: {e}")
+            return redirect('service_report_edit', report_id=service_report.id)
 
     return render(request, 'apage/edit_service_report.html', {
         'service_report': service_report,
@@ -2195,23 +2318,25 @@ def client_sign_view(request, pk):
 
     if request.method == "POST":
         print("GOY ING TO SIGN")
-        name = request.POST.get("client_name")
-        signature = request.POST.get("client_signature")
-        remark = request.POST.get("client_remark")
+        name = (request.POST.get("client_name") or "").strip()
+        signature = (request.POST.get("client_signature") or "").strip()
+        remark = (request.POST.get("client_remark") or "").strip()
 
         print("POST client_name:", name)
         print("POST client_signature starts with:", signature[:30] if signature else "None")
         print("Received POST:", name[:50], signature[:50] if signature else "No Signature")
 
-        if name and signature:
+        if not name or name.lower() == 'none':
+            error = "Please enter your name."
+        elif not is_valid_drawn_signature(signature):
+            error = "You haven't signed yet! Please draw your signature in the signature box before submitting."
+        else:
             report.client_name = name
             report.client_signature = signature
             report.client_remark = remark 
             report.client_signed = True  # ✅ Set flag to prevent reuse
             report.save()
             return render(request, "apage/sign_success.html", {"report": report})
-        else:
-            error = "Please provide both name and signature."
 
     context = {
         "service_report": report,
@@ -2243,6 +2368,8 @@ def dashboard(request):
     today = timezone.now().date()
     user = request.user
     user_role = user.groups.first().name if user.groups.exists() else None
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
     print("user role",user_role)
     # Default to current month
     start_date = today.replace(day=1)
@@ -2279,6 +2406,8 @@ def dashboard(request):
     user = request.user
     print(user)
     user_role = user.groups.first().name if user.groups.exists() else None
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
     completeion = request.GET.get('status', 'all')
     # New Filters
     created_by = request.GET.get('created_by')
@@ -2470,6 +2599,8 @@ def edit_generator_report(request, report_id):
 def generator_report(request):
     user = request.user
     user_role = user.groups.first().name if user.groups.first() else None
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
     
     if user_role == 'Admin' or user.is_staff or user.is_superuser:
         reports = GeneratorReport.objects.all().order_by('-date')
@@ -2486,12 +2617,15 @@ def generator_report(request):
 
 
 from django.http import HttpResponseForbidden
-from .models import SiteAMC, Site
+from django.contrib import messages
+from .models import SiteAMC, Site, SiteAMCWaterReport
 
 @login_required
 def site_amc_management(request):
     sites = Site.objects.all().order_by('name')
-    amcs = SiteAMC.objects.select_related('site').all()
+    for site in sites:
+        SiteAMC.objects.get_or_create(site=site)
+    amcs = SiteAMC.objects.select_related('site').prefetch_related('water_reports').all().order_by('site__name')
     
     if request.method == 'POST':
         has_profile = hasattr(request.user, 'userprofile')
@@ -2530,6 +2664,7 @@ def site_amc_management(request):
             amc.amc_end_date = None
 
         amc.save()
+        messages.success(request, f"AMC details updated successfully for {site.name}.")
         return redirect('site_amc_management')
 
     from datetime import date
@@ -2537,7 +2672,54 @@ def site_amc_management(request):
         'sites': sites,
         'amcs': amcs,
         'today': date.today(),
+        'current_year': date.today().year,
     })
+
+
+@login_required
+def upload_site_amc_water_reports(request, amc_id):
+    has_profile = hasattr(request.user, 'userprofile')
+    is_xpredict = has_profile and request.user.userprofile.is_xpredict
+    if not (request.user.is_staff or request.user.is_superuser or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to manage AMCs.")
+
+    amc = get_object_or_404(SiteAMC, id=amc_id)
+    if request.method == 'POST':
+        files = request.FILES.getlist('water_reports')
+        report_date_str = request.POST.get('report_date')
+        if not files:
+            messages.warning(request, "No files were selected for upload.")
+            return redirect('site_amc_management')
+
+        for f in files:
+            kwargs = {
+                'amc': amc,
+                'file': f,
+                'uploaded_by': request.user if request.user.is_authenticated else None
+            }
+            if report_date_str:
+                kwargs['report_date'] = report_date_str
+            SiteAMCWaterReport.objects.create(**kwargs)
+        messages.success(request, f"Successfully uploaded {len(files)} water report(s) for {amc.site.name}.")
+
+    return redirect('site_amc_management')
+
+
+@login_required
+def delete_site_amc_water_report(request, report_id):
+    has_profile = hasattr(request.user, 'userprofile')
+    is_xpredict = has_profile and request.user.userprofile.is_xpredict
+    if not (request.user.is_staff or request.user.is_superuser or is_xpredict):
+        return HttpResponseForbidden("You do not have permission to manage AMCs.")
+
+    report = get_object_or_404(SiteAMCWaterReport, id=report_id)
+    site_name = report.amc.site.name
+    filename = report.filename
+    if report.file:
+        report.file.delete(save=False)
+    report.delete()
+    messages.success(request, f"Water report '{filename}' deleted successfully for {site_name}.")
+    return redirect('site_amc_management')
 
 
 from .models import Bike, BikeMaintenance
@@ -2670,6 +2852,8 @@ import io
 def bulk_download_service_reports(request):
     user = request.user
     user_role = user.groups.first().name if user.groups.first() else None
+    if user.is_superuser or user.is_staff:
+        user_role = 'Admin'
 
     # Base queryset
     if user_role == 'Admin':

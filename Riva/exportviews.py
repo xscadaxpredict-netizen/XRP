@@ -453,72 +453,76 @@ def export_quotation_data(request, enquiry_id):
     proposal_draft_data = defaultdict(list)
 
     # Collect data from 'stored_data'
-    stored_data_directories = os.listdir(stored_data_path)
-    for directory in stored_data_directories:
-        dir_path = os.path.join(stored_data_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as file:
-                        try:
-                            data = json.load(file)
-                            if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
-                                stored_data[os.path.basename(file_path)].append(data)
-                        except json.JSONDecodeError:
-                            stored_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
+    if os.path.exists(stored_data_path):
+        stored_data_directories = os.listdir(stored_data_path)
+        for directory in stored_data_directories:
+            dir_path = os.path.join(stored_data_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'r') as file:
+                            try:
+                                data = json.load(file)
+                                if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
+                                    stored_data[os.path.basename(file_path)].append(data)
+                            except json.JSONDecodeError:
+                                stored_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
 
     # Collect data from 'proposal'
-    proposal_data_directories = os.listdir(proposal_path)
-    for directory in proposal_data_directories:
-        dir_path = os.path.join(proposal_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as file:
-                        try:
-                            data = json.load(file)
-                            if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
-                                proposal_data[os.path.basename(file_path)].append(data)
-                        except json.JSONDecodeError:
-                            proposal_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
+    if os.path.exists(proposal_path):
+        proposal_data_directories = os.listdir(proposal_path)
+        for directory in proposal_data_directories:
+            dir_path = os.path.join(proposal_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'r') as file:
+                            try:
+                                data = json.load(file)
+                                if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
+                                    proposal_data[os.path.basename(file_path)].append(data)
+                            except json.JSONDecodeError:
+                                proposal_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
 
     # Collect data from 'AMC_draft'
-    draft_data_directories = os.listdir(draft_path)
-    for directory in draft_data_directories:
-        dir_path = os.path.join(draft_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as file:
-                        try:
-                            data = json.load(file)
-                            if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
-                                draft_data[os.path.basename(file_path)].append(data)
-                        except json.JSONDecodeError:
-                            draft_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
+    if os.path.exists(draft_path):
+        draft_data_directories = os.listdir(draft_path)
+        for directory in draft_data_directories:
+            dir_path = os.path.join(draft_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'r') as file:
+                            try:
+                                data = json.load(file)
+                                if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
+                                    draft_data[os.path.basename(file_path)].append(data)
+                            except json.JSONDecodeError:
+                                draft_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
 
     # Collect data from 'proposal_draft'
-    proposal_draft_data_directories = os.listdir(proposal_draft_path)
-    for directory in proposal_draft_data_directories:
-        dir_path = os.path.join(proposal_draft_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as file:
-                        try:
-                            data = json.load(file)
-                            if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
-                                proposal_draft_data[os.path.basename(file_path)].append(data)
-                        except json.JSONDecodeError:
-                            proposal_draft_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
+    if os.path.exists(proposal_draft_path):
+        proposal_draft_data_directories = os.listdir(proposal_draft_path)
+        for directory in proposal_draft_data_directories:
+            dir_path = os.path.join(proposal_draft_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'r') as file:
+                            try:
+                                data = json.load(file)
+                                if isinstance(data, dict) and 'enquiry_id' in data and str(data['enquiry_id']) == str(enquiry_id):
+                                    proposal_draft_data[os.path.basename(file_path)].append(data)
+                            except json.JSONDecodeError:
+                                proposal_draft_data[os.path.basename(file_path)].append({'error': 'Invalid JSON file'})
 
     # Prepare CSV response
     response = HttpResponse(content_type='text/csv')

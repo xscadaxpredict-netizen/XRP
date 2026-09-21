@@ -7,20 +7,20 @@ function add_invoice_item_row() {
     invoice_item_row_counter++;
 
     var lastRow = $('#invoice-form-items-table-body >tr:last');
-    
+
     // Destroy Select2 on the last row temporarily to clone cleanly
     var originalSelect = lastRow.find('select.product_search_input');
     if (originalSelect.hasClass("select2-hidden-accessible")) {
         originalSelect.select2('destroy');
     }
-    
+
     var newRow = lastRow.clone(false);
-    
+
     // Re-initialize select2 on the original row
     if (originalSelect.length > 0) {
         init_select2(originalSelect[0]);
     }
-    
+
     // Clean up the cloned select
     var clonedSelect = newRow.find('select.product_search_input');
     clonedSelect.val(null); // Clear selection but keep options!
@@ -32,12 +32,12 @@ function add_invoice_item_row() {
 
     /* attach calculation to new row */
     newRow.find('input[name=invoice-qty], input[name=invoice-gst-percentage], input[name=invoice-rate-with-gst]')
-        .change(function(){
+        .on('input change', function () {
             update_amounts($(this));
         });
 
     newRow.insertAfter(lastRow);
-    
+
     if (clonedSelect.length > 0) {
         init_select2(clonedSelect[0]);
     }
@@ -45,21 +45,21 @@ function add_invoice_item_row() {
 
 function setup_invoice_rows() {
 
-    $("#invoice-form-addrow").click(function(event) {
+    $("#invoice-form-addrow").click(function (event) {
         event.preventDefault();
         add_invoice_item_row();
     });
 
-    $(document).on('click', '.remove-invoice-row', function() {
+    $(document).on('click', '.remove-invoice-row', function () {
         var tbody = $('#invoice-form-items-table-body');
         if (tbody.find('tr').length > 1) {
             $(this).closest('tr').remove();
-            
+
             // Re-number the rows
-            tbody.find('tr').each(function(index) {
+            tbody.find('tr').each(function (index) {
                 $(this).find('.invoice-item-slno').html(index + 1);
             });
-            
+
             // Update total rows
             invoice_item_row_counter = tbody.find('tr').length;
             update_invoice_totals();
@@ -67,7 +67,7 @@ function setup_invoice_rows() {
             // If it's the last row, just clear the inputs
             var row = $(this).closest('tr');
             row.find('input').not(':button, :submit, :reset, :hidden, :checkbox, :radio').val('');
-            
+
             var select = row.find('select.product_search_input');
             if (select.length) {
                 select.val(null).trigger('change');
@@ -78,41 +78,48 @@ function setup_invoice_rows() {
 
 }
 
+function getFloatVal(val) {
+    if (val === undefined || val === null) return 0;
+    var str = val.toString().trim().replace(',', '.');
+    var parsed = parseFloat(str);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
 // UPDATING INVOICE TOTALS ================================================
 
 function update_invoice_totals() {
 
     // amount without gst
-    sum_amt_without_gst = 0
-    $('input[name=invoice-amt-without-gst]').each(function(){
-        sum_amt_without_gst += parseFloat($(this).val());
+    var sum_amt_without_gst = 0;
+    $('input[name=invoice-amt-without-gst]').each(function () {
+        sum_amt_without_gst += getFloatVal($(this).val());
     });
     $('input[name=invoice-total-amt-without-gst]').val(sum_amt_without_gst.toFixed(2));
 
     // amount sgst
-    sum_amt_sgst = 0
-    $('input[name=invoice-amt-sgst]').each(function(){
-        sum_amt_sgst += parseFloat($(this).val());
+    var sum_amt_sgst = 0;
+    $('input[name=invoice-amt-sgst]').each(function () {
+        sum_amt_sgst += getFloatVal($(this).val());
     });
     $('input[name=invoice-total-amt-sgst]').val(sum_amt_sgst.toFixed(2));
 
     // amount cgst
-    sum_amt_cgst = 0
-    $('input[name=invoice-amt-cgst]').each(function(){
-        sum_amt_cgst += parseFloat($(this).val());
+    var sum_amt_cgst = 0;
+    $('input[name=invoice-amt-cgst]').each(function () {
+        sum_amt_cgst += getFloatVal($(this).val());
     });
     $('input[name=invoice-total-amt-cgst]').val(sum_amt_cgst.toFixed(2));
 
     // amount igst
-    sum_amt_igst = 0
-    $('input[name=invoice-amt-igst]').each(function(){
-        sum_amt_igst += parseFloat($(this).val());
+    var sum_amt_igst = 0;
+    $('input[name=invoice-amt-igst]').each(function () {
+        sum_amt_igst += getFloatVal($(this).val());
     });
     $('input[name=invoice-total-amt-igst]').val(sum_amt_igst.toFixed(2));
 
-    sum_amt_with_gst = 0
-    $('input[name=invoice-amt-with-gst]').each(function(){
-        sum_amt_with_gst += parseFloat($(this).val());
+    var sum_amt_with_gst = 0;
+    $('input[name=invoice-amt-with-gst]').each(function () {
+        sum_amt_with_gst += getFloatVal($(this).val());
     });
     $('input[name=invoice-total-amt-with-gst]').val(sum_amt_with_gst.toFixed(2));
 
@@ -121,69 +128,63 @@ function update_invoice_totals() {
 
 // AUTO CALCULATE ITEM AMOUNTS =============================================
 
-function initialize_auto_calculation(){
+function initialize_auto_calculation() {
     update_amounts($('#invoice-form-items-table-body input[name=invoice-qty]:first'));
-    $('input[name=invoice-qty], input[name=invoice-gst-percentage], input[name=invoice-rate-with-gst]').change(function (){
+    $(document).on('input change keyup blur', 'input[name=invoice-qty], input[name=invoice-gst-percentage], input[name=invoice-rate-with-gst], input[name=igstcheck]', function () {
         update_amounts($(this));
     });
 }
 
-function update_amounts(element){
-    var product = element.parent().parent().find('input[name=invoice-product]').val();
-    var qty = parseInt(element.parent().parent().find('input[name=invoice-qty]').val()) || 0;
-    var rate_with_gst = parseFloat(element.parent().parent().find('input[name=invoice-rate-with-gst]').val()) || 0;
-    var gst_percentage = parseFloat(element.parent().parent().find('input[name=invoice-gst-percentage]').val()) || 0;
+function update_amounts(element) {
+    var row = element.closest('tr');
+    if (row.length === 0) return;
+
+    var qty = getFloatVal(row.find('input[name=invoice-qty]').val());
+    var rate_with_gst = getFloatVal(row.find('input[name=invoice-rate-with-gst]').val());
+    var gst_percentage = getFloatVal(row.find('input[name=invoice-gst-percentage]').val());
 
     var rate_without_gst = (rate_with_gst * 100.0) / (100.0 + gst_percentage);
     var amt_without_gst = rate_without_gst * qty;
 
-    var sgst;
-    var cgst;
-    var igst;
-    if(product == ""){
+    var sgst = 0;
+    var cgst = 0;
+    var igst = 0;
+
+    if ($('input[name=igstcheck]').is(':checked')) {
         sgst = 0;
         cgst = 0;
-        igst = 0;
-        amt_without_gst = 0;
+        igst = amt_without_gst * gst_percentage / 100;
     }
     else {
-        if($('input[name=igstcheck]').is(':checked')){
-            sgst = 0;
-            cgst = 0;
-            igst = amt_without_gst * gst_percentage / 100;
-        }
-        else {
-            sgst = amt_without_gst * gst_percentage / 200;
-            cgst = amt_without_gst * gst_percentage / 200;
-            igst = 0;
-
-        }
+        sgst = amt_without_gst * gst_percentage / 200;
+        cgst = amt_without_gst * gst_percentage / 200;
+        igst = 0;
     }
+
     var amt_with_gst = amt_without_gst + cgst + sgst + igst;
 
-    element.parent().parent().find('input[name=invoice-rate-without-gst]').val(rate_without_gst.toFixed(2));
-    element.parent().parent().find('input[name=invoice-amt-without-gst]').val(amt_without_gst.toFixed(2));
-    element.parent().parent().find('input[name=invoice-amt-sgst]').val(sgst.toFixed(2));
-    element.parent().parent().find('input[name=invoice-amt-cgst]').val(cgst.toFixed(2));
-    element.parent().parent().find('input[name=invoice-amt-igst]').val(igst.toFixed(2));
-    element.parent().parent().find('input[name=invoice-amt-with-gst]').val(amt_with_gst.toFixed(2));
+    row.find('input[name=invoice-rate-without-gst]').val(rate_without_gst.toFixed(2));
+    row.find('input[name=invoice-amt-without-gst]').val(amt_without_gst.toFixed(2));
+    row.find('input[name=invoice-amt-sgst]').val(sgst.toFixed(2));
+    row.find('input[name=invoice-amt-cgst]').val(cgst.toFixed(2));
+    row.find('input[name=invoice-amt-igst]').val(igst.toFixed(2));
+    row.find('input[name=invoice-amt-with-gst]').val(amt_with_gst.toFixed(2));
 
     update_invoice_totals();
-
 }
 
 
 // CUSTOMER SEARCH ========================================================
 
 function customer_result_to_domstr(result) {
-    var domstr = "<div class='customer-search-result' data-customer='" + JSON.stringify(result) + "'>"+
-    "<div>"+ result['customer_name'] + "</div>" +
-    "<div>"+ result['customer_address'] + "</div>" +
-    "<div>"+ result['customer_phone'] + "</div>" +
-    "<div>"+ result['customer_gst'] + "</div>" +
-    "<div>"+ result['customer_pan'] + "</div>" +
-    "</div>";
-     return domstr;
+    var domstr = "<div class='customer-search-result' data-customer='" + JSON.stringify(result) + "'>" +
+        "<div>" + result['customer_name'] + "</div>" +
+        "<div>" + result['customer_address'] + "</div>" +
+        "<div>" + result['customer_phone'] + "</div>" +
+        "<div>" + result['customer_gst'] + "</div>" +
+        "<div>" + result['customer_pan'] + "</div>" +
+        "</div>";
+    return domstr;
 }
 
 function customer_result_click() {
@@ -218,7 +219,7 @@ function fetch_vehicle_number(customerName) {
 
             if (data.vehicle_numbers.length > 0) {
                 // Populate dropdown with fetched vehicle numbers
-                data.vehicle_numbers.forEach(function(vehicle_number) {
+                data.vehicle_numbers.forEach(function (vehicle_number) {
                     vehicleDropdown.append(new Option(vehicle_number, vehicle_number));
                 });
 
@@ -235,19 +236,19 @@ function fetch_vehicle_number(customerName) {
 function initialize_fuse_customers_search_bar() {
     console.log("INITIALIZING CUSTOMER SEARCH");
 
-    $(".customer_search_area").focusin(function() {
+    $(".customer_search_area").focusin(function () {
         $("#customer_search_bar").show();
         var input = $('.customer_search_input');
         var val = input.val();
         update_customer_search_bar(val);
     });
 
-    $(document).bind('focusin click',function(e) {
+    $(document).bind('focusin click', function (e) {
         if ($(e.target).closest('#customer_search_bar, .customer_search_area').length) return;
         $('#customer_search_bar').hide();
     });
 
-    $(".customer_search_input").on("input", function(e) {
+    $(".customer_search_input").on("input", function (e) {
         $("#customer_search_bar").show();
         var input = $(this);
         var val = input.val();
@@ -255,7 +256,7 @@ function initialize_fuse_customers_search_bar() {
     });
 }
 
-function update_customer_search_bar(search_string){
+function update_customer_search_bar(search_string) {
     console.log("Update customer search bar with query: " + search_string);
     results = fuse_customers.search(search_string);
     // console.log(results);
@@ -267,9 +268,9 @@ function update_customer_search_bar(search_string){
 }
 
 
-function initialize_fuse_customers () {
+function initialize_fuse_customers() {
     // fetch customer data
-    $.getJSON( xshot_prefix + "/customersjson", function( data ) {
+    $.getJSON(xshot_prefix + "/customersjson", function (data) {
         var fuse_customer_options = {
             shouldSort: true,
             threshold: 0.6,
@@ -278,10 +279,10 @@ function initialize_fuse_customers () {
             maxPatternLength: 32,
             minMatchCharLength: 1,
             keys: [
-            "customer_name",
-            "customer_address",
-            "customer_gst",
-            "customer_pan",
+                "customer_name",
+                "customer_address",
+                "customer_gst",
+                "customer_pan",
             ]
         };
         fuse_customers = new Fuse(data, fuse_customer_options);
@@ -298,7 +299,7 @@ var products_data = [];
 
 function init_select2(element) {
     if ($(element).hasClass("select2-hidden-accessible")) return;
-    
+
     $(element).select2({
         theme: 'bootstrap4',
         tags: true, // allows creating new items
@@ -311,16 +312,16 @@ function init_select2(element) {
         var value = e.params.data.id;
         var product = products_data.find(p => p.product_name === value);
         var row = $(this).closest('tr');
-        
+
         if (product) {
             row.find('input[name=invoice-hsn]').val(product.product_hsn);
             row.find('input[name=invoice-unit]').val(product.product_unit);
             row.find('input[name=invoice-rate-with-gst]').val(product.product_rate_with_gst);
             row.find('input[name=invoice-gst-percentage]').val(product.product_gst_percentage);
-            
+
             // Trigger auto calculation if quantity already exists
             var qtyInput = row.find('input[name=invoice-qty]');
-            if(qtyInput.val()) {
+            if (qtyInput.val()) {
                 update_amounts(qtyInput);
             }
         } else {
@@ -333,15 +334,15 @@ function init_select2(element) {
     });
 }
 
-function initialize_products () {
-    $.getJSON( xshot_prefix + "/productsjson", function( data ) {
+function initialize_products() {
+    $.getJSON(xshot_prefix + "/productsjson", function (data) {
         products_data = data;
-        
-        $('.product_search_input').each(function() {
+
+        $('.product_search_input').each(function () {
             var select = $(this);
             // Append options directly to the DOM
-            data.forEach(function(p) {
-                if (!select.find("option").filter(function() { return $(this).val() === p.product_name; }).length) {
+            data.forEach(function (p) {
+                if (!select.find("option").filter(function () { return $(this).val() === p.product_name; }).length) {
                     select.append(new Option(p.product_name, p.product_name, false, false));
                 }
             });
@@ -351,7 +352,7 @@ function initialize_products () {
 }
 
 function initialize_instant_validation() {
-    $('#invoice-form').on('blur input change', 'input, select, textarea', function() {
+    $('#invoice-form').on('blur input change', 'input, select, textarea', function () {
         var $el = $(this);
         if ($el.hasClass('select2-search__field') || $el.attr('type') === 'submit' || $el.attr('type') === 'button') return;
         if ($el.attr('type') === 'checkbox' && !$el.prop('required')) return;
@@ -388,7 +389,7 @@ function initialize_instant_validation() {
                     $el.next('.select2-container').find('.select2-selection').removeClass('border-success border-danger');
                 }
             }
-            
+
             if ($el.hasClass('select2-hidden-accessible')) {
                 $el.next('.select2-container').next('.invalid-feedback').remove();
             } else {
@@ -401,7 +402,7 @@ function initialize_instant_validation() {
 
 // START =============================================================
 
-$(document).ready(function() {
+$(document).ready(function () {
 
     // Initialize invoice row addition
     setup_invoice_rows();
@@ -414,19 +415,19 @@ $(document).ready(function() {
 
     // Initialize auto calculation of amounts
     initialize_auto_calculation();
-    
+
     // Initialize instant inline validation
     initialize_instant_validation();
 
     // Initialize igst toggle
-    $("input[name=igstcheck]").change(function() {
-            $('input[name=invoice-qty]').each(function(){
-                update_amounts($( this ));
-            });
+    $("input[name=igstcheck]").change(function () {
+        $('input[name=invoice-qty]').each(function () {
+            update_amounts($(this));
+        });
     });
 
     // Auto-fill Customer PAN from Customer GST
-    $('#customer-gst-input').on('input', function() {
+    $('#customer-gst-input').on('input', function () {
         var gstValue = $(this).val();
         if (gstValue.length >= 2) {
             // A PAN is characters 3 to 12 of a standard GSTIN (indices 2 to 11)
@@ -438,7 +439,7 @@ $(document).ready(function() {
     });
 
     // Auto-fill Shipping PAN from Shipping GST
-    $('#shipping-gst-input').on('input', function() {
+    $('#shipping-gst-input').on('input', function () {
         var gstValue = $(this).val();
         if (gstValue.length >= 2) {
             var panValue = gstValue.substring(2, 12);

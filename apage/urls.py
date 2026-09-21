@@ -59,6 +59,8 @@ urlpatterns = [
     path('generatorreport/add/', views.add_generator_report, name='add_generator_report'),
     path('generatorreport/edit/<int:report_id>/', views.edit_generator_report, name='edit_generator_report'),
     path('site-amc/', views.site_amc_management, name='site_amc_management'),
+    path('site-amc/<int:amc_id>/upload-water-reports/', views.upload_site_amc_water_reports, name='upload_site_amc_water_reports'),
+    path('site-amc/water-report/<int:report_id>/delete/', views.delete_site_amc_water_report, name='delete_site_amc_water_report'),
     # path('demo/', views.demo, name='demo'),
 
 

@@ -70,12 +70,12 @@ def home(request):
     # Existing logic you already have...
     for site in all_sites:
         last_visit = (
-            ServiceReport.objects.filter(site=site)
+            ServiceReport.objects.filter(site=site, date_of_visit__isnull=False)
             .order_by('-date_of_visit')
             .first()
         )
 
-        if last_visit:
+        if last_visit and last_visit.date_of_visit:
             next_visit = last_visit.date_of_visit + timedelta(days=15)
             is_due = next_visit < today
             visit_data.append({

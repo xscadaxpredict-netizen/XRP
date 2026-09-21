@@ -217,7 +217,7 @@
                 </div>
             </div>
 
-            <form method="post" enctype="multipart/form-data" id="my-form" class="card shadow-sm">
+            <form method="post" enctype="multipart/form-data" id="my-form" class="card shadow-sm" action="{% url 'service_report_edit' service_report.id %}" novalidate>
                 {% csrf_token %}
                 <div class="card-body">
 
@@ -231,7 +231,7 @@
                                         <tr>
                                             <td>Name:</td>
                                             <td><input type="text" name="service_name" class="form-control"
-                                                    value="{{ user.username }}" readonly></td>
+                                                    value="{{ service_report.service_name }}" readonly></td>
                                         </tr>
                                         <tr>
                                             <td>Date of Visit:</td>
@@ -373,26 +373,26 @@
                                             <td>{{ item.item.name }}</td>
                                             <td>
                                                 {% if item.checked %}
-                                                <input type="checkbox" name="checked_eitems_{{ item.id }}" checked>
+                                                <input type="checkbox" name="checked_eitems_{{ item.item.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="checked_eitems_{{ item.id }}">
+                                                <input type="checkbox" name="checked_eitems_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if item.repair %}
-                                                <input type="checkbox" name="repair_eitems_{{ item.id }}" checked>
+                                                <input type="checkbox" name="repair_eitems_{{ item.item.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="repair_eitems_{{ item.id }}">
+                                                <input type="checkbox" name="repair_eitems_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if item.replacement %}
-                                                <input type="checkbox" name="replacement_eitems_{{ item.id }}" checked>
+                                                <input type="checkbox" name="replacement_eitems_{{ item.item.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="replacement_eitems_{{ item.id }}">
+                                                <input type="checkbox" name="replacement_eitems_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
-                                            <td><textarea class="form-control" name="remark_eitems_{{ item.id }}"
+                                            <td><textarea class="form-control" name="remark_eitems_{{ item.item.id }}"
                                                     placeholder="Remark">{{ item.remark }}</textarea></td>
                                         </tr>
                                         {% endfor %}
@@ -422,27 +422,27 @@
                                             <td>{{ panel.panel.name }}</td>
                                             <td>
                                                 {% if panel.checked %}
-                                                <input type="checkbox" name="checked_epanels_{{ panel.id }}" checked>
+                                                <input type="checkbox" name="checked_epanels_{{ panel.panel.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="checked_epanels_{{ panel.id }}">
+                                                <input type="checkbox" name="checked_epanels_{{ panel.panel.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if panel.repair %}
-                                                <input type="checkbox" name="repair_epanels_{{ panel.id }}" checked>
+                                                <input type="checkbox" name="repair_epanels_{{ panel.panel.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="repair_epanels_{{ panel.id }}">
+                                                <input type="checkbox" name="repair_epanels_{{ panel.panel.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if panel.replacement %}
-                                                <input type="checkbox" name="replacement_epanels_{{ panel.id }}"
+                                                <input type="checkbox" name="replacement_epanels_{{ panel.panel.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="replacement_epanels_{{ panel.id }}">
+                                                <input type="checkbox" name="replacement_epanels_{{ panel.panel.id }}">
                                                 {% endif %}
                                             </td>
-                                            <td><textarea class="form-control" name="remark_epanels_{{ panel.id }}"
+                                            <td><textarea class="form-control" name="remark_epanels_{{ panel.panel.id }}"
                                                     placeholder="Remark">{{ panel.remark }}</textarea></td>
                                         </tr>
                                         {% endfor %}
@@ -473,27 +473,27 @@
                                             <td>{{ item.item.name }}</td>
                                             <td>
                                                 {% if item.checked %}
-                                                <input type="checkbox" name="checked_chemical_{{ item.id }}" checked>
+                                                <input type="checkbox" name="checked_chemical_{{ item.item.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="checked_chemical_{{ item.id }}">
+                                                <input type="checkbox" name="checked_chemical_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if item.repair %}
-                                                <input type="checkbox" name="repair_chemical_{{ item.id }}" checked>
+                                                <input type="checkbox" name="repair_chemical_{{ item.item.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="repair_chemical_{{ item.id }}">
+                                                <input type="checkbox" name="repair_chemical_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if item.replacement %}
-                                                <input type="checkbox" name="replacement_chemical_{{ item.id }}"
+                                                <input type="checkbox" name="replacement_chemical_{{ item.item.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="replacement_chemical_{{ item.id }}">
+                                                <input type="checkbox" name="replacement_chemical_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
-                                            <td><textarea class="form-control" name="remark_chemical_{{ item.id }}"
+                                            <td><textarea class="form-control" name="remark_chemical_{{ item.item.id }}"
                                                     placeholder="Remark">{{ item.remark }}</textarea></td>
                                         </tr>
                                         {% endfor %}
@@ -524,26 +524,26 @@
                                             <td>{{ pump.pump.name }}</td>
                                             <td>
                                                 {% if pump.checked %}
-                                                <input type="checkbox" name="checked_pump_{{ pump.id }}" checked>
+                                                <input type="checkbox" name="checked_pump_{{ pump.pump.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="checked_pump_{{ pump.id }}">
+                                                <input type="checkbox" name="checked_pump_{{ pump.pump.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if pump.repair %}
-                                                <input type="checkbox" name="repair_pump_{{ pump.id }}" checked>
+                                                <input type="checkbox" name="repair_pump_{{ pump.pump.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="repair_pump_{{ pump.id }}">
+                                                <input type="checkbox" name="repair_pump_{{ pump.pump.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if pump.replacement %}
-                                                <input type="checkbox" name="replacement_pump_{{ pump.id }}" checked>
+                                                <input type="checkbox" name="replacement_pump_{{ pump.pump.id }}" checked>
                                                 {% else %}
-                                                <input type="checkbox" name="replacement_pump_{{ pump.id }}">
+                                                <input type="checkbox" name="replacement_pump_{{ pump.pump.id }}">
                                                 {% endif %}
                                             </td>
-                                            <td><textarea class="form-control" name="remark_pump_{{ pump.id }}" rows="2"
+                                            <td><textarea class="form-control" name="remark_pump_{{ pump.pump.id }}" rows="2"
                                                     placeholder="Remark">{{ pump.remark }}</textarea></td>
                                         </tr>
                                         {% endfor %}
@@ -574,29 +574,29 @@
                                             <td>{{ item.item.name }}</td>
                                             <td>
                                                 {% if item.checked %}
-                                                <input type="checkbox" name="checked_miscellaneous_{{ item.id }}"
+                                                <input type="checkbox" name="checked_miscellaneous_{{ item.item.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="checked_miscellaneous_{{ item.id }}">
+                                                <input type="checkbox" name="checked_miscellaneous_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if item.repair %}
-                                                <input type="checkbox" name="repair_miscellaneous_{{ item.id }}"
+                                                <input type="checkbox" name="repair_miscellaneous_{{ item.item.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="repair_miscellaneous_{{ item.id }}">
+                                                <input type="checkbox" name="repair_miscellaneous_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if item.replacement %}
-                                                <input type="checkbox" name="replacement_miscellaneous_{{ item.id }}"
+                                                <input type="checkbox" name="replacement_miscellaneous_{{ item.item.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="replacement_miscellaneous_{{ item.id }}">
+                                                <input type="checkbox" name="replacement_miscellaneous_{{ item.item.id }}">
                                                 {% endif %}
                                             </td>
-                                            <td><textarea class="form-control" name="remark_miscellaneous_{{ item.id }}"
+                                            <td><textarea class="form-control" name="remark_miscellaneous_{{ item.item.id }}"
                                                     rows="2" placeholder="Remark">{{ item.remark }}</textarea></td>
                                         </tr>
                                         {% endfor %}
@@ -627,30 +627,30 @@
                                             <td>{{ parameter.parameter.name }}</td>
                                             <td>
                                                 {% if parameter.checked %}
-                                                <input type="checkbox" name="checked_wastewater_{{ parameter.id }}"
+                                                <input type="checkbox" name="checked_wastewater_{{ parameter.parameter.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="checked_wastewater_{{ parameter.id }}">
+                                                <input type="checkbox" name="checked_wastewater_{{ parameter.parameter.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if parameter.repair %}
-                                                <input type="checkbox" name="repair_wastewater_{{ parameter.id }}"
+                                                <input type="checkbox" name="repair_wastewater_{{ parameter.parameter.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="repair_wastewater_{{ parameter.id }}">
+                                                <input type="checkbox" name="repair_wastewater_{{ parameter.parameter.id }}">
                                                 {% endif %}
                                             </td>
                                             <td>
                                                 {% if parameter.replacement %}
-                                                <input type="checkbox" name="replacement_wastewater_{{ parameter.id }}"
+                                                <input type="checkbox" name="replacement_wastewater_{{ parameter.parameter.id }}"
                                                     checked>
                                                 {% else %}
-                                                <input type="checkbox" name="replacement_wastewater_{{ parameter.id }}">
+                                                <input type="checkbox" name="replacement_wastewater_{{ parameter.parameter.id }}">
                                                 {% endif %}
                                             </td>
                                             <td><textarea class="form-control"
-                                                    name="remark_wastewater_{{ parameter.id }}" rows="2"
+                                                    name="remark_wastewater_{{ parameter.parameter.id }}" rows="2"
                                                     placeholder="Remark">{{ parameter.remark }}</textarea></td>
                                         </tr>
                                         {% endfor %}
@@ -730,10 +730,12 @@
                                     const countInput = document.getElementById('newMachineRunCount');
                                     let count = parseInt(countInput.value) + 1;
                                     countInput.value = count;
+                                    const baseCount = parseInt(document.getElementById('runCycleCount')?.value || '0');
+                                    const defaultRunType = `Run cycle ${baseCount + count}`;
 
                                     const tr = document.createElement('tr');
                                     tr.innerHTML = `
-                                        <td><input type="text" class="form-control" name="new_run_type_${count}" placeholder="Type"></td>
+                                        <td><input type="text" class="form-control" name="new_run_type_${count}" value="${defaultRunType}" placeholder="Type"></td>
                                         <td><input type="time" class="form-control" name="new_run_time_${count}"></td>
                                         <td><input type="time" class="form-control" name="new_end_time_${count}"></td>
                                         <td><input type="checkbox" class="form-check-input" name="new_checked_run_${count}"></td>
@@ -780,7 +782,7 @@
                                             <td style="min-width: 100px;"><input type="number"
                                                     name="quantity_{{ tool.tool.id }}" class="form-control tool-qty"
                                                     data-tool-id="{{ tool.tool.id }}"
-                                                    value="{% if tool.quantity %}{{ tool.quantity }}{% endif %}"
+                                                    value="{% if tool.quantity is not None %}{{ tool.quantity }}{% endif %}"
                                                     placeholder="Qty" style="min-width: 80px;"></td>
                                             <td style="min-width: 150px;"><input type="text"
                                                     name="remark_tools_{{ tool.tool.id }}" class="form-control"
@@ -951,9 +953,9 @@
                                             </div>
                                             <input type="hidden" id="servicePersonSignatureData"
                                                 name="service_person_signature"
-                                                value="{{ service_report.service_person_signature }}">
+                                                value="{{ service_report.service_person_signature|default_if_none:'' }}">
                                             <input type="text" class="form-control mt-2" name="service_person_name"
-                                                value="{{ service_report.service_person_name }}"
+                                                value="{{ service_report.service_person_name|default_if_none:'' }}"
                                                 placeholder="Service Person Name">
                                         </div>
                                     </div>
@@ -971,9 +973,9 @@
                                                     onclick="clearCanvas('clientSignature')">Clear</button>
                                             </div>
                                             <input type="hidden" id="clientSignatureData" name="client_signature"
-                                                value="{{ service_report.client_signature }}">
+                                                value="{{ service_report.client_signature|default_if_none:'' }}">
                                             <input type="text" class="form-control mt-2" name="client_name"
-                                                value="{{ service_report.client_name }}" placeholder="Client Name">
+                                                value="{{ service_report.client_name|default_if_none:'' }}" placeholder="Client Name">
                                         </div>
                                     </div>
                                 </div>
@@ -1010,11 +1012,21 @@
                         </div>
                     </div>
                 </div> <!-- End step-13 -->
+                </div> <!-- End card-body -->
 
                 <!-- Global Wizard Footer for navigation -->
                 <div class="wizard-footer mt-4" id="wizard-navigation">
                     <button type="button" class="btn btn-secondary prev-step" style="visibility: hidden;">Back</button>
                     <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success" id="quick-save-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-device-floppy" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"></path>
+                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                <path d="M14 4l0 4l-6 0l0 -4"></path>
+                            </svg>
+                            Save Changes
+                        </button>
                         <button type="button" class="btn btn-primary next-step">Next Step </button>
                     </div>
                 </div>
@@ -1111,13 +1123,8 @@
 
                         const submitBtn = document.getElementById("submit-btn");
                         const saveReturnBtn = document.getElementById("save-signature-return-btn");
-                        if (allFieldsFilled) {
-                            if (submitBtn) submitBtn.style.display = "inline-flex";
-                            if (saveReturnBtn) saveReturnBtn.style.display = "none";
-                        } else {
-                            if (submitBtn) submitBtn.style.display = "none";
-                            if (saveReturnBtn) saveReturnBtn.style.display = "inline-flex";
-                        }
+                        if (submitBtn) submitBtn.style.display = "inline-flex";
+                        if (saveReturnBtn) saveReturnBtn.style.display = "inline-flex";
                     }
                     window.scrollTo({ top: 0, behavior: "smooth" });
                 }
@@ -1148,26 +1155,8 @@
 
                 document.addEventListener("click", function (e) {
                     if (e.target.closest("#save-signature-return-btn")) {
-                        // Force a draft save immediately
-                        if (typeof window.autoSaveDraft === 'function') {
-                            window.autoSaveDraft();
-                            // Visual feedback
-                            const btn = e.target.closest("#save-signature-return-btn");
-                            const originalContent = btn.innerHTML;
-                            btn.innerHTML = `
-                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                Saving draft...
-                            `;
-                            btn.disabled = true;
-
-                            setTimeout(() => {
-                                btn.innerHTML = originalContent;
-                                btn.disabled = false;
-                                window.location.href = "{% url 'servicereport' %}";
-                            }, 1000);
-                        } else {
-                            window.location.href = "{% url 'servicereport' %}";
-                        }
+                        // Submit form to save all updates and return
+                        form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true }));
                         return;
                     }
 
@@ -1242,6 +1231,8 @@
                         .catch(err => { if (!isExiting) console.warn("Auto-save failed", err); });
                 }
 
+                window.autoSaveDraft = autoSaveDraft;
+
                 setInterval(() => autoSaveDraft(false), 10000);
 
                 // Robust save triggers
@@ -1314,6 +1305,24 @@
                     e.preventDefault();
                     if (form.dataset.submitted === "true") return;
 
+                    // Validate critical required fields before submission
+                    const dateOfVisitField = form.querySelector('[name="date_of_visit"]');
+                    const siteField = form.querySelector('[name="site"]');
+                    if (dateOfVisitField && !dateOfVisitField.value) {
+                        showStep(0);
+                        dateOfVisitField.classList.add("is-invalid");
+                        dateOfVisitField.focus();
+                        alert("Please provide the Date of Visit on Step 1.");
+                        return;
+                    }
+                    if (siteField && (!siteField.value || siteField.value === "None")) {
+                        showStep(0);
+                        siteField.classList.add("is-invalid");
+                        siteField.focus();
+                        alert("Please select a valid Site on Step 1.");
+                        return;
+                    }
+
                     const overlay = document.getElementById("loading-overlay");
                     const progressBar = document.getElementById("upload-progress-bar");
                     const statusText = document.getElementById("status-text");
@@ -1354,8 +1363,11 @@
 
                         if (statusText) statusText.innerText = "Saving Changes...";
                         const xhr = new XMLHttpRequest();
-                        xhr.open("POST", form.getAttribute('action') || window.location.href, true);
+                        const targetUrl = form.getAttribute('action') || window.location.href;
+                        xhr.open("POST", targetUrl, true);
                         xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token }}");
+                        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+                        xhr.setRequestHeader("Accept", "application/json");
 
                         xhr.upload.onprogress = (ev) => {
                             if (ev.lengthComputable) {
@@ -1367,15 +1379,27 @@
 
                         xhr.onload = () => {
                             if (xhr.status >= 200 && xhr.status < 400) {
+                                let redirectUrl = "{% url 'servicereport' %}";
+                                try {
+                                    const resp = JSON.parse(xhr.responseText);
+                                    if (resp && resp.redirect_url) {
+                                        redirectUrl = resp.redirect_url;
+                                    }
+                                } catch (e) {}
                                 if (statusText) statusText.innerText = "Report Updated!";
                                 if (progressBar) progressBar.style.width = "100%";
-                                setTimeout(() => window.location.href = "{% url 'servicereport' %}", 800);
+                                setTimeout(() => window.location.href = redirectUrl, 600);
                             } else {
-                                alert("Error saving report. Status: " + xhr.status);
+                                let errMsg = "Status " + xhr.status;
+                                try {
+                                    const resp = JSON.parse(xhr.responseText);
+                                    if (resp && resp.message) errMsg = resp.message;
+                                } catch (e) {}
+                                alert("Error saving report: " + errMsg);
                                 resetSubmit();
                             }
                         };
-                        xhr.onerror = () => { alert("Network error."); resetSubmit(); };
+                        xhr.onerror = () => { alert("Network error. Please check your connection."); resetSubmit(); };
                         xhr.send(finalFormData);
 
                     } catch (err) {

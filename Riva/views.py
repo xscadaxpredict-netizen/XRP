@@ -606,43 +606,48 @@ def manage_quotation(request, enquiry_id):
     proposal_draft_data=defaultdict(list)
 
     # Process files in 'stored_data'
-    stored_data_directories = os.listdir(stored_data_path)
-    for directory in stored_data_directories:
-        dir_path = os.path.join(stored_data_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                all_stored_files.append(file_path)
+    if os.path.exists(stored_data_path):
+        stored_data_directories = os.listdir(stored_data_path)
+        for directory in stored_data_directories:
+            dir_path = os.path.join(stored_data_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    all_stored_files.append(file_path)
+                    
     # draft files            
-    stored_data_directories = os.listdir(draft_path)
-    for directory in stored_data_directories:
-        dir_path = os.path.join(draft_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                all_draft_files.append(file_path)
+    if os.path.exists(draft_path):
+        stored_data_directories = os.listdir(draft_path)
+        for directory in stored_data_directories:
+            dir_path = os.path.join(draft_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    all_draft_files.append(file_path)
 
     # Process files in 'proposal'
-    proposal_directories = os.listdir(proposal_path)
-    for directory in proposal_directories:
-        dir_path = os.path.join(proposal_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                all_proposal_files.append(file_path)
+    if os.path.exists(proposal_path):
+        proposal_directories = os.listdir(proposal_path)
+        for directory in proposal_directories:
+            dir_path = os.path.join(proposal_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    all_proposal_files.append(file_path)
 
     # Process files in 'proposal_draft'
-    proposal_directories = os.listdir(proposal_draft_path)
-    for directory in proposal_directories:
-        dir_path = os.path.join(proposal_draft_path, directory)
-        if os.path.isdir(dir_path) and directory == str(enquiry_id):
-            json_files = os.listdir(dir_path)
-            for json_file in json_files:
-                file_path = os.path.join(dir_path, json_file)
-                all_proposal_draft_files.append(file_path)
+    if os.path.exists(proposal_draft_path):
+        proposal_directories = os.listdir(proposal_draft_path)
+        for directory in proposal_directories:
+            dir_path = os.path.join(proposal_draft_path, directory)
+            if os.path.isdir(dir_path) and directory == str(enquiry_id):
+                json_files = os.listdir(dir_path)
+                for json_file in json_files:
+                    file_path = os.path.join(dir_path, json_file)
+                    all_proposal_draft_files.append(file_path)
 
     # Load data from files in 'stored_data'
     for file_path in all_stored_files:
@@ -2478,20 +2483,21 @@ def amc_preview(request, quotation_no):
     draft_data = None
 
     # Check stored_data first
-    for directory in os.listdir(stored_data_dir):
-        dir_path = os.path.join(stored_data_dir, directory)
-        if os.path.isdir(dir_path):
-            file_path = os.path.join(dir_path, f"{quotation_no}.json")
-            if os.path.exists(file_path):
-                with open(file_path, 'r') as file:
-                    try:
-                        found_data = json.load(file)
-                    except json.JSONDecodeError:
-                        raise Http404(f"Invalid JSON file: {file_path}")
-                break
+    if os.path.exists(stored_data_dir):
+        for directory in os.listdir(stored_data_dir):
+            dir_path = os.path.join(stored_data_dir, directory)
+            if os.path.isdir(dir_path):
+                file_path = os.path.join(dir_path, f"{quotation_no}.json")
+                if os.path.exists(file_path):
+                    with open(file_path, 'r') as file:
+                        try:
+                            found_data = json.load(file)
+                        except json.JSONDecodeError:
+                            raise Http404(f"Invalid JSON file: {file_path}")
+                    break
 
     # Check draft_data if no stored data found
-    if not found_data:
+    if not found_data and os.path.exists(draft_data_dir):
         for directory in os.listdir(draft_data_dir):
             dir_path = os.path.join(draft_data_dir, directory)
             if os.path.isdir(dir_path):

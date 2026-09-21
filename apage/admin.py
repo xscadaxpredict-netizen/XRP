@@ -223,3 +223,34 @@ class ServiceExpiryAdmin(admin.ModelAdmin):
     search_fields = ('service__name', 'email')
 
 
+from .models import SiteAMC, SiteAMCHistory, SiteAMCWaterReport
+
+class SiteAMCWaterReportInline(admin.TabularInline):
+    model = SiteAMCWaterReport
+    extra = 1
+
+class SiteAMCHistoryInline(admin.TabularInline):
+    model = SiteAMCHistory
+    extra = 0
+    readonly_fields = ('amc_start_date', 'amc_end_date', 'proof_file', 'created_at')
+
+if admin.site.is_registered(SiteAMC):
+    admin.site.unregister(SiteAMC)
+
+@admin.register(SiteAMC)
+class SiteAMCAdmin(admin.ModelAdmin):
+    list_display = ('site', 'has_amc', 'amc_start_date', 'amc_end_date', 'updated_at')
+    list_filter = ('has_amc',)
+    search_fields = ('site__name',)
+    inlines = [SiteAMCWaterReportInline, SiteAMCHistoryInline]
+
+if admin.site.is_registered(SiteAMCWaterReport):
+    admin.site.unregister(SiteAMCWaterReport)
+
+@admin.register(SiteAMCWaterReport)
+class SiteAMCWaterReportAdmin(admin.ModelAdmin):
+    list_display = ('amc', 'file', 'uploaded_at', 'uploaded_by')
+    search_fields = ('amc__site__name', 'file')
+
+
+

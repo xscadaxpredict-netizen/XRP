@@ -84,9 +84,7 @@ class AdvanceAdjustment(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         if self.group:
-            new_balance = self.group.recalculate_balance()
-            self.group.is_closed = (new_balance <= 0)
-            self.group.save(update_fields=["is_closed"])
+            self.group.recalculate_balance()
 
     def __str__(self):
         group_name = self.group.name if self.group else (self.user.username if self.user else "Standalone")

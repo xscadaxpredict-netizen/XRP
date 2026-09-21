@@ -1,0 +1,2559 @@
+<!doctype html>
+<!--
+* Tabler - Premium and Open Source dashboard template with responsive and high quality UI.
+* @version 1.0.0-beta20
+* @link https://tabler.io
+* Copyright 2018-2023 The Tabler Authors
+* Copyright 2018-2023 codecalm.net Paweł Kuna
+* Licensed under MIT (https://github.com/tabler/tabler/blob/master/LICENSE)
+-->
+
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+	<title>Xplabs</title>
+	<link rel="icon" href="/static/xtitle.jpeg" type="image/x-icon">
+	<!-- CSS files -->
+	
+	<link href="/static/css/tabler.min.css" rel="stylesheet" />
+	<link href="/static/css/tabler-flags.min.css" rel="stylesheet" />
+	<link href="/static/css/tabler-payments.min.css" rel="stylesheet" />
+	<link href="/static/css/tabler-vendors.min.css" rel="stylesheet" />
+	<link href="/static/css/extra.css" rel="stylesheet" />
+	<link href="/static/css/demo.min.css" rel="stylesheet" />
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+	<link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.css" />
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+	
+	<link rel="stylesheet" href="/static/gstbillingapp/custom.css?v=2">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+	
+
+	
+
+	<style>
+		@import url('https://rsms.me/inter/inter.css');
+
+		:root {
+			--tblr-font-sans-serif: 'Inter Var', -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif;
+		}
+
+		body {
+			font-feature-settings: "cv03", "cv04", "cv11";
+		}
+
+		/* Global Page Transitions */
+		.page-wrapper {
+			opacity: 1;
+			transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+		}
+		.page-wrapper.fade-out {
+			opacity: 0 !important;
+			transform: translateY(-10px) !important;
+		}
+		
+		/* Premium Dropdown Styles */
+		.dropdown-menu {
+			border-radius: 12px !important;
+			border: 1px solid rgba(0, 0, 0, 0.08) !important;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+			overflow: hidden;
+			z-index: 1080 !important; /* Float above all content, forms, and navbars */
+			margin-top: 6px !important; /* Prevent overlapping with the trigger buttons */
+		}
+		[data-bs-theme=dark] .dropdown-menu {
+			border: 1px solid rgba(255, 255, 255, 0.08) !important;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+		}
+		.dropdown-item {
+			transition: background-color 0.15s ease, color 0.15s ease;
+		}
+		.dropdown-item:hover {
+			background-color: rgba(13, 110, 253, 0.06);
+			color: #0d6efd;
+		}
+		
+		/* Sleek Header & Navbar Styles */
+		header.navbar {
+			backdrop-filter: blur(8px);
+			background: rgba(255, 255, 255, 0.85) !important;
+			border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+			z-index: 1040 !important; /* Primary top navbar is higher */
+		}
+		.navbar-expand-md .navbar {
+			backdrop-filter: blur(8px);
+			background: rgba(255, 255, 255, 0.85) !important;
+			border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+			z-index: 1030 !important; /* Secondary navbar is slightly lower */
+		}
+		[data-bs-theme=dark] header.navbar {
+			background: rgba(30, 39, 53, 0.85) !important;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+		}
+		[data-bs-theme=dark] .navbar-expand-md .navbar {
+			background: rgba(30, 39, 53, 0.85) !important;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+		}
+		.navbar-brand-image {
+			transition: transform 0.2s ease;
+		}
+		.navbar-brand-image:hover {
+			transform: scale(1.03);
+		}
+
+		/* Theme & Icon Toggle Buttons */
+		.theme-toggle-btn {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 38px;
+			height: 38px;
+			border-radius: 50% !important;
+			transition: background-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+			color: var(--tblr-body-color) !important;
+		}
+		.theme-toggle-btn:hover {
+			background-color: rgba(13, 110, 253, 0.08) !important;
+			color: #0d6efd !important;
+			transform: scale(1.05);
+		}
+		[data-bs-theme=dark] .theme-toggle-btn:hover {
+			background-color: rgba(255, 255, 255, 0.08) !important;
+			color: #3b82f6 !important;
+		}
+
+		/* Form switch custom colors */
+		.form-check-input:checked {
+			background-color: #0d6efd !important;
+			border-color: #0d6efd !important;
+		}
+
+		/* Enhanced Navigation Styles */
+		.navbar-nav .nav-link {
+			position: relative;
+			font-weight: 500;
+			color: var(--tblr-body-color);
+			padding: 0.5rem 1rem;
+			border-radius: 6px;
+			transition: color 0.2s ease, background-color 0.2s ease;
+		}
+		.navbar-nav .nav-link:hover, 
+		.navbar-nav .nav-item.show .nav-link {
+			color: #0d6efd !important;
+			background-color: rgba(13, 110, 253, 0.05);
+		}
+		[data-bs-theme=dark] .navbar-nav .nav-link:hover,
+		[data-bs-theme=dark] .navbar-nav .nav-item.show .nav-link {
+			color: #3b82f6 !important;
+			background-color: rgba(59, 130, 246, 0.1);
+		}
+		
+		/* Rotate caret animation on show dropdown */
+		.navbar-nav .dropdown-toggle::after {
+			transition: transform 0.2s ease;
+		}
+		.navbar-nav .nav-item.show .dropdown-toggle::after {
+			transform: rotate(180deg);
+		}
+
+		/* Custom Sleek Scrollbar */
+		::-webkit-scrollbar {
+			width: 6px;
+			height: 6px;
+		}
+		::-webkit-scrollbar-track {
+			background: transparent;
+		}
+		::-webkit-scrollbar-thumb {
+			background: rgba(0, 0, 0, 0.12);
+			border-radius: 10px;
+		}
+		::-webkit-scrollbar-thumb:hover {
+			background: rgba(0, 0, 0, 0.22);
+		}
+		[data-bs-theme=dark] ::-webkit-scrollbar-thumb {
+			background: rgba(255, 255, 255, 0.12);
+		}
+		[data-bs-theme=dark] ::-webkit-scrollbar-thumb:hover {
+			background: rgba(255, 255, 255, 0.22);
+		}
+
+		/* Premium Footer */
+		.footer {
+			border-top: 1px solid rgba(0, 0, 0, 0.05);
+			background: rgba(255, 255, 255, 0.5) !important;
+			padding: 1.5rem 0;
+		}
+		[data-bs-theme=dark] .footer {
+			border-top: 1px solid rgba(255, 255, 255, 0.05);
+			background: rgba(30, 39, 53, 0.5) !important;
+		}
+
+		@media (max-width: 400px) {
+			.navbar-brand img {
+				width: 100px; /* Reduce logo size */
+			}
+			
+			.navbar-nav {
+				flex-wrap: wrap;
+				justify-content: space-between;
+			}
+
+		}
+		@media (max-width: 576px) {
+			.not {
+				left: 62% !important;
+				transform: translateX(-60%) !important;
+			}
+			.container-fluid {
+				padding-left: 12px !important;
+				padding-right: 12px !important;
+			}
+			header.navbar .navbar-nav {
+				flex-direction: row !important;
+				gap: 4px;
+			}
+			header.navbar .theme-toggle-btn {
+				width: 32px !important;
+				height: 32px !important;
+			}
+			.badge {
+				white-space: normal !important;
+				text-align: center;
+			}
+		}
+
+	</style>
+</head>
+
+<body>
+	<script>
+		try {
+			localStorage.setItem('tablerTheme', 'light');
+			localStorage.removeItem('theme');
+		} catch (e) {}
+		if (document.body) document.body.removeAttribute('data-bs-theme');
+	</script>
+	<script src="/static/js/demo-theme.min.js"></script>
+	<div class="page">
+		<!-- Navbar -->
+		<header class="navbar navbar-expand-md d-print-none">
+			<div class="container-fluid">
+				<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu"
+					aria-controls="navbar-menu" aria-expanded="false" aria-label="Toggle navigation">
+					<span class="navbar-toggler-icon"></span>
+				</button>
+				<h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
+					<a href="/website/home">
+						<img src="/static/xlogo.png" width="110" height="32" alt="XpredictLabs"
+							class="navbar-brand-image">
+					</a>
+				</h1>
+				<div class="navbar-nav flex-row order-md-last">
+					<div class="d-none d-md-flex">
+						<!-- Master Settings -->
+						
+						<a href="/website/master/" class="nav-link px-0 me-3 text-muted" title="Master Settings" data-bs-toggle="tooltip" data-bs-placement="bottom">
+							<i class="bi bi-gear fs-2"></i>
+						</a>
+						
+
+						
+						
+						<div class="nav-item d-none d-md-flex align-items-center mx-2">
+							<div class="form-check form-switch m-0" title="Restrict Transaction Date: ON" data-bs-toggle="tooltip" data-bs-placement="bottom">
+								<input class="form-check-input cursor-pointer" type="checkbox" id="restrictDateToggle" checked onchange="window.location.href='/website/toggle-transaction-date-restriction/';">
+								<label class="form-check-label d-none d-md-inline text-muted" for="restrictDateToggle" style="cursor: pointer; font-size: 0.8rem; font-weight: 500;">Date Limits</label>
+							</div>
+						</div>
+						
+						<!-- Notification Dropdown -->
+						<!-- <div class="nav-item dropdown d-flex me-3">
+							<a href="#" class="nav-link px-0" data-bs-toggle="dropdown" aria-expanded="false">
+								<svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+									<path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+									<path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/>
+									<path d="M9 17v1a3 3 0 0 0 6 0v-1"/>
+								</svg>
+								<span class="badge bg-red text-white" style="font-size: 0.65rem; padding: 2px 5px;" >42</span>
+							</a> -->
+
+							<!-- Dropdown Menu -->
+							<!-- <div class=" not dropdown-menu dropdown-menu-end p-0 shadow-lg rounded-3 " style="width: 300px; max-height: 400px; overflow-y: auto;">
+								<div class="card border-0">
+									
+									<div class="card-header bg-primary text-white py-2">
+										<h5 class="card-title mb-0 d-flex align-items-center">
+											<svg xmlns="http://www.w3.org/2000/svg" class="icon me-2" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+												<path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+												<path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" />
+												<path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+											</svg>
+											Recent Notifications
+										</h5>
+									</div> -->
+									
+									<!-- Notification List -->
+									<!-- <div class="list-group list-group-flush">
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title=" Second Service Visit Due for VVV , Gokarna">
+													 Second Service Visit Due for VVV , Gokarna
+												</a>
+												<div class="text-muted mt-n1">
+													<small>A follow-up service visit is required at VVV , Gokarna by 20 Aug 2026.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 day, 4 hours ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title=" Second Service Visit Due for Bhavani , Bidadi">
+													 Second Service Visit Due for Bhavani , Bidadi
+												</a>
+												<div class="text-muted mt-n1">
+													<small>A follow-up service visit is required at Bhavani , Bidadi by 19 Aug 2026.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 day, 4 hours ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Expense Rejected ❌">
+													Expense Rejected ❌
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Your voucher XPEV26070002 was rejected. Reason: Rejected</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 4 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1000 advance has been assigned to group &#x27;TEST&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 4 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹5000 advance has been assigned to group &#x27;neha&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 6 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26070026 of ₹0.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 6 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26070025 of ₹300.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 6 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26070024 of ₹0.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 6 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Expense Rejected ❌">
+													Expense Rejected ❌
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Your voucher XPEV26070023 was rejected. Reason: Proof not uploaded</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 6 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Expense Rejected ❌">
+													Expense Rejected ❌
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Your voucher XPEV26070024 was rejected. Reason: Proof not submitted</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 week, 6 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹555 advance has been assigned to group &#x27;ghhkbkjb&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>2 weeks, 4 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹2323 advance has been assigned to group &#x27;jhfgjkjgfj&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>3 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹65 advance has been assigned to group &#x27;fghvj&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>3 weeks, 2 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹567 advance has been assigned to group &#x27;ygholighfhj&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>3 weeks, 2 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1200 advance has been assigned to group &#x27;TEST&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>3 weeks, 4 days ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1211 advance has been assigned to group &#x27;WGTY&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹3000 advance has been assigned to group &#x27;GRP 3&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹2000 advance has been assigned to group &#x27;GRP 2&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1000 advance has been assigned to group &#x27;GRP 1&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹15000 advance has been assigned to group &#x27;TEST12121&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹121 advance has been assigned to group &#x27;cvbv&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹12121 advance has been assigned to group &#x27;xfsdfsdf&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Added to Advance Group">
+													Added to Advance Group
+												</a>
+												<div class="text-muted mt-n1">
+													<small>You have been added to advance group &#x27;dfdfs&#x27; with ₹12121 assigned.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1200 advance has been assigned to group &#x27;RAM KUMAR&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26060025 of ₹750.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26060017 of ₹1000.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1200 advance has been assigned to group &#x27;KYA CHAHIYERE TEREKO&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1000 advance has been assigned to group &#x27;DUNIYA&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹3500 advance has been assigned to group &#x27;Oii baa Illi&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1500 advance has been assigned to group &#x27;KYA RE&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26060016 of ₹1200.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹200 advance has been assigned to group &#x27;Bhag BC&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1000 advance has been assigned to group &#x27;JAM JAM&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹121 advance has been assigned to group &#x27;LALA&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1212 advance has been assigned to group &#x27;KUMAR&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹120 advance has been assigned to group &#x27;RAMMMM&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹100 advance has been assigned to group &#x27;TEST1212&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹100 advance has been assigned to group &#x27;TEST12&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 2 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹121 advance has been assigned to group &#x27;YES&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>1 month, 3 weeks ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="/website/item_form/" class="text-body fw-semibold d-block text-truncate" title="Voucher Paid">
+													Voucher Paid
+												</a>
+												<div class="text-muted mt-n1">
+													<small>Voucher XPEV26060001 of ₹2000.00 has been paid.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>2 months ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹2000 advance has been assigned to group &#x27;TEST&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>2 months ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+										<div class="list-group-item d-flex align-items-start">
+
+											<div class="col ms-2" style="min-width: 0;">
+												<a href="#" class="text-body fw-semibold d-block text-truncate" title="Advance Assigned">
+													Advance Assigned
+												</a>
+												<div class="text-muted mt-n1">
+													<small>₹1211 advance has been assigned to group &#x27;TEST&#x27;. You are the group leader.</small>
+												</div>
+											</div>
+
+											<div class="ms-auto text-muted">
+												<small>
+													
+														<sub>2 months, 1 week ago</sub>
+													
+												</small>
+											</div>
+										</div>
+										
+									</div> -->
+
+									<!-- Follow-up Updates Section -->
+									<!-- <div class="card mt-3">
+										<div class="card-header">
+											<h5 class="card-title">CRM Notifications</h5>
+										</div>
+										<div class="list-group list-group-flush list-group-hoverable">
+											
+											<div class="list-group-item">
+												<div class="text-center text-muted">No new follow-ups</div>
+											</div>
+											
+										</div>
+									</div> -->
+
+									<!-- Footer -->
+									<!-- <div class="card-footer bg-light text-center py-2">
+										<a href="#" class="text-primary text-decoration-none">View All</a>
+									</div>
+								</div>
+							</div>
+						</div> -->
+						<!-- Help Dropdown -->
+						<div class="nav-item dropdown d-flex me-3">
+							<a href="#" class="nav-link px-0 theme-toggle-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Help & Manuals">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-help">
+									<path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+									<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+									<path d="M12 17l0 .01" />
+									<path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4" />
+								</svg>
+							</a>
+						
+							<div class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 help-dropdown p-0 overflow-hidden" style="width: 320px; max-width: 90vw; border: none;">
+								<div class="card border-0 m-0">
+									<div class="card-header py-2.5 text-center" style="background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;">
+										<strong class="text-white" style="letter-spacing: 0.5px; font-size: 0.9rem;">Help & Manuals</strong>
+									</div>
+									<div class="list-group list-group-flush help-dropdown-body">
+										<div class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center py-3">
+											<div class="d-flex align-items-center">
+												<i class="bi bi-file-earmark-pdf text-danger fs-3 me-2"></i>
+												<span class="fw-semibold text-dark" style="font-size: 0.85rem;">User Manual</span>
+											</div>
+											<div class="btn-group btn-group-sm mt-2 mt-md-0 flex-md-nowrap w-100 w-md-auto">
+												<a href="/static/manuals/UserManual.pdf" target="_blank" class="btn btn-outline-primary btn-sm flex-fill flex-md-unset">View</a>
+												<a href="/static/manuals/UserManual.pdf" download class="btn btn-outline-success btn-sm flex-fill flex-md-unset">Download</a>
+											</div>
+										</div>
+						
+										
+										<div class="dropdown-divider my-0"></div>
+						
+										<div class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center py-3">
+											<div class="d-flex align-items-center">
+												<i class="bi bi-file-earmark-pdf-fill text-danger fs-3 me-2"></i>
+												<span class="fw-semibold text-dark" style="font-size: 0.85rem;">Admin Manual</span>
+											</div>
+											<div class="btn-group btn-group-sm mt-2 mt-md-0 flex-md-nowrap w-100 w-md-auto">
+												<a href="/static/manuals/ADMINMANUAL.pdf" target="_blank" class="btn btn-outline-primary btn-sm flex-fill flex-md-unset">View</a>
+												<a href="/static/manuals/ADMINMANUAL.pdf" download class="btn btn-outline-success btn-sm flex-fill flex-md-unset">Download</a>
+											</div>
+										</div>
+										
+									</div>
+								</div>
+							</div>
+						</div>
+
+
+						<!-- User Info Dropdown -->
+						<div class="nav-item dropdown d-flex me-3">
+							
+							<div class="nav-item dropdown ">
+								<a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown"
+									aria-label="Open user menu">
+									<div class="d-none d-sm-block ps-2 me-2">
+										<div class="fs-2 fw-medium text-dark">shashank </div>
+									</div>
+									<span class="avatar avatar-sm rounded-circle border border-2 border-primary-subtle"
+      										style="background-image: url('/media/profile_pics/default.jpg'); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+									</span>
+								</a>
+								<div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow p-0 overflow-hidden" style="width: 22rem; max-width: 90vw; border: none;">
+									<div class="card border-0 m-0">
+										<!-- Card Header -->
+										<div class="card-header d-flex flex-column align-items-center text-center p-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.08) 0%, rgba(13, 110, 253, 0.02) 100%); border-bottom: 1px solid rgba(0,0,0,0.05);">
+											<span class="avatar avatar-xl rounded-circle border border-3 border-white mb-2 shadow"
+      												style="background-image: url('/media/profile_pics/default.jpg'); width: 64px; height: 64px;">
+											</span>
+											<h5 class="mb-1 text-dark fw-bold">shashank</h5>
+											<span class="badge bg-blue-lt px-2.5 py-1" style="font-size: 0.75rem;">
+												
+													Admin, 
+												
+													Production, 
+												
+													Stock, 
+												
+													GRN, 
+												
+													Accounts, 
+												
+													Vendor
+												
+											</span>
+										</div>
+								
+										<!-- Card Body -->
+										<div class="card-body p-3">
+											<div class="row g-3">
+												<div class="col-6">
+													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+														<i class="bi bi-person-badge me-2 text-primary"></i>
+														<strong>Employee ID</strong>
+													</div>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">XAS014</p>
+												</div>
+												
+												<div class="col-6">
+													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+														<i class="bi bi-geo-alt me-2 text-primary"></i>
+														<strong>Zone</strong>
+													</div>
+													<p class="mb-0 text-dark fw-medium text-truncate" style="font-size: 0.85rem;" title="Bengaluru">
+														Bengaluru
+													</p>
+												</div>
+
+												<div class="col-6">
+													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+														<i class="bi bi-cake2 me-2 text-primary"></i>
+														<strong>Date of Birth</strong>
+													</div>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">19 Nov 2003</p>
+												</div>
+
+												<div class="col-6">
+													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+														<i class="bi bi-briefcase me-2 text-primary"></i>
+														<strong>Division</strong>
+													</div>
+													<p class="mb-0 text-dark fw-medium text-truncate" style="font-size: 0.85rem;" title="Software">
+														Software
+													</p>
+												</div>
+
+												<div class="col-12">
+													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+														<i class="bi bi-envelope me-2 text-primary"></i>
+														<strong>Email</strong>
+													</div>
+													<p class="mb-0 text-dark fw-medium text-truncate" style="font-size: 0.85rem;">shashankp696@gmail.com</p>
+												</div>
+
+												<div class="col-12">
+													<div class="d-flex align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+														<i class="bi bi-telephone me-2 text-primary"></i>
+														<strong>Contact Number</strong>
+													</div>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">6361622170</p>
+												</div>
+											</div>
+										</div>
+								
+										<!-- Card Footer with Logout Button -->
+										<div class="card-footer bg-light p-3" style="border-top: 1px solid rgba(0,0,0,0.05);">
+											<form method="post" action="/xshot/logout/">
+												<input type="hidden" name="csrfmiddlewaretoken" value="B5i3SrW4FOwc8nXRitZJAJzf3iNyTodloiKK8KOZBSdBGO3Yy4oE38YO7NfEBAAt">
+												<button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-pill d-flex align-items-center justify-content-center">
+													<i class="bi bi-box-arrow-right me-2"></i> Logout
+												</button>
+											</form>
+										</div>
+									</div>
+								</div>
+							</div>
+							
+						</div>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		<header class="navbar-expand-md">
+			<div class="collapse navbar-collapse" id="navbar-menu">
+				<div class="navbar">
+					<div class="container-fluid"> <!-- Use container-fluid for full-width on smaller screens -->
+						<ul class="navbar-nav">
+							<!-- Home Link -->
+							<li class="nav-item">
+								<a class="nav-link" href="/website/home">
+									<span class="nav-link-icon d-md-none d-lg-inline-block">
+										<!-- Home Icon -->
+										<svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+											viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+											stroke-linecap="round" stroke-linejoin="round">
+											<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+											<path d="M5 12l-2 0l9 -9l9 9l-2 0" />
+											<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+											<path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+										</svg>
+									</span>
+									<span class="nav-link-title">
+										Home
+									</span>
+								</a>
+							</li>
+
+							<!-- Navigation Items (Module Dropdowns) -->
+							
+									
+									<!-- Module: Reports -->
+									<li class="nav-item dropdown">
+										<a class="nav-link dropdown-toggle" href="#" id="dropdown-1"
+											role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+											aria-expanded="false">
+											CRM
+										</a>
+										
+										<div class="dropdown-menu" aria-labelledby="dropdown-1">
+											<!-- Loop through submodules -->
+											
+											<a class="dropdown-item"
+												href="/submodule/enquries/">
+												Enquries
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/lost_orders/">
+												Lost Orders
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/confirmed_orders/">
+												Confirmed Orders
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/crm_dashboard/">
+												CRM Dashboard
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/dealership_dashboard/">
+												Dealership Dashboard
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/manage_dealerships/">
+												Dealerships Management
+											</a>
+											
+										</div>
+										
+									</li>
+									
+									<!-- Module: Reports -->
+									<li class="nav-item dropdown">
+										<a class="nav-link dropdown-toggle" href="#" id="dropdown-2"
+											role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+											aria-expanded="false">
+											Vouchers
+										</a>
+										
+										<div class="dropdown-menu" aria-labelledby="dropdown-2">
+											<!-- Loop through submodules -->
+											
+											<a class="dropdown-item"
+												href="/submodule/vouchers_dashboard/">
+												Vouchers Dashboard
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/cash_voucher/">
+												Cash Voucher
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/e_vouchers/">
+												E vouchers
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/transaction/">
+												Transaction
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/payments/">
+												Payments
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/payable/">
+												Payable
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/assign_advances/">
+												Assign Advances
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/view_assigned_groups/">
+												View Assigned Groups
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/submit_request/">
+												Raise Ticket
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/view_requests/">
+												View Tickets
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/directpay_form/">
+												Direct Pay
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/directpay_preview/">
+												Directpay Preview
+											</a>
+											
+										</div>
+										
+									</li>
+									
+									<!-- Module: Reports -->
+									<li class="nav-item dropdown">
+										<a class="nav-link dropdown-toggle" href="#" id="dropdown-3"
+											role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+											aria-expanded="false">
+											Reports
+										</a>
+										
+										<div class="dropdown-menu" aria-labelledby="dropdown-3">
+											<!-- Loop through submodules -->
+											
+											<a class="dropdown-item"
+												href="/submodule/dashboard/">
+												Dashboard
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/generalreport/">
+												GeneralReport
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/maintenance_checklist/">
+												Maintenance Checklist
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/mom/">
+												MOM
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/servicereport/">
+												ServiceReport
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/generator_report/">
+												Generator Report
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/bike_maintenance_viewing/">
+												Bike Maintaince
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/service_expiry_management/">
+												Service Management
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/site_amc_management/">
+												Site AMC
+											</a>
+											
+										</div>
+										
+									</li>
+									
+									<!-- Module: Reports -->
+									<li class="nav-item dropdown">
+										<a class="nav-link dropdown-toggle" href="#" id="dropdown-4"
+											role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+											aria-expanded="false">
+											Operations
+										</a>
+										
+										<div class="dropdown-menu" aria-labelledby="dropdown-4">
+											<!-- Loop through submodules -->
+											
+											<a class="dropdown-item"
+												href="/submodule/project_list/">
+												Projects
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/machine_kits_list/">
+												Kitting
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/stock_list/">
+												Stocks
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/indent_list/">
+												Indent
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/purchase_order_list/">
+												Purchase Orders
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/grn_list/">
+												GRN
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/vendor_list/">
+												Vendor
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/po_list/">
+												PO Acknoledgement
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/vendor_payments_board/">
+												Vendor Payments
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/weekly_payment_forecast/">
+												Weekly Outlook
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/manage_permissions/">
+												Manage Permissions
+											</a>
+											
+										</div>
+										
+									</li>
+									
+									<!-- Module: Reports -->
+									<li class="nav-item dropdown">
+										<a class="nav-link dropdown-toggle" href="#" id="dropdown-6"
+											role="button" data-bs-toggle="dropdown" aria-haspopup="true"
+											aria-expanded="false">
+											Xshot
+										</a>
+										
+										<div class="dropdown-menu" aria-labelledby="dropdown-6">
+											<!-- Loop through submodules -->
+											
+											<a class="dropdown-item"
+												href="/submodule/invoices/">
+												Invoices
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/credit_notes/">
+												Credit Notes
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/customers/">
+												Customers
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/products/">
+												Products
+											</a>
+											
+											<a class="dropdown-item"
+												href="/submodule/displaybanks/">
+												Banks
+											</a>
+											
+										</div>
+										
+									</li>
+									
+								
+							</li>
+						</ul>
+
+						<!-- Search Bar -->
+						
+					</div>
+				</div>
+			</div>
+		</header>
+
+
+		<div class="page-wrapper">
+			
+			<div class="container-fluid px-4 py-4">
+			
+
+			
+<style>
+    /* ===== INVOICE PRINTER: Exact Reference Match ===== */
+    @page { size: A4; margin: 0mm; }
+    body { margin: 0; padding: 0; background: #fff; font-size: 11px; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; }
+
+    .invoice-card {
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+        color: #333333 !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+        max-width: 850px;
+        margin: 0 auto 30px auto;
+        page-break-inside: avoid;
+    }
+
+    .invoice-card .card-header {
+        background: #ffffff !important;
+        border-bottom: 0 !important;
+        padding: 10px 15px 0 15px !important;
+    }
+
+    .invoice-card .card-body {
+        padding: 10px 15px !important;
+    }
+
+    /* Typography overrides */
+    .invoice-card div, .invoice-card p, .invoice-card span {
+        font-size: 11px !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+        color: #333333 !important;
+    }
+
+    .invoice-card strong {
+        font-size: 11px !important;
+        font-weight: bold !important;
+    }
+
+    /* TAX INVOICE heading */
+    .invoice-card h3 {
+        font-size: 16px !important;
+        font-weight: bold !important;
+        margin: 0 !important;
+        color: #333 !important;
+    }
+
+    /* Items table - thin light-gray borders */
+    .invoice-card .table-invoice {
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        width: 100% !important;
+        margin-bottom: 10px !important;
+    }
+
+    .invoice-card .table-invoice thead th {
+        background: #ffffff !important;
+        font-weight: bold !important;
+        font-size: 11px !important;
+        padding: 4px 4px !important;
+        border: 1px solid #e0e0e0 !important;
+        white-space: nowrap !important;
+    }
+
+    .invoice-card .table-invoice tbody td {
+        font-size: 11px !important;
+        padding: 3px 4px !important;
+        border: 1px solid #e0e0e0 !important;
+    }
+
+    /* Grand total table */
+    .invoice-card #invoice-grand-total-table {
+        width: 100%;
+        border-collapse: collapse !important;
+    }
+
+    .invoice-card #invoice-grand-total-table td {
+        padding: 3px 4px !important;
+        font-size: 11px !important;
+        border: none !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+    }
+    
+    .invoice-card #invoice-grand-total-table tr:last-child td {
+        border-bottom: none !important;
+    }
+
+    /* Print overrides */
+    @media print {
+        .no-print { display: none !important; }
+        .force-page-break { page-break-after: always; }
+        .invoice-card { 
+            border: 1px solid #e0e0e0 !important;
+            margin: 10mm auto 20mm auto !important; 
+        }
+    }
+</style>
+
+<!-- Screen View -->
+
+<div class="invoice-card ">
+    <!-- Header Section -->
+    <div class="card-header border-bottom-0 d-block w-100" style="padding-bottom: 0;">
+        <div style="width: 100%; clear: both;">
+            <!-- Logo -->
+            <div style="float: left; width: 33.33%; text-align: left;">
+                <img src="/static/gstbillingapp/images/xlogo.jpeg" alt="Logo" style="max-width: 100px;">
+                <div class="mt-1" style="font-size: 11px; margin-top: 4px;">
+                    <strong>Invoice Date: Aug. 7, 2026</strong>
+                </div>
+            </div>
+            <!-- Title -->
+            <div style="float: left; width: 33.33%; text-align: center;">
+                <h3>TAX INVOICE</h3>
+                <div style="font-size: 10px; color: #555; margin-top: 2px;">(ORIGINAL FOR RECIPIENT)</div>
+            </div>
+            <!-- Invoice Number -->
+            <div style="float: left; width: 33.33%; text-align: right;">
+                <strong>Invoice No: XPL2607001</strong>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+    
+    <!-- Divider -->
+    <hr style="margin: 8px 0 0 0; border-top: 1px solid #e0e0e0;">
+
+    <!-- Seller / Buyer / Shipper Info -->
+    <div class="card-body">
+        <div style="width: 100%; clear: both; margin-bottom: 10px;">
+            <!-- Seller -->
+            <div style="float: left; width: 50%;">
+                <div style="margin-bottom: 3px;"><strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Thimlapura Road, Hurulichikanahalli, Bengaluru - 560090</div>
+                <div style="margin-bottom: 2px;">EMAIL: info@xpredictlabs.com</div>
+                <div style="margin-bottom: 2px;">Phone: 9480269812</div>
+                <div>GST No: 29AAACX2581L1ZU</div>
+            </div>
+
+            <!-- Billed To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Billed To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: </div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+                
+                <div>PO No: 12345</div>
+                
+            </div>
+
+            <!-- Shipped To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Shipped To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: 9876543232</div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+
+        <!-- Table -->
+        <table class="table-invoice">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">Sl No</th>
+                    <th class="text-left" style="width: 35%;">Description of Goods/Services</th>
+                    <th class="text-center" style="width: 10%;">HSN / SAC</th>
+                    <th class="text-center" style="width: 5%;">Unit</th>
+                    <th class="text-center" style="width: 5%;">Qty</th>
+                    <th class="text-right" style="width: 10%;">Rate (₹)</th>
+                    <th class="text-right" style="width: 10%;">Taxable Amount (₹)</th>
+                    <th class="text-center" style="width: 5%;">GST (%)</th>
+                    
+                    
+                    <th class="text-right" style="width: 15%;">Total Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td class="text-center">1</td>
+                    <td class="text-left">akk</td>
+                    <td class="text-center">1233</td>
+                    <td class="text-center">No</td>
+                    <td class="text-center">2.0</td>
+                    <td class="text-right">1.55</td>
+                    <td class="text-right">3.10</td>
+                    <td class="text-center">29.0</td>
+                    
+                    
+                    <td class="text-right">4.00</td>
+                </tr>
+                
+            </tbody>
+        </table>
+
+        <!-- Lower Section (Float layout for print safety) -->
+        <div style="width: 100%; clear: both; padding-top: 5px;">
+            <!-- Bank Details -->
+            <div style="float: left; width: 55%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 4px;">Company Bank Details</div>
+                <div style="margin-bottom: 2px;">Account Holder Name: <strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Bank Name: <strong>State Bank of India</strong></div>
+                <div style="margin-bottom: 2px;">Branch: <strong>MG ROAD, BENGALURU</strong></div>
+                <div style="margin-bottom: 2px;">Account No: <strong>43942921501</strong></div>
+                <div>IFSC Code: <strong>SBIN0040006</strong></div>
+            </div>
+
+            <!-- Tax Summary & Signatures -->
+            <div style="float: right; width: 45%;">
+                <table id="invoice-grand-total-table">
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; width:50%;">Total Taxable Amount:</td>
+                        <td class="text-right" style="font-weight:bold; width:50%;">₹ 3.10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">CGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">SGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; border-bottom: none !important;">Invoice Total:</td>
+                        <td class="text-right" style="font-weight:bold; border-bottom: none !important;">₹ 4.00</td>
+                    </tr>
+                </table>
+                
+                <div class="text-left mt-3" style="font-weight: bold; padding-left: 4px;">
+                    Invoice Total In Words: Four only.
+                </div>
+                
+                <div class="text-left mt-4" style="font-weight: bold; padding-left: 4px;">
+                    For Xpredict Automation Solutions Pvt Ltd<br><br><br><br>
+                    Authorized Signatory<br>
+                    <span style="font-weight:normal;">E. & O.E.</span>
+                </div>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Print Section - Hidden on screen -->
+<div id="print-section" style="display: none;">
+    <!-- Original Copy for Print -->
+    
+<div class="invoice-card force-page-break">
+    <!-- Header Section -->
+    <div class="card-header border-bottom-0 d-block w-100" style="padding-bottom: 0;">
+        <div style="width: 100%; clear: both;">
+            <!-- Logo -->
+            <div style="float: left; width: 33.33%; text-align: left;">
+                <img src="/static/gstbillingapp/images/xlogo.jpeg" alt="Logo" style="max-width: 100px;">
+                <div class="mt-1" style="font-size: 11px; margin-top: 4px;">
+                    <strong>Invoice Date: Aug. 7, 2026</strong>
+                </div>
+            </div>
+            <!-- Title -->
+            <div style="float: left; width: 33.33%; text-align: center;">
+                <h3>TAX INVOICE</h3>
+                <div style="font-size: 10px; color: #555; margin-top: 2px;">(ORIGINAL FOR RECIPIENT)</div>
+            </div>
+            <!-- Invoice Number -->
+            <div style="float: left; width: 33.33%; text-align: right;">
+                <strong>Invoice No: XPL2607001</strong>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+    
+    <!-- Divider -->
+    <hr style="margin: 8px 0 0 0; border-top: 1px solid #e0e0e0;">
+
+    <!-- Seller / Buyer / Shipper Info -->
+    <div class="card-body">
+        <div style="width: 100%; clear: both; margin-bottom: 10px;">
+            <!-- Seller -->
+            <div style="float: left; width: 50%;">
+                <div style="margin-bottom: 3px;"><strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Thimlapura Road, Hurulichikanahalli, Bengaluru - 560090</div>
+                <div style="margin-bottom: 2px;">EMAIL: info@xpredictlabs.com</div>
+                <div style="margin-bottom: 2px;">Phone: 9480269812</div>
+                <div>GST No: 29AAACX2581L1ZU</div>
+            </div>
+
+            <!-- Billed To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Billed To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: </div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+                
+                <div>PO No: 12345</div>
+                
+            </div>
+
+            <!-- Shipped To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Shipped To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: 9876543232</div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+
+        <!-- Table -->
+        <table class="table-invoice">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">Sl No</th>
+                    <th class="text-left" style="width: 35%;">Description of Goods/Services</th>
+                    <th class="text-center" style="width: 10%;">HSN / SAC</th>
+                    <th class="text-center" style="width: 5%;">Unit</th>
+                    <th class="text-center" style="width: 5%;">Qty</th>
+                    <th class="text-right" style="width: 10%;">Rate (₹)</th>
+                    <th class="text-right" style="width: 10%;">Taxable Amount (₹)</th>
+                    <th class="text-center" style="width: 5%;">GST (%)</th>
+                    
+                    
+                    <th class="text-right" style="width: 15%;">Total Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td class="text-center">1</td>
+                    <td class="text-left">akk</td>
+                    <td class="text-center">1233</td>
+                    <td class="text-center">No</td>
+                    <td class="text-center">2.0</td>
+                    <td class="text-right">1.55</td>
+                    <td class="text-right">3.10</td>
+                    <td class="text-center">29.0</td>
+                    
+                    
+                    <td class="text-right">4.00</td>
+                </tr>
+                
+            </tbody>
+        </table>
+
+        <!-- Lower Section (Float layout for print safety) -->
+        <div style="width: 100%; clear: both; padding-top: 5px;">
+            <!-- Bank Details -->
+            <div style="float: left; width: 55%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 4px;">Company Bank Details</div>
+                <div style="margin-bottom: 2px;">Account Holder Name: <strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Bank Name: <strong>State Bank of India</strong></div>
+                <div style="margin-bottom: 2px;">Branch: <strong>MG ROAD, BENGALURU</strong></div>
+                <div style="margin-bottom: 2px;">Account No: <strong>43942921501</strong></div>
+                <div>IFSC Code: <strong>SBIN0040006</strong></div>
+            </div>
+
+            <!-- Tax Summary & Signatures -->
+            <div style="float: right; width: 45%;">
+                <table id="invoice-grand-total-table">
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; width:50%;">Total Taxable Amount:</td>
+                        <td class="text-right" style="font-weight:bold; width:50%;">₹ 3.10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">CGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">SGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; border-bottom: none !important;">Invoice Total:</td>
+                        <td class="text-right" style="font-weight:bold; border-bottom: none !important;">₹ 4.00</td>
+                    </tr>
+                </table>
+                
+                <div class="text-left mt-3" style="font-weight: bold; padding-left: 4px;">
+                    Invoice Total In Words: Four only.
+                </div>
+                
+                <div class="text-left mt-4" style="font-weight: bold; padding-left: 4px;">
+                    For Xpredict Automation Solutions Pvt Ltd<br><br><br><br>
+                    Authorized Signatory<br>
+                    <span style="font-weight:normal;">E. & O.E.</span>
+                </div>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+</div>
+
+    
+    <!-- Duplicate Copy -->
+    
+<div class="invoice-card force-page-break">
+    <!-- Header Section -->
+    <div class="card-header border-bottom-0 d-block w-100" style="padding-bottom: 0;">
+        <div style="width: 100%; clear: both;">
+            <!-- Logo -->
+            <div style="float: left; width: 33.33%; text-align: left;">
+                <img src="/static/gstbillingapp/images/xlogo.jpeg" alt="Logo" style="max-width: 100px;">
+                <div class="mt-1" style="font-size: 11px; margin-top: 4px;">
+                    <strong>Invoice Date: Aug. 7, 2026</strong>
+                </div>
+            </div>
+            <!-- Title -->
+            <div style="float: left; width: 33.33%; text-align: center;">
+                <h3>TAX INVOICE</h3>
+                <div style="font-size: 10px; color: #555; margin-top: 2px;">(DUPLICATE FOR TRANSPORTER)</div>
+            </div>
+            <!-- Invoice Number -->
+            <div style="float: left; width: 33.33%; text-align: right;">
+                <strong>Invoice No: XPL2607001</strong>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+    
+    <!-- Divider -->
+    <hr style="margin: 8px 0 0 0; border-top: 1px solid #e0e0e0;">
+
+    <!-- Seller / Buyer / Shipper Info -->
+    <div class="card-body">
+        <div style="width: 100%; clear: both; margin-bottom: 10px;">
+            <!-- Seller -->
+            <div style="float: left; width: 50%;">
+                <div style="margin-bottom: 3px;"><strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Thimlapura Road, Hurulichikanahalli, Bengaluru - 560090</div>
+                <div style="margin-bottom: 2px;">EMAIL: info@xpredictlabs.com</div>
+                <div style="margin-bottom: 2px;">Phone: 9480269812</div>
+                <div>GST No: 29AAACX2581L1ZU</div>
+            </div>
+
+            <!-- Billed To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Billed To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: </div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+                
+                <div>PO No: 12345</div>
+                
+            </div>
+
+            <!-- Shipped To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Shipped To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: 9876543232</div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+
+        <!-- Table -->
+        <table class="table-invoice">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">Sl No</th>
+                    <th class="text-left" style="width: 35%;">Description of Goods/Services</th>
+                    <th class="text-center" style="width: 10%;">HSN / SAC</th>
+                    <th class="text-center" style="width: 5%;">Unit</th>
+                    <th class="text-center" style="width: 5%;">Qty</th>
+                    <th class="text-right" style="width: 10%;">Rate (₹)</th>
+                    <th class="text-right" style="width: 10%;">Taxable Amount (₹)</th>
+                    <th class="text-center" style="width: 5%;">GST (%)</th>
+                    
+                    
+                    <th class="text-right" style="width: 15%;">Total Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td class="text-center">1</td>
+                    <td class="text-left">akk</td>
+                    <td class="text-center">1233</td>
+                    <td class="text-center">No</td>
+                    <td class="text-center">2.0</td>
+                    <td class="text-right">1.55</td>
+                    <td class="text-right">3.10</td>
+                    <td class="text-center">29.0</td>
+                    
+                    
+                    <td class="text-right">4.00</td>
+                </tr>
+                
+            </tbody>
+        </table>
+
+        <!-- Lower Section (Float layout for print safety) -->
+        <div style="width: 100%; clear: both; padding-top: 5px;">
+            <!-- Bank Details -->
+            <div style="float: left; width: 55%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 4px;">Company Bank Details</div>
+                <div style="margin-bottom: 2px;">Account Holder Name: <strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Bank Name: <strong>State Bank of India</strong></div>
+                <div style="margin-bottom: 2px;">Branch: <strong>MG ROAD, BENGALURU</strong></div>
+                <div style="margin-bottom: 2px;">Account No: <strong>43942921501</strong></div>
+                <div>IFSC Code: <strong>SBIN0040006</strong></div>
+            </div>
+
+            <!-- Tax Summary & Signatures -->
+            <div style="float: right; width: 45%;">
+                <table id="invoice-grand-total-table">
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; width:50%;">Total Taxable Amount:</td>
+                        <td class="text-right" style="font-weight:bold; width:50%;">₹ 3.10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">CGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">SGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; border-bottom: none !important;">Invoice Total:</td>
+                        <td class="text-right" style="font-weight:bold; border-bottom: none !important;">₹ 4.00</td>
+                    </tr>
+                </table>
+                
+                <div class="text-left mt-3" style="font-weight: bold; padding-left: 4px;">
+                    Invoice Total In Words: Four only.
+                </div>
+                
+                <div class="text-left mt-4" style="font-weight: bold; padding-left: 4px;">
+                    For Xpredict Automation Solutions Pvt Ltd<br><br><br><br>
+                    Authorized Signatory<br>
+                    <span style="font-weight:normal;">E. & O.E.</span>
+                </div>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+</div>
+
+    
+    <!-- Triplicate Copy -->
+    
+<div class="invoice-card force-page-break">
+    <!-- Header Section -->
+    <div class="card-header border-bottom-0 d-block w-100" style="padding-bottom: 0;">
+        <div style="width: 100%; clear: both;">
+            <!-- Logo -->
+            <div style="float: left; width: 33.33%; text-align: left;">
+                <img src="/static/gstbillingapp/images/xlogo.jpeg" alt="Logo" style="max-width: 100px;">
+                <div class="mt-1" style="font-size: 11px; margin-top: 4px;">
+                    <strong>Invoice Date: Aug. 7, 2026</strong>
+                </div>
+            </div>
+            <!-- Title -->
+            <div style="float: left; width: 33.33%; text-align: center;">
+                <h3>TAX INVOICE</h3>
+                <div style="font-size: 10px; color: #555; margin-top: 2px;">(TRIPLICATE FOR SUPPLIER)</div>
+            </div>
+            <!-- Invoice Number -->
+            <div style="float: left; width: 33.33%; text-align: right;">
+                <strong>Invoice No: XPL2607001</strong>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+    
+    <!-- Divider -->
+    <hr style="margin: 8px 0 0 0; border-top: 1px solid #e0e0e0;">
+
+    <!-- Seller / Buyer / Shipper Info -->
+    <div class="card-body">
+        <div style="width: 100%; clear: both; margin-bottom: 10px;">
+            <!-- Seller -->
+            <div style="float: left; width: 50%;">
+                <div style="margin-bottom: 3px;"><strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Thimlapura Road, Hurulichikanahalli, Bengaluru - 560090</div>
+                <div style="margin-bottom: 2px;">EMAIL: info@xpredictlabs.com</div>
+                <div style="margin-bottom: 2px;">Phone: 9480269812</div>
+                <div>GST No: 29AAACX2581L1ZU</div>
+            </div>
+
+            <!-- Billed To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Billed To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: </div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+                
+                <div>PO No: 12345</div>
+                
+            </div>
+
+            <!-- Shipped To -->
+            <div style="float: left; width: 25%;">
+                <div style="font-size:11px; margin-bottom:3px;">Shipped To:</div>
+                <div style="margin-bottom: 3px;"><strong>asdf</strong></div>
+                <div style="margin-bottom: 2px;">ddff</div>
+                <div style="margin-bottom: 2px;">Phone: 9876543232</div>
+                <div style="margin-bottom: 2px;">GST No: 29AAAAAAAAAAAAA</div>
+                
+                <div style="margin-bottom: 2px;">PAN NO: AAAAAAAAAA</div>
+                
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+
+        <!-- Table -->
+        <table class="table-invoice">
+            <thead>
+                <tr>
+                    <th class="text-center" style="width: 5%;">Sl No</th>
+                    <th class="text-left" style="width: 35%;">Description of Goods/Services</th>
+                    <th class="text-center" style="width: 10%;">HSN / SAC</th>
+                    <th class="text-center" style="width: 5%;">Unit</th>
+                    <th class="text-center" style="width: 5%;">Qty</th>
+                    <th class="text-right" style="width: 10%;">Rate (₹)</th>
+                    <th class="text-right" style="width: 10%;">Taxable Amount (₹)</th>
+                    <th class="text-center" style="width: 5%;">GST (%)</th>
+                    
+                    
+                    <th class="text-right" style="width: 15%;">Total Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td class="text-center">1</td>
+                    <td class="text-left">akk</td>
+                    <td class="text-center">1233</td>
+                    <td class="text-center">No</td>
+                    <td class="text-center">2.0</td>
+                    <td class="text-right">1.55</td>
+                    <td class="text-right">3.10</td>
+                    <td class="text-center">29.0</td>
+                    
+                    
+                    <td class="text-right">4.00</td>
+                </tr>
+                
+            </tbody>
+        </table>
+
+        <!-- Lower Section (Float layout for print safety) -->
+        <div style="width: 100%; clear: both; padding-top: 5px;">
+            <!-- Bank Details -->
+            <div style="float: left; width: 55%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 4px;">Company Bank Details</div>
+                <div style="margin-bottom: 2px;">Account Holder Name: <strong>XPREDICT AUTOMATION SOLUTIONS PVT LTD</strong></div>
+                <div style="margin-bottom: 2px;">Bank Name: <strong>State Bank of India</strong></div>
+                <div style="margin-bottom: 2px;">Branch: <strong>MG ROAD, BENGALURU</strong></div>
+                <div style="margin-bottom: 2px;">Account No: <strong>43942921501</strong></div>
+                <div>IFSC Code: <strong>SBIN0040006</strong></div>
+            </div>
+
+            <!-- Tax Summary & Signatures -->
+            <div style="float: right; width: 45%;">
+                <table id="invoice-grand-total-table">
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; width:50%;">Total Taxable Amount:</td>
+                        <td class="text-right" style="font-weight:bold; width:50%;">₹ 3.10</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">CGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left" style="font-weight:bold;">SGST:9%</td>
+                        <td class="text-right" style="font-weight:bold;">₹ 0.45</td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="text-left" style="font-weight:bold; border-bottom: none !important;">Invoice Total:</td>
+                        <td class="text-right" style="font-weight:bold; border-bottom: none !important;">₹ 4.00</td>
+                    </tr>
+                </table>
+                
+                <div class="text-left mt-3" style="font-weight: bold; padding-left: 4px;">
+                    Invoice Total In Words: Four only.
+                </div>
+                
+                <div class="text-left mt-4" style="font-weight: bold; padding-left: 4px;">
+                    For Xpredict Automation Solutions Pvt Ltd<br><br><br><br>
+                    Authorized Signatory<br>
+                    <span style="font-weight:normal;">E. & O.E.</span>
+                </div>
+            </div>
+            <div style="clear: both;"></div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<button onclick="printAllCopies()" class="btn btn-primary no-print">Print Invoice</button>
+
+<script>
+	function printAllCopies() {
+		// Store original content
+		const originalContent = document.body.innerHTML;
+
+		// Get print section content
+		const printSection = document.getElementById('print-section');
+
+		// Replace body content with print section
+		document.body.innerHTML = printSection.innerHTML;
+
+		// Add print styles
+		const style = document.createElement('style');
+        style.innerHTML = `
+        @page {
+            size: A4;
+            margin: 0mm !important; /* Forces removal of browser header/footer like XPLBS */
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            -webkit-print-color-adjust: exact;
+        }
+    `;
+        document.head.appendChild(style);
+
+		// Print the document
+		window.print();
+
+		// Restore original content
+		document.body.innerHTML = originalContent;
+	}
+</script>
+
+
+			
+			</div>
+			
+
+
+			<footer class="footer footer-transparent d-print-none">
+				<div class="container-fluid">
+					<div class="row text-center align-items-center flex-row">
+						<div class="col-12 col-lg-auto mt-3 mt-lg-0">
+							<ul class="list-inline list-inline-dots mb-0">
+								<li class="list-inline-item">
+									Copyright &copy; 2024
+									<a href="https://xpredictlabs.com/" class="link-secondary"> XpredictLabs</a>.
+									All rights reserved.
+								</li>
+								<li class="list-inline-item">
+									v1.0.0-beta20
+								</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</footer>
+		</div>
+	</div>
+	<!-- Libs JS -->
+	<script src="/static/libs/apexcharts/dist/apexcharts.min.js?1692870487" defer></script>
+	<script src="/static/libs/jsvectormap/dist/js/jsvectormap.min.js?1692870487" defer></script>
+	<script src="/static/libs/jsvectormap/dist/maps/world.js?1692870487" defer></script>
+	<script src="/static/libs/jsvectormap/dist/maps/world-merc.js?1692870487" defer></script>
+	<!-- Tabler Core -->
+	<script src="/static/js/tabler.min.js?1692870487" defer></script>
+	<script src="/static/js/demo.min.js?1692870487" defer></script>
+	<script src="/static/js/extra.js"></script>
+	<script src="/static/js/maintenancechecklist.js?v=3"></script>
+	<script src="/static/js/servicereport.js"></script>
+	<script src="/static/js/generalreport.js"></script>
+	<script src="/static/js/mom.js?v=3"></script>
+	<script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
+	<!-- Include jQuery (required for Bootstrap 4) -->
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<!-- Include Bootstrap JS (Commented out to fix Tabler/Bootstrap 5 conflict) -->
+	<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script> -->
+	<!-- jQuery (Required for Select2) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet">
+
+<!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+	
+	  <script>
+		(function () {
+		  try {
+			if (window.Mobile) {
+			  window.Mobile.postMessage(
+				JSON.stringify({
+				  type: "MOBILE_TOKEN",
+				  token: "8748ed58b5c7930c22b23f2c78f87793a1ed0e2b60fb0e0f3782854692ffa971"
+				})
+			  );
+			}
+		  } catch (e) {
+			console.log("Mobile bridge error", e);
+		  }
+		})();
+	  </script>
+	  <script>
+		(function () {
+		  try {
+			if (window.Mobile) {
+			  window.Mobile.postMessage(
+				JSON.stringify({
+				  type: "MOBILE_TOKEN",
+				  token: "8748ed58b5c7930c22b23f2c78f87793a1ed0e2b60fb0e0f3782854692ffa971"
+				})
+			  );
+			}
+		  } catch (e) {
+			console.log("Mobile bridge error", e);
+		  }
+		})();
+	  </script>
+
+	  <script>
+		// Global Page Transition Animations
+		document.addEventListener("DOMContentLoaded", function() {
+			const wrapper = document.querySelector(".page-wrapper");
+
+			// Intercept links with class 'transition-link' globally
+			const transitionLinks = document.querySelectorAll(".transition-link");
+			transitionLinks.forEach(link => {
+				link.addEventListener("click", function(e) {
+					e.preventDefault();
+					const targetUrl = this.getAttribute("href");
+					if (wrapper) {
+						wrapper.classList.add("fade-out");
+					}
+					setTimeout(() => {
+						window.location.href = targetUrl;
+					}, 250);
+				});
+			});
+		});
+
+		// Handle browser Back/Forward Cache (bfcache) restoration
+		window.addEventListener("pageshow", function(event) {
+			const wrapper = document.querySelector(".page-wrapper");
+			if (wrapper) {
+				wrapper.classList.remove("fade-out");
+			}
+			const containers = document.querySelectorAll(".dashboard-transition-container");
+			containers.forEach(container => {
+				container.classList.remove("fade-out");
+				container.classList.add("visible");
+			});
+		});
+	  </script>
+		
+	
+	
+</body>
+
+</html>

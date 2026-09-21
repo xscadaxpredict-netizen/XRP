@@ -382,10 +382,14 @@
                     </div>
                     <div class="col-md-6">
                         <p><strong>Client Name:</strong></p>
-                        <p>{{ service_report.client_name }}</p>
+                        <p>{% if service_report.client_name and service_report.client_name != 'None' %}{{ service_report.client_name }}{% else %}-{% endif %}</p>
 
                         <p><strong>Client Signature:</strong></p>
+                        {% if service_report.client_signature and service_report.client_signature != 'None' and service_report.client_signed %}
                         <img src="{{ service_report.client_signature }}" alt="Client Signature" style="width: 150px; height: auto; max-width: 100%;">
+                        {% else %}
+                        <p class="text-muted" style="font-style: italic;">Not signed yet</p>
+                        {% endif %}
                     </div>
                 </div>
 

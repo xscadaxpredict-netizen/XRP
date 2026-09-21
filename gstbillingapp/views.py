@@ -23,6 +23,7 @@ from .models import UserProfile
 from .utils import invoice_data_validator 
 from .utils import invoice_data_processor
 from .utils import update_products_from_invoice
+from .utils import safe_float
 
 
 from .forms import CustomerForm
@@ -217,11 +218,11 @@ def invoice_create(request):
             
             # Cumulative fields
             is_cumulative_billing=invoice_data.get("is_cumulative_billing") == "true",
-            total_project_value=float(invoice_data.get("total_project_value") or 0.0),
-            previously_billed=float(invoice_data.get("previously_billed") or 0.0),
+            total_project_value=safe_float(invoice_data.get("total_project_value")),
+            previously_billed=safe_float(invoice_data.get("previously_billed")),
             previous_invoice_number=invoice_data.get("previous_invoice_number", ""),
             present_quote_amount=temp["invoice_total_amt_with_gst"],
-            remaining_balance=float(invoice_data.get("total_project_value") or 0.0) - float(invoice_data.get("previously_billed") or 0.0) - float(temp["invoice_total_amt_with_gst"]),
+            remaining_balance=safe_float(invoice_data.get("total_project_value")) - safe_float(invoice_data.get("previously_billed")) - safe_float(temp["invoice_total_amt_with_gst"]),
         )
         
         new_invoice.save()
@@ -275,7 +276,7 @@ def invoice_viewer(request, invoice_id):
             lang='en_IN'
         ).title(),
         'user_profile': user_profile,
-        'bank_details': invoice_obj.bank,
+        'bank_details': invoice_obj.bank or BankDetails.objects.first(),
         'sup_pan_number': getattr(invoice_obj, 'sup_pan_number', None),
     }
 
@@ -575,11 +576,11 @@ def invoice_edit(request, invoice_id):
         
         # Cumulative fields
         invoice.is_cumulative_billing = request.POST.get("is_cumulative_billing") == "true"
-        invoice.total_project_value = float(request.POST.get("total_project_value") or 0.0)
-        invoice.previously_billed = float(request.POST.get("previously_billed") or 0.0)
+        invoice.total_project_value = safe_float(request.POST.get("total_project_value"))
+        invoice.previously_billed = safe_float(request.POST.get("previously_billed"))
         invoice.previous_invoice_number = request.POST.get("previous_invoice_number", "")
         invoice.present_quote_amount = temp["invoice_total_amt_with_gst"]
-        invoice.remaining_balance = float(request.POST.get("total_project_value") or 0.0) - float(request.POST.get("previously_billed") or 0.0) - float(temp["invoice_total_amt_with_gst"])
+        invoice.remaining_balance = safe_float(request.POST.get("total_project_value")) - safe_float(request.POST.get("previously_billed")) - safe_float(temp["invoice_total_amt_with_gst"])
 
         invoice.save()
         return redirect("invoice_viewer", invoice_id=invoice.id)
