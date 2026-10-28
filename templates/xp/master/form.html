@@ -42,14 +42,14 @@
                                 {{ field.label }} {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
                             </label>
                             
-                            {% if field.field.widget.input_type == 'checkbox' %}
+                            {% if field.field.widget.allow_multiple_selected or field.field.widget.template_name == 'django/forms/widgets/checkbox_select.html' %}
+                                <div class="bg-light p-3 rounded-3 shadow-sm border" style="max-height: 250px; overflow-y: auto;">
+                                    {{ field }}
+                                </div>
+                            {% elif field.field.widget.input_type == 'checkbox' %}
                                 <div class="form-check form-switch">
                                     {{ field|add_class:"form-check-input" }}
                                     <label class="form-check-label text-muted" for="{{ field.id_for_label }}">{{ field.help_text|default:"Toggle to enable/disable" }}</label>
-                                </div>
-                            {% elif field.field.widget.template_name == 'django/forms/widgets/checkbox_select.html' or field.field.widget.__class__.__name__ == 'CheckboxSelectMultiple' %}
-                                <div class="bg-light p-3 rounded-3 shadow-sm border" style="max-height: 250px; overflow-y: auto;">
-                                    {{ field }}
                                 </div>
                             {% elif field.field.widget.input_type == 'select' or field.field.widget.template_name == 'django/forms/widgets/select.html' %}
                                 {{ field|add_class:"form-select rounded-3 shadow-sm" }}
