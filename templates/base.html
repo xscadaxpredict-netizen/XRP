@@ -510,8 +510,7 @@
 														<i class="bi bi-person-badge me-2 text-primary"></i>
 														<strong>Employee ID</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{
-														user.userprofile.employee_id|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{ user.userprofile.employee_id|default:"-" }}</p>
 												</div>
 
 												<div class="col-6">
@@ -523,8 +522,7 @@
 													<p class="mb-0 text-dark fw-medium text-truncate"
 														style="font-size: 0.85rem;"
 														title="{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{% else %}No zone assigned{% endif %}">
-														{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{%
-														else %}-{% endif %}
+														{% if user.userprofile.zone %}{{ user.userprofile.zone.name }}{% else %}-{% endif %}
 													</p>
 												</div>
 
@@ -534,8 +532,7 @@
 														<i class="bi bi-cake2 me-2 text-primary"></i>
 														<strong>Date of Birth</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{
-														user.userprofile.date_of_birth|date:"d M Y"|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{ user.userprofile.date_of_birth|date:"d M Y"|default:"-" }}</p>
 												</div>
 
 												<div class="col-6">
@@ -547,8 +544,7 @@
 													<p class="mb-0 text-dark fw-medium text-truncate"
 														style="font-size: 0.85rem;"
 														title="{% if user.userprofile.division %}{{ user.userprofile.division.name }}{% else %}No division assigned{% endif %}">
-														{% if user.userprofile.division %}{{
-														user.userprofile.division.name }}{% else %}-{% endif %}
+														{% if user.userprofile.division %}{{ user.userprofile.division.name }}{% else %}-{% endif %}
 													</p>
 												</div>
 
@@ -559,8 +555,7 @@
 														<strong>Email</strong>
 													</div>
 													<p class="mb-0 text-dark fw-medium text-truncate"
-														style="font-size: 0.85rem;">{{
-														user.userprofile.email|default:"-" }}</p>
+														style="font-size: 0.85rem;">{{ user.userprofile.email|default:"-" }}</p>
 												</div>
 
 												<div class="col-12">
@@ -569,8 +564,7 @@
 														<i class="bi bi-telephone me-2 text-primary"></i>
 														<strong>Contact Number</strong>
 													</div>
-													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{
-														user.userprofile.contact_number|default:"-" }}</p>
+													<p class="mb-0 text-dark fw-medium" style="font-size: 0.85rem;">{{ user.userprofile.contact_number|default:"-" }}</p>
 												</div>
 											</div>
 										</div>
