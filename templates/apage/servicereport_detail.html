@@ -385,7 +385,7 @@
                         <p>{% if service_report.client_name and service_report.client_name != 'None' %}{{ service_report.client_name }}{% else %}-{% endif %}</p>
 
                         <p><strong>Client Signature:</strong></p>
-                        {% if service_report.client_signature and service_report.client_signature != 'None' and service_report.client_signed %}
+                        {% if service_report.client_signature and service_report.client_signature != 'None' %}
                         <img src="{{ service_report.client_signature }}" alt="Client Signature" style="width: 150px; height: auto; max-width: 100%;">
                         {% else %}
                         <p class="text-muted" style="font-style: italic;">Not signed yet</p>
@@ -409,7 +409,7 @@
                 <a href="{% url 'servireport_edithistory' service_report.id %}" class=" custb btn btn-success">Edit History</a>
                 {% endif %}
               <!-- Button to trigger modal -->
-              {% if service_report.client_signed %}
+              {% if service_report.client_signed or service_report.client_signature and service_report.client_signature != 'None' %}
                 <button class="btn btn-secondary" disabled title="Already signed by client">
                     Already Signed
                 </button>

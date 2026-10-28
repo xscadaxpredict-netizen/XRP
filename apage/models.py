@@ -388,6 +388,11 @@ class ServiceReport(models.Model):
         self.rejection_reason = reason
         self.save()
 
+    def save(self, *args, **kwargs):
+        if self.client_signature and self.client_signature != 'None' and str(self.client_signature).strip():
+            self.client_signed = True
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Service Report for {self.service_name} - {self.customer_name} ({self.get_status_display()})"
 
