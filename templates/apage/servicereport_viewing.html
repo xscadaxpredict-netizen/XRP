@@ -200,7 +200,7 @@
                                     <th>Status</th>
 
                                     {% if user_role == 'Admin' %}
-                                    <th>Actions</th>
+                                    <th>Approval</th>
                                     {% endif %}
                                 </tr>
                             </thead>
@@ -227,15 +227,34 @@
                                     </td>
                                     <td id="status-col-{{ report.id }}">
                                       {% if report.status == 'rejected' %}
-                                      <span class="text-danger" style="cursor: pointer;" data-bs-toggle="collapse"
-                                        data-bs-target="#reason-{{ report.id }}">
-                                        Rejected (click for reason)
-                                      </span>
-                                      <div id="reason-{{ report.id }}" class="collapse mt-1">
-                                        <small class="text-muted">{{ report.rejection_reason|default:"No reason provided." }}</small>
+                                      <div class="d-inline-flex flex-column align-items-start">
+                                        <button type="button" 
+                                          class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-0.5 px-2 rounded-pill shadow-none"
+                                          data-bs-toggle="collapse"
+                                          data-bs-target="#reason-{{ report.id }}"
+                                          title="Click to view rejection reason"
+                                          style="font-size: 0.78rem; font-weight: 500;">
+                                          <i class="bi bi-x-circle-fill"></i>
+                                          <span>Rejected</span>
+                                          <i class="bi bi-chevron-down ms-1" style="font-size: 0.7rem;"></i>
+                                        </button>
+                                        <div id="reason-{{ report.id }}" class="collapse mt-1" style="max-width: 220px;">
+                                          <div class="p-2 rounded bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.76rem; line-height: 1.35;">
+                                            <div class="fw-bold mb-0.5"><i class="bi bi-info-circle me-1"></i>Reason:</div>
+                                            <div class="text-dark">{{ report.rejection_reason|default:"No reason provided." }}</div>
+                                          </div>
+                                        </div>
                                       </div>
+                                      {% elif report.status == 'approved' %}
+                                      <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 d-inline-flex align-items-center gap-1 rounded-pill" style="font-size: 0.78rem; font-weight: 500;">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span>Approved</span>
+                                      </span>
                                       {% else %}
-                                      {{ report.get_status_display }}
+                                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 py-1 d-inline-flex align-items-center gap-1 rounded-pill" style="font-size: 0.78rem; font-weight: 500;">
+                                        <i class="bi bi-clock-history"></i>
+                                        <span>{{ report.get_status_display }}</span>
+                                      </span>
                                       {% endif %}
                                     </td>
                                     {% if user_role == 'Admin' %}
@@ -322,7 +341,12 @@
       .then(data => {
         if (data.status === 'success') {
           // Update Status Col
-          document.getElementById(`status-col-${reportId}`).innerHTML = 'Approved';
+          document.getElementById(`status-col-${reportId}`).innerHTML = `
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 d-inline-flex align-items-center gap-1 rounded-pill" style="font-size: 0.78rem; font-weight: 500;">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>Approved</span>
+            </span>
+          `;
           // Update Action Col
           document.getElementById(`action-col-${reportId}`).innerHTML = '<button class="btn btn-secondary btn-sm" disabled>Approved</button>';
           // Disable Edit Button
@@ -374,11 +398,23 @@
           
           // Update Status Col
           const statusHtml = `
-            <span class="text-danger" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#reason-${reportId}">
-              Rejected (click for reason)
-            </span>
-            <div id="reason-${reportId}" class="collapse mt-1">
-              <small class="text-muted">${reason}</small>
+            <div class="d-inline-flex flex-column align-items-start">
+              <button type="button" 
+                class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-0.5 px-2 rounded-pill shadow-none"
+                data-bs-toggle="collapse"
+                data-bs-target="#reason-${reportId}"
+                title="Click to view rejection reason"
+                style="font-size: 0.78rem; font-weight: 500;">
+                <i class="bi bi-x-circle-fill"></i>
+                <span>Rejected</span>
+                <i class="bi bi-chevron-down ms-1" style="font-size: 0.7rem;"></i>
+              </button>
+              <div id="reason-${reportId}" class="collapse mt-1" style="max-width: 220px;">
+                <div class="p-2 rounded bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.76rem; line-height: 1.35;">
+                  <div class="fw-bold mb-0.5"><i class="bi bi-info-circle me-1"></i>Reason:</div>
+                  <div class="text-dark">${reason || 'No reason provided.'}</div>
+                </div>
+              </div>
             </div>
           `;
           document.getElementById(`status-col-${reportId}`).innerHTML = statusHtml;
