@@ -27,6 +27,15 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://xpredictlabs.com:9001',
+    'http://xpredictlabs.com:9001',
+    'https://xpredictlabs.com',
+    'http://xpredictlabs.com',
+    'https://*.xpredictlabs.com',
+    'http://*.xpredictlabs.com',
+]
+
 # Application definition
 
 INSTALLED_APPS = [
