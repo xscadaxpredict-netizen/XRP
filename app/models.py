@@ -183,6 +183,11 @@ class UserProfile(models.Model):
     target= models.ForeignKey(Target, on_delete=models.SET_NULL, null=True, blank=True)
     is_xpredict = models.BooleanField(default=False)
     profile_picture = models.ImageField(upload_to="profile_pics/", default="profile_pics/default.jpg")
+    can_edit_service_reports = models.BooleanField(
+        default=True,
+        verbose_name="Can Edit Service Reports",
+        help_text="Uncheck this to remove the Edit button in Service Reports for this user."
+    )
 
 
     

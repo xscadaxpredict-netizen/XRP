@@ -222,7 +222,12 @@
                                         </td>
                                         <td>
                                             {% if exp.advance_group and exp.overdue_amount > 0 %}
-                                                <span class="text-danger fw-bold">₹{{ exp.overdue_amount }}</span>
+                                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                                    <span class="text-danger fw-bold">₹{{ exp.amount }}</span>
+                                                    <span class="badge rounded-pill bg-danger text-white px-2 py-0.5" style="font-size: 11px;">
+                                                        Overdue ₹{{ exp.overdue_amount|floatformat:2 }}
+                                                    </span>
+                                                </div>
                                             {% else %}
                                                 <span class="text-dark fw-bold">₹{{ exp.amount }}</span>
                                             {% endif %}

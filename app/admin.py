@@ -181,8 +181,15 @@ class UserProfileInline(admin.StackedInline):
 
 class CustomUserAdmin(UserAdmin):
     inlines = (UserProfileInline,)
-    list_display = ('username', 'email', 'zone', 'get_groups')
-    list_display = UserAdmin.list_display + ('manage_modules_button',) +('manage_submodule_visibility_button',)
+    list_display = UserAdmin.list_display + ('service_report_edit_allowed', 'manage_modules_button', 'manage_submodule_visibility_button')
+
+    def service_report_edit_allowed(self, obj):
+        profile = getattr(obj, 'userprofile', None)
+        if obj.groups.filter(name='Service Report - View Only').exists():
+            return False
+        return profile.can_edit_service_reports if profile else True
+    service_report_edit_allowed.boolean = True
+    service_report_edit_allowed.short_description = 'SR Edit'
 
 
     def zone(self, obj):

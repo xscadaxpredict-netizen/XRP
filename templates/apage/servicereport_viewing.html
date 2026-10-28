@@ -168,6 +168,17 @@
     </div>
 
 
+    {% if messages %}
+    <div class="container-fluid mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="page-body">
         <div class="row row-cards">
             <div class="col-md-12">
@@ -182,7 +193,7 @@
                                     <th>Service Name</th>
                                     <th>Date of Visit</th>
                                     <th>Site</th>
-                                    <th>Customer Name</th>
+                                    <th>Client Incharge Name</th>
                                     <th>State</th>
                                     <th>Status of Call</th>
                                     <th>Actions</th>
@@ -205,7 +216,13 @@
                                     <td>
                                       <div class="d-flex gap-2">
                                         <a href="{% url 'view_service_report' report.id %}" class="btn btn-info btn-sm">View</a>
-                                        <a href="{% url 'service_report_edit' report.id %}" class="btn btn-primary btn-sm">Edit</a>
+                                        {% if can_edit_service_reports %}
+                                          {% if report.status == 'approved' %}
+                                          <button type="button" class="btn btn-secondary btn-sm" id="edit-btn-{{ report.id }}" disabled style="cursor: not-allowed;" title="Approved reports cannot be edited">Edit</button>
+                                          {% else %}
+                                          <a href="{% url 'service_report_edit' report.id %}" class="btn btn-primary btn-sm" id="edit-btn-{{ report.id }}">Edit</a>
+                                          {% endif %}
+                                        {% endif %}
                                       </div>
                                     </td>
                                     <td id="status-col-{{ report.id }}">
@@ -308,6 +325,19 @@
           document.getElementById(`status-col-${reportId}`).innerHTML = 'Approved';
           // Update Action Col
           document.getElementById(`action-col-${reportId}`).innerHTML = '<button class="btn btn-secondary btn-sm" disabled>Approved</button>';
+          // Disable Edit Button
+          const editBtn = document.getElementById(`edit-btn-${reportId}`);
+          if (editBtn) {
+            const disabledBtn = document.createElement('button');
+            disabledBtn.type = 'button';
+            disabledBtn.className = 'btn btn-secondary btn-sm';
+            disabledBtn.id = `edit-btn-${reportId}`;
+            disabledBtn.disabled = true;
+            disabledBtn.style.cursor = 'not-allowed';
+            disabledBtn.title = 'Approved reports cannot be edited';
+            disabledBtn.innerText = 'Edit';
+            editBtn.replaceWith(disabledBtn);
+          }
         } else {
           alert("Error: " + data.message);
         }

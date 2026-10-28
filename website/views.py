@@ -25,6 +25,7 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from .models import CashVoucher, Expense
 from django.db.models import Q, Count, Exists, OuterRef
+from django.db.models.functions import Coalesce
 
 
 
@@ -1330,14 +1331,46 @@ def view_assigned_groups(request):
         if selected_user_id:
             assigned_users = assigned_users.filter(id=selected_user_id)
 
-        expenses = Expense.objects.filter(
-            item_type="advances",
+        # All group expenses in chronological order (by transaction date falling back to date, then id)
+        all_group_expenses = Expense.objects.filter(
             advance_group=group,
             status__in=["pending", "approved", "paid"],
             is_draft=False,
             is_allocation=False,
-        ).order_by("date", "id")
+        ).annotate(
+            effective_date=Coalesce("transaction_date", "date")
+        ).order_by("effective_date", "id")
 
+        adjustments_total = group.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        effective_advance = (group.total_advance + group.paid_overdue) - adjustments_total
+
+        # Build group-wide chronological running balance and identify which expense becomes overdue and by how much
+        group_running_balance = effective_advance
+        group_expense_status = {}
+        for ge in all_group_expenses:
+            amt = ge.amount or Decimal("0.00")
+            prev_bal = group_running_balance
+            group_running_balance -= amt
+
+            if group_running_balance < 0:
+                if prev_bal > 0:
+                    exp_overdue = abs(group_running_balance)
+                else:
+                    exp_overdue = amt
+                group_expense_status[ge.id] = {
+                    "remaining": group_running_balance,
+                    "overdue": True,
+                    "overdue_amount": exp_overdue,
+                }
+            else:
+                group_expense_status[ge.id] = {
+                    "remaining": group_running_balance,
+                    "overdue": False,
+                    "overdue_amount": Decimal("0.00"),
+                }
+
+        # Filter expenses for view display (by user and/or date)
+        expenses = all_group_expenses
         if selected_user_id:
             expenses = expenses.filter(created_by_id=selected_user_id)
 
@@ -1345,25 +1378,16 @@ def view_assigned_groups(request):
             try:
                 s = datetime.strptime(start_date, "%Y-%m-%d").date()
                 e = datetime.strptime(end_date, "%Y-%m-%d").date()
-                expenses = expenses.filter(date__range=[s, e])
+                expenses = expenses.filter(effective_date__range=[s, e])
             except Exception:
                 pass
 
         # Calculate context-specific used amount
         used = expenses.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         
-        # Remaining and overdue logic relative to the filters if applied,
-        # OR keep it as group-wide? 
-        # Usually, group level should stay group level, but 'Used' here should reflect the filters.
-        # User requested they work together.
-        
         full_group_used, full_group_remaining, full_group_overdue = calculate_group_balances(group)
         
-        # We will show the context-specific used, but maybe group-wide remaining?
-        # Let's use the local 'used' for the summary shown in the card if filters are on.
-        
-        adjustments_total = group.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        remaining = group.total_advance - used - adjustments_total
+        remaining = effective_advance - used
         overdue = abs(remaining) if remaining < 0 else Decimal("0.00")
 
         for user in assigned_users:
@@ -1387,17 +1411,20 @@ def view_assigned_groups(request):
                 }
 
             debit = exp.amount or Decimal("0.00")
-            balance = user_rows[user.id]["balance"] - debit
-            user_rows[user.id]["balance"] = balance
+            st = group_expense_status.get(exp.id, {
+                "remaining": Decimal("0.00"),
+                "overdue": False,
+                "overdue_amount": Decimal("0.00"),
+            })
 
             user_rows[user.id]["rows"].append({
                 "item": exp.item_name or "Unnamed",
-                "credit": user_rows[user.id]["credit"],
+                "credit": group.total_advance,
                 "debit": debit,
-                "remaining": balance,
+                "remaining": st["remaining"],
                 "date": exp.transaction_date or exp.date,
-                "overdue": balance < 0,
-                "overdue_amount": abs(balance) if balance < 0 else None,
+                "overdue": st["overdue"],
+                "overdue_amount": st["overdue_amount"],
             })
 
         # cleared_amount = Decimal("0.00")
@@ -5343,47 +5370,48 @@ def payable(request):
         )
 
         # ------------------ OVERDUE CHECK ---------------------
-        if selected_user:
-            group_expense_overdues = {}
-            for exp in expenses:
-                if exp.advance_group:
-                    group = exp.advance_group
-                    if group.id not in group_expense_overdues:
-                        group_total = group.total_advance
-                        
-                        # Get all relevant expenses for this group chronologically
-                        group_expenses_query = Expense.objects.annotate(
-                            proof_count=Count("proof_photos")
-                        ).filter(
-                            valid_expense_q,
-                            advance_group=group,
-                            is_allocation=False,
-                            is_draft=False,
-                            status__in=["pending", "approved", "paid"]
-                        ).order_by('id')
+        group_expense_overdues = {}
+        for exp in expenses:
+            if exp.advance_group:
+                group = exp.advance_group
+                if group.id not in group_expense_overdues:
+                    adjustments_total = group.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+                    group_total = (group.total_advance + group.paid_overdue) - adjustments_total
+                    
+                    # Get all relevant expenses for this group chronologically
+                    group_expenses_query = Expense.objects.annotate(
+                        proof_count=Count("proof_photos"),
+                        effective_date=Coalesce("transaction_date", "date")
+                    ).filter(
+                        valid_expense_q,
+                        advance_group=group,
+                        is_allocation=False,
+                        is_draft=False,
+                        status__in=["pending", "approved", "paid"]
+                    ).order_by('effective_date', 'id')
 
-                        running_total = Decimal("0.00")
-                        overdues_map = {}
-                        for ge in group_expenses_query:
-                            amt = ge.amount or Decimal("0.00")
-                            previously_used = running_total
-                            running_total += amt
+                    running_total = Decimal("0.00")
+                    overdues_map = {}
+                    for ge in group_expenses_query:
+                        amt = ge.amount or Decimal("0.00")
+                        previously_used = running_total
+                        running_total += amt
 
-                            if running_total > group_total:
-                                if previously_used >= group_total:
-                                    overdue = amt
-                                else:
-                                    overdue = running_total - group_total
+                        if running_total > group_total:
+                            if previously_used >= group_total:
+                                overdue = amt
                             else:
-                                overdue = Decimal("0.00")
-                            
-                            overdues_map[ge.id] = overdue
+                                overdue = running_total - group_total
+                        else:
+                            overdue = Decimal("0.00")
+                        
+                        overdues_map[ge.id] = overdue
 
-                        group_expense_overdues[group.id] = overdues_map
+                    group_expense_overdues[group.id] = overdues_map
 
-                    exp.overdue_amount = group_expense_overdues[group.id].get(exp.id, Decimal("0.00"))
-                else:
-                    exp.overdue_amount = Decimal("0.00")
+                exp.overdue_amount = group_expense_overdues[group.id].get(exp.id, Decimal("0.00"))
+            else:
+                exp.overdue_amount = Decimal("0.00")
 
         total_amount_to_be_paid = sum([exp.amount or Decimal("0.00") for exp in expenses if not exp.advance_group or exp.advance_group.is_closed])
 

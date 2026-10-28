@@ -204,7 +204,7 @@
 
           <div class="d-flex flex-wrap gap-2 mt-2">
             {% if group.overdue_balance > 0 %}
-              <span class="badge rounded-pill bg-danger-subtle text-danger text-white border border-danger-subtle px-3 py-1">Overdue Before Clearing: ₹{{ group.overdue_balance }}</span>
+              <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-1">Overdue Before Clearing: ₹{{ group.overdue_balance }}</span>
             {% endif %}
             {% if group.overdue_amount > 0 %}
               <span class="badge rounded-pill bg-danger text-white shadow-sm px-3 py-1">Overdue: ₹{{ group.overdue_amount|floatformat:2 }}</span>
@@ -307,7 +307,7 @@
                   <td>
                     ₹{{ row.remaining|floatformat:2 }}
                     {% if row.overdue and not group.group.is_closed %}
-                      <span class="badge rounded-pill bg-danger-subtle text-danger text-white border border-danger-subtle ms-2 px-2 py-0.5" style="font-size: 11px;">
+                      <span class="badge rounded-pill bg-danger text-white ms-2 px-2 py-0.5" style="font-size: 11px;">
                         Overdue ₹{{ row.overdue_amount|floatformat:2 }}
                       </span>
                     {% endif %}

@@ -68,7 +68,7 @@
                 <h4>Customer Information</h4>
             </div>
             <div class="card-body">
-                <p><strong>Customer Name:</strong> {{ service_report.customer_name }}</p>
+                <p><strong>Client Incharge Name:</strong> {{ service_report.customer_name }}</p>
                 <p><strong>Contact Number:</strong> {{ service_report.contact_number }}</p>
                 <p><strong>Location:</strong> {{ service_report.location }}</p>
                 <p><strong>State:</strong> {{ service_report.state }}</p>
@@ -396,7 +396,13 @@
                 </div>
             </div>
             <div class="card-footer text-center mt-4">
-                <a href="{% url 'service_report_edit' service_report.id %}" class=" custb btn btn-primary">Edit</a>
+                {% if can_edit_service_reports %}
+                  {% if service_report.status == 'approved' %}
+                  <button type="button" class="custb btn btn-secondary" disabled style="cursor: not-allowed;" title="Approved reports cannot be edited">Edit</button>
+                  {% else %}
+                  <a href="{% url 'service_report_edit' service_report.id %}" class=" custb btn btn-primary">Edit</a>
+                  {% endif %}
+                {% endif %}
                 <a href="{% url 'servicereport' %}" class=" custb btn btn-secondary">Back to List</a>
                 <a href="{% url 'service_report_pdf' service_report.id %}" class="btn btn-success">Download PDF</a>
                 {% if user_role == 'Admin' %}

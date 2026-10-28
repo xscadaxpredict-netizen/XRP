@@ -1,4 +1,4 @@
-from pyexpat.errors import messages
+from django.contrib import messages
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseForbidden
 from xhtml2pdf import pisa
@@ -800,6 +800,21 @@ def safe_get_or_create(model, **kwargs):
 
 
 
+def can_user_edit_service_report(user):
+    if not user or not user.is_authenticated:
+        return False
+    # If user is in view-only / no-edit group, deny editing even if superuser/staff
+    if user.groups.filter(name__in=['Service Report - View Only', 'Disable Service Report Edit', 'No Edit Service Report']).exists():
+        return False
+    # If user's profile has can_edit_service_reports set to False, deny editing
+    profile = getattr(user, 'userprofile', None)
+    if profile is not None and hasattr(profile, 'can_edit_service_reports'):
+        if not profile.can_edit_service_reports:
+            return False
+    return True
+
+
+
 @login_required
 def servicereport(request):
     search_query = request.GET.get('search', '')
@@ -855,6 +870,7 @@ def servicereport(request):
         'sites': Site.objects.all(),
         'start_date': start_date,
         'end_date': end_date,
+        'can_edit_service_reports': can_user_edit_service_report(user),
     }
     return render(request, 'apage/servicereport_viewing.html', context)
 
@@ -1360,7 +1376,13 @@ def autosave_service_report(request):
                 service_name=request.user.username
             )
 
-    # 🔒 Protection: locked reports (only if NOT explicitly targeted by ID)
+    # 🔒 Protection: user permission
+    if not can_user_edit_service_report(request.user):
+        return JsonResponse({"status": "locked", "message": "You do not have permission to edit service reports."})
+
+    # 🔒 Protection: locked reports
+    if report.status == 'approved':
+        return JsonResponse({"status": "locked", "message": "Approved reports cannot be edited."})
     if not report_id and report.is_draft is False:
         return JsonResponse({"status": "locked"})
 
@@ -1798,7 +1820,7 @@ def view_service_report(request, pk):
         'machine_run_times': machine_run_times,
         'tool_statuses': tool_statuses,
         'existing_attachments': existing_attachments,
-
+        'can_edit_service_reports': can_user_edit_service_report(request.user),
     }    
 
     return render(request, 'apage/servicereport_detail.html', context)
@@ -1836,7 +1858,23 @@ def edit_service_report(request, report_id):
             return JsonResponse({"status": "error", "message": "Authentication required."}, status=401)
         return redirect('login')
 
+    if not can_user_edit_service_report(user):
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
+        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
+        if is_api:
+            return JsonResponse({"status": "error", "message": "You do not have permission to edit service reports."}, status=403)
+        messages.error(request, "You do not have permission to edit service reports.")
+        return redirect('servicereport')
+
     service_report = get_object_or_404(ServiceReport, id=report_id)
+    if service_report.status == 'approved':
+        auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION', '')
+        is_api = auth_header.startswith('Token ') or request.headers.get('Accept') == 'application/json' or request.content_type == 'application/json'
+        if is_api:
+            return JsonResponse({"status": "error", "message": "Approved service reports cannot be edited."}, status=403)
+        messages.error(request, "Approved service reports cannot be edited.")
+        return redirect('servicereport')
+
     service_report.edited_by = user
 
     existing_attachments = ServiceReportAttachment.objects.filter(service_report=service_report)
