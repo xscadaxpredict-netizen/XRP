@@ -800,18 +800,77 @@ def safe_get_or_create(model, **kwargs):
 
 
 
-def can_user_edit_service_report(user):
+def get_service_report_permissions(user):
+    """
+    Returns granular permissions for Service Reports:
+    - Admin: View All, Create, Edit, Approve/Reject, Download, Edit History
+    - Service Manager: View All, Create, Edit, Approve/Reject, Download
+    - Service Engineer: View All, Create, Download (NO Edit, NO Approve/Reject)
+    - Default / Other: Own Reports only, Create, Edit, Download (NO Approve/Reject)
+    """
     if not user or not user.is_authenticated:
-        return False
-    # If user is in view-only / no-edit group, deny editing even if superuser/staff
-    if user.groups.filter(name__in=['Service Report - View Only', 'Disable Service Report Edit', 'No Edit Service Report']).exists():
-        return False
-    # If user's profile has can_edit_service_reports set to False, deny editing
+        return {
+            'can_view_all': False,
+            'can_create': False,
+            'can_edit': False,
+            'can_approve_reject': False,
+            'can_download': False,
+            'role': None,
+        }
+
+    is_admin = user.is_superuser or user.is_staff or user.groups.filter(name='Admin').exists()
+    is_manager = is_admin or user.groups.filter(name='Service Manager').exists()
+    is_engineer = user.groups.filter(name='Service Engineer').exists()
+
     profile = getattr(user, 'userprofile', None)
+    profile_can_edit = True
     if profile is not None and hasattr(profile, 'can_edit_service_reports'):
-        if not profile.can_edit_service_reports:
-            return False
-    return True
+        profile_can_edit = profile.can_edit_service_reports
+
+    if user.groups.filter(name__in=['Service Report - View Only', 'Disable Service Report Edit', 'No Edit Service Report']).exists():
+        profile_can_edit = False
+
+    if is_admin:
+        return {
+            'can_view_all': True,
+            'can_create': True,
+            'can_edit': True if profile_can_edit else False,
+            'can_approve_reject': True,
+            'can_download': True,
+            'role': 'Admin',
+        }
+    elif is_manager:
+        return {
+            'can_view_all': True,
+            'can_create': True,
+            'can_edit': True if profile_can_edit else False,
+            'can_approve_reject': True,
+            'can_download': True,
+            'role': 'Service Manager',
+        }
+    elif is_engineer:
+        return {
+            'can_view_all': True,           # Service Engineer sees ALL reports
+            'can_create': True,             # Everyone can create reports
+            'can_edit': False,              # Service Engineer CANNOT edit
+            'can_approve_reject': False,    # Service Engineer CANNOT approve/reject
+            'can_download': True,           # View & Download allowed
+            'role': 'Service Engineer',
+        }
+    else:
+        # Default / Regular User
+        return {
+            'can_view_all': False,          # Only sees reports they created
+            'can_create': True,
+            'can_edit': True if profile_can_edit else False,
+            'can_approve_reject': False,
+            'can_download': True,
+            'role': 'User',
+        }
+
+
+def can_user_edit_service_report(user):
+    return get_service_report_permissions(user)['can_edit']
 
 
 
@@ -822,12 +881,11 @@ def servicereport(request):
     site_filter = request.GET.get('site', '')
 
     user = request.user
-    user_role = user.groups.first().name if user.groups.first() else None
-    if user.is_superuser or user.is_staff:
-        user_role = 'Admin'
+    sr_perms = get_service_report_permissions(user)
+    user_role = sr_perms['role']
 
-    # Base queryset
-    if user_role == 'Admin':
+    # Base queryset: Admin, Service Manager, and Service Engineer see all reports
+    if sr_perms['can_view_all']:
         service_reports = ServiceReport.objects.all()
     else:
         service_reports = ServiceReport.objects.filter(created_by=user)
@@ -850,8 +908,8 @@ def servicereport(request):
             Q(site__name__icontains=search_query)
         )
 
-    # 👤 User filter (Admin only)
-    if user_filter and user_role == 'Admin':
+    # 👤 User filter (for users who can view all)
+    if user_filter and sr_perms['can_view_all']:
         service_reports = service_reports.filter(created_by__id=user_filter)
 
     # 🏢 Site filter
@@ -866,11 +924,12 @@ def servicereport(request):
         'selected_user': user_filter,
         'selected_site': site_filter,
         'user_role': user_role,
-        'users': User.objects.all() if user_role == 'Admin' else [],
+        'sr_perms': sr_perms,
+        'users': User.objects.all() if sr_perms['can_view_all'] else [],
         'sites': Site.objects.all(),
         'start_date': start_date,
         'end_date': end_date,
-        'can_edit_service_reports': can_user_edit_service_report(user),
+        'can_edit_service_reports': sr_perms['can_edit'],
     }
     return render(request, 'apage/servicereport_viewing.html', context)
 
@@ -1757,6 +1816,11 @@ import json
 @login_required
 def reject_service_report(request, pk):
     service_report = get_object_or_404(ServiceReport, pk=pk)
+    sr_perms = get_service_report_permissions(request.user)
+    if not sr_perms['can_approve_reject']:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'status': 'error', 'message': 'Permission denied. Service Managers or Admins only.'}, status=403)
+        return HttpResponseForbidden("Permission denied. Service Managers or Admins only.")
     
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -1821,6 +1885,8 @@ def view_service_report(request, pk):
         'tool_statuses': tool_statuses,
         'existing_attachments': existing_attachments,
         'can_edit_service_reports': can_user_edit_service_report(request.user),
+        'sr_perms': get_service_report_permissions(request.user),
+        'user_role': get_service_report_permissions(request.user)['role'],
     }    
 
     return render(request, 'apage/servicereport_detail.html', context)
@@ -2258,13 +2324,13 @@ def servireport_edithistory(request, report_id):
 def update_service_report_status(request, pk, action):
     service_report = get_object_or_404(ServiceReport, pk=pk)
     
-    # Ensure only admins can approve/reject
+    # Ensure only managers or admins can approve/reject
     user = request.user
-    is_admin = user.groups.filter(name='Admin').exists() or user.is_staff or user.is_superuser
-    if not is_admin:
+    sr_perms = get_service_report_permissions(user)
+    if not sr_perms['can_approve_reject']:
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
-            return JsonResponse({"status": "error", "message": "Permission denied. Admins only."}, status=403)
-        return HttpResponseForbidden("Permission denied. Admins only.")
+            return JsonResponse({"status": "error", "message": "Permission denied. Service Managers or Admins only."}, status=403)
+        return HttpResponseForbidden("Permission denied. Service Managers or Admins only.")
 
     if action == 'approve':
         service_report.approve()

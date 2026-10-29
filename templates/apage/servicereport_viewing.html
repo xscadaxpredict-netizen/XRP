@@ -65,7 +65,7 @@
               </div>
               <div class="modal-body">
                 
-                {% if user_role == 'Admin' %}
+                {% if sr_perms.can_view_all %}
                 <div class="mb-3">
                   <label class="form-label fw-bold">User</label>
                   <select name="user" class="form-select">
@@ -126,7 +126,7 @@
               
               <p class="text-muted small mb-4">Select the filters below to download all matching service reports as a ZIP archive. Make sure to leave options blank to include "All".</p>
 
-              {% if user_role == 'Admin' %}
+              {% if sr_perms.can_view_all %}
               <div class="mb-3">
                 <label class="form-label fw-bold">User</label>
                 <select name="user" class="form-select">
@@ -198,8 +198,7 @@
                                     <th>Status of Call</th>
                                     <th>Actions</th>
                                     <th>Status</th>
-
-                                    {% if user_role == 'Admin' %}
+                                    {% if sr_perms.can_approve_reject %}
                                     <th>Approval</th>
                                     {% endif %}
                                 </tr>
@@ -257,7 +256,7 @@
                                       </span>
                                       {% endif %}
                                     </td>
-                                    {% if user_role == 'Admin' %}
+                                    {% if sr_perms.can_approve_reject %}
                                     <td id="action-col-{{ report.id }}">
                                       {% if report.status == 'pending' %}
                                       <div class="d-flex gap-2">
@@ -277,7 +276,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6">No service reports found.</td>
+                                    <td colspan="{% if sr_perms.can_approve_reject %}8{% else %}7{% endif %}" class="text-center text-muted">No service reports found.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
