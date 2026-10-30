@@ -317,6 +317,22 @@
       {% endfor %}
       {% endif %}
 
+      {% if form.errors %}
+      <div class="alert alert-danger d-flex align-items-center mb-4" role="alert" style="border-radius: 8px;">
+        <i class="ti ti-alert-circle fs-4 me-2"></i>
+        <div>
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+          {% for field in form %}
+            {% for error in field.errors %}
+              <div><strong>{{ field.label }}:</strong> {{ error }}</div>
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       <form method="post">
         {% csrf_token %}
         
