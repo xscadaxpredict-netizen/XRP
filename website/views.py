@@ -1298,14 +1298,38 @@ def view_assigned_groups(request):
             id__in=AdvanceAssignment.objects.filter(user=request.user).values_list("group_id", flat=True)
         )
 
-    if start_date and end_date:
-        # Accept strings; if invalid they will raise and be ignored
+    start_dt = None
+    end_dt = None
+    if start_date:
         try:
-            s = datetime.strptime(start_date, "%Y-%m-%d").date()
-            e = datetime.strptime(end_date, "%Y-%m-%d").date()
-            groups_qs = groups_qs.filter(created_at__date__gte=s, created_at__date__lte=e)
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").date() if isinstance(start_date, str) else start_date
         except Exception:
             pass
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").date() if isinstance(end_date, str) else end_date
+        except Exception:
+            pass
+
+    if start_dt or end_dt:
+        if start_dt and end_dt:
+            expense_date_q = Q(date__range=[start_dt, end_dt]) | Q(transaction_date__range=[start_dt, end_dt])
+            group_created_q = Q(created_at__date__range=[start_dt, end_dt])
+        elif start_dt:
+            expense_date_q = Q(date__gte=start_dt) | Q(transaction_date__gte=start_dt)
+            group_created_q = Q(created_at__date__gte=start_dt)
+        elif end_dt:
+            expense_date_q = Q(date__lte=end_dt) | Q(transaction_date__lte=end_dt)
+            group_created_q = Q(created_at__date__lte=end_dt)
+
+        active_group_ids = Expense.objects.filter(
+            advance_group__isnull=False,
+            status__in=["pending", "approved", "paid"],
+            is_draft=False,
+            is_allocation=False,
+        ).filter(expense_date_q).values_list("advance_group_id", flat=True)
+
+        groups_qs = groups_qs.filter(group_created_q | Q(id__in=active_group_ids)).distinct()
 
     if selected_group_name:
         groups_qs = groups_qs.filter(name=selected_group_name)
@@ -1374,13 +1398,12 @@ def view_assigned_groups(request):
         if selected_user_id:
             expenses = expenses.filter(created_by_id=selected_user_id)
 
-        if start_date and end_date:
-            try:
-                s = datetime.strptime(start_date, "%Y-%m-%d").date()
-                e = datetime.strptime(end_date, "%Y-%m-%d").date()
-                expenses = expenses.filter(effective_date__range=[s, e])
-            except Exception:
-                pass
+        if start_dt and end_dt:
+            expenses = expenses.filter(Q(date__range=[start_dt, end_dt]) | Q(transaction_date__range=[start_dt, end_dt]))
+        elif start_dt:
+            expenses = expenses.filter(Q(date__gte=start_dt) | Q(transaction_date__gte=start_dt))
+        elif end_dt:
+            expenses = expenses.filter(Q(date__lte=end_dt) | Q(transaction_date__lte=end_dt))
 
         # Calculate context-specific used amount
         used = expenses.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
@@ -1423,6 +1446,11 @@ def view_assigned_groups(request):
                 "debit": debit,
                 "remaining": st["remaining"],
                 "date": exp.transaction_date or exp.date,
+                "created_date": exp.date,
+                "transaction_date": exp.transaction_date,
+                "voucher_number": exp.evoucher_number or exp.voucher_number or "-",
+                "status": exp.status,
+                "status_display": exp.get_status_display() if hasattr(exp, 'get_status_display') else exp.status,
                 "overdue": st["overdue"],
                 "overdue_amount": st["overdue_amount"],
             })
@@ -1511,196 +1539,528 @@ from .models import Expense, AdvanceGroup
 
 
 def get_filter_params(request):
-    """Extracts start_date, end_date, group_id from request.GET."""
-    start_date = request.GET.get("start_date")
-    end_date = request.GET.get("end_date")
+    """Extracts start_date, end_date, group_id, user_id from request.GET."""
+    start_date_str = request.GET.get("start_date")
+    end_date_str = request.GET.get("end_date")
     group_id = request.GET.get("group_id")
+    user_id = request.GET.get("user_id")
 
-    if start_date:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-    if end_date:
-        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except Exception:
+            start_date = None
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except Exception:
+            end_date = None
 
-    return start_date, end_date, group_id
+    return start_date, end_date, group_id, user_id
 
 
-@login_required
-def export_advances_excel(request):
-    start_date, end_date, group_id = get_filter_params(request)
-    group_id_int = int(group_id) if group_id and group_id.isdigit() else None
+def get_advances_export_data(request):
+    """
+    Unified, reliable data collector for Advances export (Excel, CSV, PDF).
+    Ensures that active advance groups and expenses are properly queried based
+    on expense creation dates and transaction dates, irrespective of when the
+    advance group itself was originally created.
+    """
+    start_date, end_date, group_id, user_id = get_filter_params(request)
+    group_id_int = int(group_id) if group_id and str(group_id).isdigit() else None
+    user_id_int = int(user_id) if user_id and str(user_id).isdigit() else None
 
-    # Groups queryset
-    groups_qs = AdvanceGroup.objects.all().order_by("name")
+    groups_qs = AdvanceGroup.objects.all().order_by("-created_at")
+
+    if not request.user.is_staff and not request.user.is_superuser:
+        groups_qs = groups_qs.filter(
+            id__in=AdvanceAssignment.objects.filter(user=request.user).values_list("group_id", flat=True)
+        )
+
     if group_id_int:
         groups_qs = groups_qs.filter(id=group_id_int)
 
-    # Apply date filter on group creation date
-    if start_date and end_date:
-        groups_qs = groups_qs.filter(created_at__date__range=[start_date, end_date])
+    if user_id_int:
+        groups_qs = groups_qs.filter(
+            id__in=AdvanceAssignment.objects.filter(user_id=user_id_int).values_list("group_id", flat=True)
+        )
 
-    # Excel workbook setup
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Advances"
+    if start_date or end_date:
+        if start_date and end_date:
+            expense_date_q = Q(date__range=[start_date, end_date]) | Q(transaction_date__range=[start_date, end_date])
+            group_created_q = Q(created_at__date__range=[start_date, end_date])
+        elif start_date:
+            expense_date_q = Q(date__gte=start_date) | Q(transaction_date__gte=start_date)
+            group_created_q = Q(created_at__date__gte=start_date)
+        elif end_date:
+            expense_date_q = Q(date__lte=end_date) | Q(transaction_date__lte=end_date)
+            group_created_q = Q(created_at__date__lte=end_date)
 
-    # Base header
-    base_header = [
-        "GROUP NAME", "LEADER", "ASSIGNED USERS", "DATE OF ASSIGNMENT", "PAYMENT MODE", 
-        "USER", "ITEM", "CREDIT (₹)", "DEBIT (₹)", "REMAINING (₹)", "FINAL REMAINING (₹)", "TOTAL OVERSPENT (₹)", "DATE"
-    ]
-    ws.append(base_header)
+        active_group_ids = Expense.objects.filter(
+            advance_group__isnull=False,
+            status__in=["pending", "approved", "paid"],
+            is_draft=False,
+            is_allocation=False,
+        ).filter(expense_date_q).values_list("advance_group_id", flat=True)
 
-    row_idx = 2
+        groups_qs = groups_qs.filter(group_created_q | Q(id__in=active_group_ids)).distinct()
+
+    export_records = []
 
     for group in groups_qs:
-        group_expenses = Expense.objects.filter(
-            advance_group=group,
-            item_type="advances",
-            status__in=["pending", "paid"],
-            is_draft=False,
-            is_allocation=False,  # Exclude initial allocation / credit voucher from debits
-        ).order_by("date", "id")
+        from .models import AdvanceAssignment
+        assignments = AdvanceAssignment.objects.filter(group=group)
+        assigned_users = ", ".join([a.user.get_full_name() or a.user.username for a in assignments])
+        leader_name = group.leader.get_full_name() or group.leader.username if group.leader else "-"
+        date_of_assignment = group.created_at.strftime("%B %d, %Y") if group.created_at else "-"
+        payment_mode_display = dict(group._meta.get_field('payment_mode').choices).get(group.payment_mode, group.payment_mode) if group.payment_mode else "-"
 
-        # All proof files for this group
         proof_files = [
-            request.build_absolute_uri(log.proof_file.url).replace("http://", "https://").replace("xpredictlabs.com", "xpredictlabs.com:9001") if not request.get_host().startswith("127.0.0.1") and not request.get_host().startswith("localhost") else request.build_absolute_uri(log.proof_file.url)
+            request.build_absolute_uri(log.proof_file.url).replace("http://", "https://").replace("xpredictlabs.com", "xpredictlabs.com:9001")
+            if not request.get_host().startswith("127.0.0.1") and not request.get_host().startswith("localhost")
+            else request.build_absolute_uri(log.proof_file.url)
             for log in group.update_logs.all()
             if log.proof_file
         ]
 
-        leader_name = group.leader.get_full_name() or group.leader.username if group.leader else "-"
-        
-        # Get assigned users
-        from .models import AdvanceAssignment
-        assignments = AdvanceAssignment.objects.filter(group=group)
-        assigned_users = ", ".join([a.user.get_full_name() or a.user.username for a in assignments])
+        # Fetch ALL valid group expenses in chronological order to compute true running balances
+        all_group_expenses = Expense.objects.filter(
+            advance_group=group,
+            status__in=["pending", "approved", "paid"],
+            is_draft=False,
+            is_allocation=False,
+        ).annotate(
+            effective_date=Coalesce("transaction_date", "date")
+        ).order_by("effective_date", "id")
 
-        date_of_assignment = group.created_at.strftime("%B %d, %Y") if group.created_at else "-"
-        payment_mode_display = dict(group._meta.get_field('payment_mode').choices).get(group.payment_mode, group.payment_mode) if group.payment_mode else "-"
+        adjustments_total = group.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        effective_advance = (group.total_advance + group.paid_overdue) - adjustments_total
+        group_running_balance = effective_advance
+        group_expense_status = {}
 
-        # Precompute final remaining and overspent amounts for the group row columns
+        for ge in all_group_expenses:
+            amt = ge.amount or Decimal("0.00")
+            prev_bal = group_running_balance
+            group_running_balance -= amt
+
+            if group_running_balance < 0:
+                exp_overdue = abs(group_running_balance) if prev_bal > 0 else amt
+                group_expense_status[ge.id] = {
+                    "remaining": group_running_balance,
+                    "overdue": True,
+                    "overdue_amount": exp_overdue,
+                }
+            else:
+                group_expense_status[ge.id] = {
+                    "remaining": group_running_balance,
+                    "overdue": False,
+                    "overdue_amount": Decimal("0.00"),
+                }
+
+        # Filter expenses for export based on voucher created date or transaction date
+        filtered_expenses = all_group_expenses
+        if user_id_int:
+            filtered_expenses = filtered_expenses.filter(created_by_id=user_id_int)
+
+        if start_date and end_date:
+            filtered_expenses = filtered_expenses.filter(
+                Q(date__range=[start_date, end_date]) | Q(transaction_date__range=[start_date, end_date])
+            )
+        elif start_date:
+            filtered_expenses = filtered_expenses.filter(
+                Q(date__gte=start_date) | Q(transaction_date__gte=start_date)
+            )
+        elif end_date:
+            filtered_expenses = filtered_expenses.filter(
+                Q(date__lte=end_date) | Q(transaction_date__lte=end_date)
+            )
+
         group_total = group.total_advance or Decimal("0.00")
-        total_expenses = sum([exp.amount or Decimal("0.00") for exp in group_expenses])
-        final_balance_calc = group_total - total_expenses
+        all_expenses_sum = sum([exp.amount or Decimal("0.00") for exp in all_group_expenses])
+        final_balance_calc = effective_advance - all_expenses_sum
         final_remaining_val = float(final_balance_calc) if final_balance_calc > 0 else 0.00
         total_overspent_val = float(abs(final_balance_calc)) if final_balance_calc < 0 else 0.00
 
-        # First, output a single row for the initial advance credit
+        # Initial Advance Credit row
         credit_amount = group.total_advance or Decimal("0.00")
-        credit_row = [
-            group.name,
-            leader_name,
-            assigned_users,
-            date_of_assignment,
-            payment_mode_display,
-            "-", # USER
-            "Advance Assigned", # ITEM
-            float(credit_amount), # CREDIT
-            "", # DEBIT
-            float(credit_amount), # RUNNING REMAINING
-            final_remaining_val, # FINAL REMAINING
-            total_overspent_val, # TOTAL OVERSPENT
-            group.created_at.strftime("%B %d, %Y") if group.created_at else "-", # DATE
+        group_rows = [
+            {
+                "group_name": group.name,
+                "leader": leader_name,
+                "assigned_users": assigned_users,
+                "date_of_assignment": date_of_assignment,
+                "payment_mode": payment_mode_display,
+                "user": "-",
+                "voucher_no": "-",
+                "item": "Advance Assigned",
+                "category": "Initial Advance",
+                "credit": float(credit_amount),
+                "debit": "",
+                "remaining": float(credit_amount),
+                "final_remaining": final_remaining_val,
+                "total_overspent": total_overspent_val,
+                "date": date_of_assignment,
+                "created_date": date_of_assignment,
+                "transaction_date": date_of_assignment,
+                "status": "Allocated",
+                "proof_urls": proof_files,
+                "is_credit": True,
+            }
         ]
-        
-        for proof_url in proof_files:
-            credit_row.append(proof_url)
 
-        ws.append(credit_row)
+        # Debit Expense rows
+        for exp in filtered_expenses:
+            exp_user = exp.created_by
+            user_name = (exp_user.get_full_name() or exp_user.username) if exp_user else "-"
+            debit_amt = float(exp.amount or Decimal("0.00"))
+            st = group_expense_status.get(exp.id, {
+                "remaining": Decimal("0.00"),
+                "overdue": False,
+                "overdue_amount": Decimal("0.00"),
+            })
+            voucher_no = exp.evoucher_number or exp.voucher_number or "-"
+            created_date_str = exp.date.strftime("%B %d, %Y") if exp.date else "-"
+            txn_date_str = exp.transaction_date.strftime("%B %d, %Y") if exp.transaction_date else "-"
+            status_str = exp.get_status_display() if hasattr(exp, 'get_status_display') else exp.status.capitalize()
+            category_str = exp.get_item_type_display() if hasattr(exp, 'get_item_type_display') else (exp.item_type or "-")
+            payment_mode_str = dict(exp._meta.get_field('payment_mode').choices).get(exp.payment_mode, exp.payment_mode) if exp.payment_mode else "-"
 
-        col_offset = len(base_header)
-        for i, proof_url in enumerate(proof_files):
-            cell = ws.cell(row=row_idx, column=col_offset + i + 1)
-            cell.hyperlink = proof_url
-            cell.value = f"Proof {i+1}"
-            cell.style = "Hyperlink"
-        row_idx += 1
-        
-        # Then, output each expense as a debit row
-        current_balance = credit_amount
-        for exp in group_expenses:
-            user = exp.created_by
-            if not user:
-                continue
+            exp_proof_files = []
+            if exp.bill_photo:
+                exp_proof_files.append(request.build_absolute_uri(exp.bill_photo.url))
+            if exp.gst_photo:
+                exp_proof_files.append(request.build_absolute_uri(exp.gst_photo.url))
+            if exp.proof_photo:
+                exp_proof_files.append(request.build_absolute_uri(exp.proof_photo.url))
 
-            debit = exp.amount or Decimal("0.00")
-            current_balance = current_balance - debit
-            remaining = current_balance
+            group_rows.append({
+                "group_name": group.name,
+                "leader": leader_name,
+                "assigned_users": assigned_users,
+                "date_of_assignment": date_of_assignment,
+                "payment_mode": payment_mode_str,
+                "user": user_name,
+                "voucher_no": voucher_no,
+                "item": exp.item_name or category_str,
+                "category": category_str,
+                "credit": "",
+                "debit": debit_amt,
+                "remaining": float(st["remaining"]),
+                "final_remaining": final_remaining_val,
+                "total_overspent": total_overspent_val,
+                "date": txn_date_str if txn_date_str != "-" else created_date_str,
+                "created_date": created_date_str,
+                "transaction_date": txn_date_str,
+                "status": status_str,
+                "proof_urls": exp_proof_files,
+                "is_credit": False,
+            })
 
+        export_records.append({
+            "group": group,
+            "rows": group_rows,
+        })
+
+    return export_records, start_date, end_date
+
+
+@login_required
+def export_advances_excel(request):
+    """
+    Exports Advances and expense vouchers data to XLSX format with custom date range support.
+    Clearly displays both voucher created date and transaction date for payment processing.
+    """
+    export_records, start_date, end_date = get_advances_export_data(request)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Advances & Vouchers"
+
+    base_header = [
+        "GROUP NAME", "VOUCHER NO", "USER / PAYEE", "ITEM / PARTICULAR", "CATEGORY",
+        "CREDIT (₹)", "DEBIT (₹)", "RUNNING BALANCE (₹)",
+        "VOUCHER CREATED DATE", "TRANSACTION DATE", "PAYMENT STATUS", "PAYMENT MODE",
+        "LEADER", "ASSIGNED USERS"
+    ]
+    ws.append(base_header)
+
+    # Style Header
+    header_fill = PatternFill(start_color="1A365D", end_color="1A365D", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    for col_num in range(1, len(base_header) + 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    row_idx = 2
+    for record in export_records:
+        for r in record["rows"]:
             row_data = [
-                group.name,
-                leader_name,
-                assigned_users,
-                date_of_assignment,
-                payment_mode_display,
-                user.get_full_name() or user.username,
-                exp.item_name or "Unnamed",
-                "", # CREDIT
-                float(debit), # DEBIT
-                float(remaining), # REMAINING
-                final_remaining_val,
-                total_overspent_val,
-                exp.date.strftime("%B %d, %Y") if exp.date else "-",
+                r["group_name"],
+                r["voucher_no"],
+                r["user"],
+                r["item"],
+                r["category"],
+                r["credit"],
+                r["debit"],
+                r["remaining"],
+                r["created_date"],
+                r["transaction_date"],
+                r["status"],
+                r["payment_mode"],
+                r["leader"],
+                r["assigned_users"],
             ]
-
-            for proof_url in proof_files:
-                row_data.append("")
+            for proof_url in r["proof_urls"]:
+                row_data.append(proof_url)
 
             ws.append(row_data)
+
+            # Styling for Credit row vs Debit rows
+            if r["is_credit"]:
+                credit_fill = PatternFill(start_color="EBF8FF", end_color="EBF8FF", fill_type="solid")
+                credit_font = Font(name="Calibri", size=10, bold=True)
+                for col_num in range(1, len(base_header) + 1):
+                    c = ws.cell(row=row_idx, column=col_num)
+                    c.fill = credit_fill
+                    c.font = credit_font
+
+            # Proof Hyperlinks
+            if r["proof_urls"]:
+                col_offset = len(base_header)
+                for i, proof_url in enumerate(r["proof_urls"]):
+                    cell = ws.cell(row=row_idx, column=col_offset + i + 1)
+                    cell.hyperlink = proof_url
+                    cell.value = f"Proof {i+1}"
+                    cell.style = "Hyperlink"
+
             row_idx += 1
 
-        pass
-
-    # Auto-adjust column width
+    # Auto-adjust column widths
     for i, col in enumerate(ws.columns, 1):
-        max_len = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-        ws.column_dimensions[get_column_letter(i)].width = max_len + 3
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        ws.column_dimensions[get_column_letter(i)].width = min(max(max_len + 3, 12), 40)
 
-    # Return Excel file
+    date_tag = f"_{start_date}_to_{end_date}" if start_date and end_date else "_all"
+    filename = f"advances_vouchers_report{date_tag}.xlsx"
+
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response["Content-Disposition"] = 'attachment; filename="advances.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(response)
     return response
 
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
-from reportlab.platypus import Table, TableStyle
 
-def export_advances_pdf(request):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    styles = getSampleStyleSheet()
-    elements = [Paragraph("Advance Report Summary", styles['Title']), Spacer(1, 12)]
+@login_required
+def export_advances_csv(request):
+    """
+    Exports Advances and expense vouchers to CSV format with custom date range support.
+    """
+    export_records, start_date, end_date = get_advances_export_data(request)
 
-    data = [['Group', 'User', 'Total', 'Used', 'Remaining']]
-    for group in AdvanceGroup.objects.all().order_by('name'):
-        for assignment in AdvanceAssignment.objects.filter(group=group):
-            used = Expense.objects.filter(advance_group=group, created_by=assignment.user).aggregate(total=Sum('amount'))['total'] or 0
-            data.append([
-                group.name,
-                assignment.user.get_full_name() or assignment.user.username,
-                f"₹{group.total_advance:.2f}",
-                f"₹{used:.2f}",
-                f"₹{group.total_advance - used:.2f}",
+    date_tag = f"_{start_date}_to_{end_date}" if start_date and end_date else "_all"
+    filename = f"advances_vouchers_report{date_tag}.csv"
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    writer = csv.writer(response)
+    headers = [
+        "Group Name", "Voucher No", "User / Payee", "Item / Particular", "Category",
+        "Credit (₹)", "Debit (₹)", "Running Balance (₹)",
+        "Voucher Created Date", "Transaction Date", "Payment Status", "Payment Mode",
+        "Leader", "Assigned Users", "Proofs"
+    ]
+    writer.writerow(headers)
+
+    for record in export_records:
+        for r in record["rows"]:
+            proofs_str = ", ".join(r["proof_urls"]) if r.get("proof_urls") else ""
+            writer.writerow([
+                r["group_name"],
+                r["voucher_no"],
+                r["user"],
+                r["item"],
+                r["category"],
+                r["credit"],
+                r["debit"],
+                r["remaining"],
+                r["created_date"],
+                r["transaction_date"],
+                r["status"],
+                r["payment_mode"],
+                r["leader"],
+                r["assigned_users"],
+                proofs_str,
             ])
-    table = Table(data, repeatRows=1)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+
+    return response
+
+
+@login_required
+def export_advances_pdf(request):
+    """
+    Exports Advances and expense vouchers data to PDF format with custom date range support.
+    Uses landscape layout and clean tabular formatting.
+    """
+    export_records, start_date, end_date = get_advances_export_data(request)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=15,
+        rightMargin=15,
+        topMargin=20,
+        bottomMargin=20,
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        leading=20,
+        textColor=colors.HexColor('#003366'),
+        alignment=1,
+        spaceAfter=4,
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#4A5568'),
+        alignment=1,
+        spaceAfter=10,
+    )
+    cell_style = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7.5,
+        leading=9.5,
+    )
+    cell_bold = ParagraphStyle(
+        'CellBold',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7.5,
+        leading=9.5,
+    )
+    header_style = ParagraphStyle(
+        'HeaderStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.white,
+        alignment=1,
+    )
+
+    date_label = f"Period: {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}" if start_date and end_date else "Period: All Records"
+    elements = [
+        Paragraph("X-Predict Labs — Advance Groups & Expense Vouchers Report", title_style),
+        Paragraph(f"{date_label} &nbsp;|&nbsp; Generated on: {datetime.now().strftime('%B %d, %Y %H:%M')}", subtitle_style),
+        Spacer(1, 6),
+    ]
+
+    table_data = [
+        [
+            Paragraph("Group", header_style),
+            Paragraph("Voucher No", header_style),
+            Paragraph("User / Payee", header_style),
+            Paragraph("Particulars / Item", header_style),
+            Paragraph("Debit (₹)", header_style),
+            Paragraph("Created Date", header_style),
+            Paragraph("Txn Date", header_style),
+            Paragraph("Status", header_style),
+            Paragraph("Running Bal (₹)", header_style),
+        ]
+    ]
+
+    tstyle = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]
+
+    current_row = 1
+    for record in export_records:
+        for r in record["rows"]:
+            credit_display = f"₹{r['credit']:,.2f}" if r['credit'] != "" else ""
+            debit_display = f"₹{r['debit']:,.2f}" if r['debit'] != "" else ""
+            rem_display = f"₹{r['remaining']:,.2f}" if r['remaining'] != "" else ""
+
+            if r["is_credit"]:
+                row = [
+                    Paragraph(r["group_name"], cell_bold),
+                    Paragraph("-", cell_bold),
+                    Paragraph(r["leader"], cell_bold),
+                    Paragraph(f"Advance Assigned ({credit_display})", cell_bold),
+                    Paragraph("-", cell_bold),
+                    Paragraph(r["created_date"], cell_bold),
+                    Paragraph("-", cell_bold),
+                    Paragraph(r["status"], cell_bold),
+                    Paragraph(rem_display, cell_bold),
+                ]
+                tstyle.append(('BACKGROUND', (0, current_row), (-1, current_row), colors.HexColor('#EBF8FF')))
+            else:
+                row = [
+                    Paragraph(r["group_name"], cell_style),
+                    Paragraph(r["voucher_no"], cell_style),
+                    Paragraph(r["user"], cell_style),
+                    Paragraph(r["item"], cell_style),
+                    Paragraph(debit_display, cell_style),
+                    Paragraph(r["created_date"], cell_style),
+                    Paragraph(r["transaction_date"], cell_style),
+                    Paragraph(r["status"], cell_style),
+                    Paragraph(rem_display, cell_style),
+                ]
+                if current_row % 2 == 0:
+                    tstyle.append(('BACKGROUND', (0, current_row), (-1, current_row), colors.HexColor('#F7FAFC')))
+
+            table_data.append(row)
+            current_row += 1
+
+    col_widths = [110, 85, 90, 150, 75, 80, 80, 65, 85]
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(TableStyle(tstyle))
     elements.append(table)
+
     doc.build(elements)
     buffer.seek(0)
-    return FileResponse(buffer, as_attachment=True, filename="advance_report.pdf")
+
+    date_tag = f"_{start_date}_to_{end_date}" if start_date and end_date else "_all"
+    filename = f"advances_vouchers_report{date_tag}.pdf"
+
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def export_advances(request):
+    """
+    Master export dispatcher for Advances.
+    Dispatches to PDF, CSV, or XLSX based on ?format= query parameter.
+    """
+    export_format = request.GET.get('format', 'xlsx').lower()
+    if export_format == 'pdf':
+        return export_advances_pdf(request)
+    elif export_format == 'csv':
+        return export_advances_csv(request)
+    else:
+        return export_advances_excel(request)
 
 @require_POST
 def update_group_balance(request, group_id):

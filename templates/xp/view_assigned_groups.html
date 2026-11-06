@@ -81,6 +81,7 @@
               <li class="dropdown-header">Other Formats</li>
               <li><a class="dropdown-item py-2" href="{% url 'export_advances' %}?format=pdf"><i class="bi bi-file-pdf me-2 text-danger"></i>PDF (All)</a></li>
               <li><a class="dropdown-item py-2" href="{% url 'export_advances' %}?format=csv"><i class="bi bi-filetype-csv me-2 text-primary"></i>CSV (All)</a></li>
+              <li><a class="dropdown-item py-2" href="{% url 'export_advances' %}?format=xlsx"><i class="bi bi-file-earmark-excel me-2 text-success"></i>Excel (All)</a></li>
             </ul>
           </div>
 
@@ -289,11 +290,14 @@
           <thead class="table-light text-secondary small uppercase" style="background: rgba(13, 110, 253, 0.03);">
             <tr>
               <th class="fw-bold">User</th>
+              <th class="fw-bold">Voucher No</th>
               <th class="fw-bold">Item</th>
               <th class="fw-bold">Credit</th>
               <th class="fw-bold">Debit</th>
               <th class="fw-bold">User Remaining</th>
-              <th class="fw-bold">Date</th>
+              <th class="fw-bold">Created Date</th>
+              <th class="fw-bold">Transaction Date</th>
+              <th class="fw-bold text-center">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -301,6 +305,13 @@
               {% for row in user.rows %}
                 <tr>
                   <td class="fw-semibold">{{ user.user.get_full_name|default:user.user.username }}</td>
+                  <td>
+                    {% if row.voucher_number and row.voucher_number != '-' %}
+                      <span class="badge bg-light text-dark border font-monospace">{{ row.voucher_number }}</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
                   <td>{{ row.item }}</td>
                   <td class="text-success">+₹{{ row.credit|floatformat:2 }}</td>
                   <td class="text-danger">-₹{{ row.debit|floatformat:2 }}</td>
@@ -312,7 +323,23 @@
                       </span>
                     {% endif %}
                   </td>
-                  <td class="text-nowrap">{{ row.date|date:"F d, Y" }}</td>
+                  <td class="text-nowrap small text-muted">
+                    {% if row.created_date %}{{ row.created_date|date:"F d, Y" }}{% else %}-{% endif %}
+                  </td>
+                  <td class="text-nowrap small">
+                    {% if row.transaction_date %}{{ row.transaction_date|date:"F d, Y" }}{% else %}{{ row.date|date:"F d, Y" }}{% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if row.status == 'approved' %}
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">Approved</span>
+                    {% elif row.status == 'paid' %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1">Paid</span>
+                    {% elif row.status == 'rejected' %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-1">Rejected</span>
+                    {% else %}
+                      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1">Pending</span>
+                    {% endif %}
+                  </td>
                 </tr>
               {% endfor %}
             {% endfor %}
@@ -406,6 +433,7 @@
 <div class="modal fade" id="customExportModal" tabindex="-1" aria-labelledby="customExportModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <form method="get" action="{% url 'export_advances' %}" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+      {% if selected_user %}<input type="hidden" name="user_id" value="{{ selected_user }}">{% endif %}
       <div class="modal-header">
         <h5 class="modal-title fw-bold text-dark" id="customExportModalLabel">Export by Date Range</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

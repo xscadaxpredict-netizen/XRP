@@ -118,8 +118,10 @@ urlpatterns = [
     path('ajax-reply/', views.ajax_reply_request, name='ajax_reply_request'),
     path('ajax-gif-search/', views.ajax_gif_search, name='ajax_gif_search'),
     path("ajax/fetch-messages/<int:req_id>/", views.fetch_messages, name="fetch_messages"),
-    path('advances/export/excel/', views.export_advances_excel, name='export_advances'),
+    path('advances/export/', views.export_advances, name='export_advances'),
+    path('advances/export/excel/', views.export_advances_excel, name='export_advances_excel'),
     path('advances/export/pdf/', views.export_advances_pdf, name='export_advances_pdf'),
+    path('advances/export/csv/', views.export_advances_csv, name='export_advances_csv'),
 
 
     path('expenses/request-delete/<int:expense_id>/', views.request_expense_deletion, name='request_expense_deletion'),
