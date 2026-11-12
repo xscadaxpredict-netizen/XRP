@@ -59,7 +59,9 @@ class AdvanceGroup(models.Model):
         used = self.get_calculated_used_advance()
         adjustments = self.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         self.used_advance = used
-        self.remaining_balance = max((self.total_advance + self.paid_overdue) - (used + adjustments), Decimal("0.00"))
+        total_adv = self.total_advance or Decimal("0.00")
+        paid_ovd = self.paid_overdue or Decimal("0.00")
+        self.remaining_balance = max((total_adv + paid_ovd) - (used + adjustments), Decimal("0.00"))
         self.save(update_fields=["used_advance", "remaining_balance"])
         return self.remaining_balance
 
