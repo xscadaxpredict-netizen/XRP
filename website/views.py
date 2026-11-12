@@ -1069,27 +1069,11 @@ def assign_advances(request):
             leader_id = leader.user.id if leader else None
             print("➡️ Leader ID:", leader_id)
 
-            used_total = (
-                Expense.objects.filter(
-                    item_type="advances",
-                    advance_group=selected_group,
-                    is_allocation=False,
-                    is_draft=False,
-                    status__in=["pending", "paid"],
-                ).aggregate(total=Sum("amount"))["total"]
-                or Decimal("0.00")
-            )
-
-            remaining_total = selected_group.total_advance - used_total
-            if remaining_total < 0:
-                remaining_total = Decimal("0.00")
+            remaining_total = selected_group.recalculate_balance()
+            used_total = selected_group.used_advance
 
             print("➡️ Used:", used_total)
             print("➡️ Remaining:", remaining_total)
-
-            selected_group.used_advance = used_total
-            selected_group.remaining_balance = remaining_total
-            selected_group.save()
 
             logs = list(
                 AdvanceGroupUpdateLog.objects.filter(group=selected_group).order_by("timestamp")
@@ -1607,25 +1591,27 @@ def get_advances_export_data(request):
 
         groups_qs = groups_qs.filter(group_created_q | Q(id__in=active_group_ids)).distinct()
 
+    def build_proof_url(file_field):
+        if not file_field:
+            return ""
+        try:
+            url = request.build_absolute_uri(file_field.url)
+            if not request.get_host().startswith("127.0.0.1") and not request.get_host().startswith("localhost"):
+                url = url.replace("http://", "https://").replace("xpredictlabs.com", "xpredictlabs.com:9001")
+            return url
+        except Exception:
+            return ""
+
     export_records = []
 
     for group in groups_qs:
-        from .models import AdvanceAssignment
         assignments = AdvanceAssignment.objects.filter(group=group)
         assigned_users = ", ".join([a.user.get_full_name() or a.user.username for a in assignments])
         leader_name = group.leader.get_full_name() or group.leader.username if group.leader else "-"
         date_of_assignment = group.created_at.strftime("%B %d, %Y") if group.created_at else "-"
         payment_mode_display = dict(group._meta.get_field('payment_mode').choices).get(group.payment_mode, group.payment_mode) if group.payment_mode else "-"
 
-        proof_files = [
-            request.build_absolute_uri(log.proof_file.url).replace("http://", "https://").replace("xpredictlabs.com", "xpredictlabs.com:9001")
-            if not request.get_host().startswith("127.0.0.1") and not request.get_host().startswith("localhost")
-            else request.build_absolute_uri(log.proof_file.url)
-            for log in group.update_logs.all()
-            if log.proof_file
-        ]
-
-        # Fetch ALL valid group expenses in chronological order to compute true running balances
+        # Fetch ALL valid group expenses in chronological order
         all_group_expenses = Expense.objects.filter(
             advance_group=group,
             status__in=["pending", "approved", "paid"],
@@ -1635,35 +1621,19 @@ def get_advances_export_data(request):
             effective_date=Coalesce("transaction_date", "date")
         ).order_by("effective_date", "id")
 
+        if user_id_int:
+            all_group_expenses = all_group_expenses.filter(created_by_id=user_id_int)
+
+        group_total = group.total_advance or Decimal("0.00")
+        all_expenses_sum = sum([exp.amount or Decimal("0.00") for exp in all_group_expenses])
         adjustments_total = group.adjustments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        effective_advance = (group.total_advance + group.paid_overdue) - adjustments_total
-        group_running_balance = effective_advance
-        group_expense_status = {}
-
-        for ge in all_group_expenses:
-            amt = ge.amount or Decimal("0.00")
-            prev_bal = group_running_balance
-            group_running_balance -= amt
-
-            if group_running_balance < 0:
-                exp_overdue = abs(group_running_balance) if prev_bal > 0 else amt
-                group_expense_status[ge.id] = {
-                    "remaining": group_running_balance,
-                    "overdue": True,
-                    "overdue_amount": exp_overdue,
-                }
-            else:
-                group_expense_status[ge.id] = {
-                    "remaining": group_running_balance,
-                    "overdue": False,
-                    "overdue_amount": Decimal("0.00"),
-                }
+        effective_advance = (group_total + (group.paid_overdue or Decimal("0.00"))) - adjustments_total
+        final_balance_calc = effective_advance - all_expenses_sum
+        final_remaining_val = float(final_balance_calc) if final_balance_calc > 0 else 0.00
+        total_overspent_val = float(abs(final_balance_calc)) if final_balance_calc < 0 else 0.00
 
         # Filter expenses for export based on voucher created date or transaction date
         filtered_expenses = all_group_expenses
-        if user_id_int:
-            filtered_expenses = filtered_expenses.filter(created_by_id=user_id_int)
-
         if start_date and end_date:
             filtered_expenses = filtered_expenses.filter(
                 Q(date__range=[start_date, end_date]) | Q(transaction_date__range=[start_date, end_date])
@@ -1677,86 +1647,177 @@ def get_advances_export_data(request):
                 Q(date__lte=end_date) | Q(transaction_date__lte=end_date)
             )
 
-        group_total = group.total_advance or Decimal("0.00")
-        all_expenses_sum = sum([exp.amount or Decimal("0.00") for exp in all_group_expenses])
-        final_balance_calc = effective_advance - all_expenses_sum
-        final_remaining_val = float(final_balance_calc) if final_balance_calc > 0 else 0.00
-        total_overspent_val = float(abs(final_balance_calc)) if final_balance_calc < 0 else 0.00
+        # Build combined timeline: Credits (all advance additions/uploads) & Debits (expenses)
+        timeline = []
 
-        # Initial Advance Credit row
-        credit_amount = group.total_advance or Decimal("0.00")
-        group_rows = [
-            {
-                "group_name": group.name,
-                "leader": leader_name,
-                "assigned_users": assigned_users,
-                "date_of_assignment": date_of_assignment,
-                "payment_mode": payment_mode_display,
-                "user": "-",
-                "voucher_no": "-",
-                "item": "Advance Assigned",
-                "category": "Initial Advance",
-                "credit": float(credit_amount),
-                "debit": "",
-                "remaining": float(credit_amount),
-                "final_remaining": final_remaining_val,
-                "total_overspent": total_overspent_val,
-                "date": date_of_assignment,
-                "created_date": date_of_assignment,
-                "transaction_date": date_of_assignment,
-                "status": "Allocated",
-                "proof_urls": proof_files,
-                "is_credit": True,
-            }
-        ]
+        # 1. Collect all Advance Credit additions from update_logs
+        update_logs = list(group.update_logs.all().order_by('timestamp', 'id'))
+        logged_advance_total = Decimal("0.00")
 
-        # Debit Expense rows
+        if update_logs:
+            for idx, log in enumerate(update_logs):
+                prev_amt = log.previous_amount or Decimal("0.00")
+                new_amt = log.new_amount or Decimal("0.00")
+                diff = new_amt - prev_amt
+                if diff <= 0 and idx == 0 and new_amt > 0:
+                    diff = new_amt
+                
+                if diff > 0:
+                    logged_advance_total += diff
+                    action_title = "Advance Initial Allocation" if (idx == 0 and prev_amt == 0) else "Advance Top-up / Added"
+                    log_date = log.timestamp.date() if log.timestamp else (group.created_at.date() if group.created_at else None)
+                    log_user = (log.updated_by.get_full_name() or log.updated_by.username) if log.updated_by else leader_name
+                    log_proof = build_proof_url(log.proof_file)
+                    
+                    timeline.append({
+                        'raw_dt': log.timestamp or group.created_at or timezone.now(),
+                        'date': log_date,
+                        'is_credit': True,
+                        'voucher_no': "-",
+                        'user': log_user,
+                        'item': log.remarks or f"Advance Added: ₹{diff:,.2f}",
+                        'category': action_title,
+                        'credit': diff,
+                        'debit': Decimal("0.00"),
+                        'status': "Allocated",
+                        'payment_mode': payment_mode_display,
+                        'proof_urls': [log_proof] if log_proof else [],
+                    })
+
+        # If logs didn't capture the entire total_advance, add unlogged remainder as initial advance
+        if group_total > logged_advance_total:
+            remaining_unlogged = group_total - logged_advance_total
+            alloc_exp = Expense.objects.filter(advance_group=group, is_allocation=True).first()
+            alloc_proof_url = ""
+            if alloc_exp:
+                alloc_proof_url = build_proof_url(alloc_exp.bill_photo) or build_proof_url(alloc_exp.proof_photo)
+                if not alloc_proof_url and alloc_exp.proof_photos.exists():
+                    alloc_proof_url = build_proof_url(alloc_exp.proof_photos.first().file)
+
+            timeline.insert(0, {
+                'raw_dt': group.created_at or timezone.now(),
+                'date': group.created_at.date() if group.created_at else None,
+                'is_credit': True,
+                'voucher_no': alloc_exp.evoucher_number if alloc_exp else "-",
+                'user': leader_name,
+                'item': 'Initial Advance Assigned',
+                'category': 'Initial Advance',
+                'credit': remaining_unlogged,
+                'debit': Decimal("0.00"),
+                'status': "Allocated",
+                'payment_mode': payment_mode_display,
+                'proof_urls': [alloc_proof_url] if alloc_proof_url else [],
+            })
+
+        # 2. Collect all Expenses (Debits)
         for exp in filtered_expenses:
             exp_user = exp.created_by
             user_name = (exp_user.get_full_name() or exp_user.username) if exp_user else "-"
-            debit_amt = float(exp.amount or Decimal("0.00"))
-            st = group_expense_status.get(exp.id, {
-                "remaining": Decimal("0.00"),
-                "overdue": False,
-                "overdue_amount": Decimal("0.00"),
-            })
+            exp_date = exp.transaction_date or exp.date
+            debit_amt = exp.amount or Decimal("0.00")
             voucher_no = exp.evoucher_number or exp.voucher_number or "-"
-            created_date_str = exp.date.strftime("%B %d, %Y") if exp.date else "-"
-            txn_date_str = exp.transaction_date.strftime("%B %d, %Y") if exp.transaction_date else "-"
             status_str = exp.get_status_display() if hasattr(exp, 'get_status_display') else exp.status.capitalize()
             category_str = exp.get_item_type_display() if hasattr(exp, 'get_item_type_display') else (exp.item_type or "-")
-            payment_mode_str = dict(exp._meta.get_field('payment_mode').choices).get(exp.payment_mode, exp.payment_mode) if exp.payment_mode else "-"
+            exp_payment_mode = dict(exp._meta.get_field('payment_mode').choices).get(exp.payment_mode, exp.payment_mode) if exp.payment_mode else "-"
 
             exp_proof_files = []
             if exp.bill_photo:
-                exp_proof_files.append(request.build_absolute_uri(exp.bill_photo.url))
+                p_url = build_proof_url(exp.bill_photo)
+                if p_url: exp_proof_files.append(p_url)
             if exp.gst_photo:
-                exp_proof_files.append(request.build_absolute_uri(exp.gst_photo.url))
+                p_url = build_proof_url(exp.gst_photo)
+                if p_url: exp_proof_files.append(p_url)
             if exp.proof_photo:
-                exp_proof_files.append(request.build_absolute_uri(exp.proof_photo.url))
+                p_url = build_proof_url(exp.proof_photo)
+                if p_url: exp_proof_files.append(p_url)
+            for photo in exp.proof_photos.all():
+                if photo.file:
+                    p_url = build_proof_url(photo.file)
+                    if p_url and p_url not in exp_proof_files:
+                        exp_proof_files.append(p_url)
 
-            group_rows.append({
-                "group_name": group.name,
-                "leader": leader_name,
-                "assigned_users": assigned_users,
-                "date_of_assignment": date_of_assignment,
-                "payment_mode": payment_mode_str,
-                "user": user_name,
-                "voucher_no": voucher_no,
-                "item": exp.item_name or category_str,
-                "category": category_str,
-                "credit": "",
-                "debit": debit_amt,
-                "remaining": float(st["remaining"]),
-                "final_remaining": final_remaining_val,
-                "total_overspent": total_overspent_val,
-                "date": txn_date_str if txn_date_str != "-" else created_date_str,
-                "created_date": created_date_str,
-                "transaction_date": txn_date_str,
-                "status": status_str,
-                "proof_urls": exp_proof_files,
-                "is_credit": False,
+            if isinstance(exp_date, datetime):
+                dt_sort = exp_date
+            elif isinstance(exp_date, date):
+                dt_sort = datetime.combine(exp_date, datetime.min.time())
+            else:
+                dt_sort = timezone.now()
+            if timezone.is_naive(dt_sort):
+                dt_sort = timezone.make_aware(dt_sort)
+
+            timeline.append({
+                'raw_dt': dt_sort,
+                'date': exp_date,
+                'is_credit': False,
+                'voucher_no': voucher_no,
+                'user': user_name,
+                'item': exp.item_name or category_str,
+                'category': category_str,
+                'credit': Decimal("0.00"),
+                'debit': debit_amt,
+                'status': status_str,
+                'payment_mode': exp_payment_mode,
+                'proof_urls': exp_proof_files,
+                'created_date_str': exp.date.strftime("%B %d, %Y") if exp.date else "-",
+                'txn_date_str': exp.transaction_date.strftime("%B %d, %Y") if exp.transaction_date else "-",
             })
+
+        # Sort all timeline entries chronologically
+        timeline.sort(key=lambda x: x['raw_dt'])
+
+        # Compute running balance and build group_rows
+        running_bal = Decimal("0.00")
+        group_rows = []
+        for item in timeline:
+            if item['is_credit']:
+                running_bal += item['credit']
+                date_str = item['date'].strftime("%B %d, %Y") if item['date'] else "-"
+                group_rows.append({
+                    "group_name": group.name,
+                    "leader": leader_name,
+                    "assigned_users": assigned_users,
+                    "date_of_assignment": date_of_assignment,
+                    "payment_mode": item['payment_mode'],
+                    "user": item['user'],
+                    "voucher_no": item['voucher_no'],
+                    "item": item['item'],
+                    "category": item['category'],
+                    "credit": float(item['credit']),
+                    "debit": "",
+                    "remaining": float(running_bal),
+                    "final_remaining": final_remaining_val,
+                    "total_overspent": total_overspent_val,
+                    "date": date_str,
+                    "created_date": date_str,
+                    "transaction_date": date_str,
+                    "status": item['status'],
+                    "proof_urls": item['proof_urls'],
+                    "is_credit": True,
+                })
+            else:
+                running_bal -= item['debit']
+                group_rows.append({
+                    "group_name": group.name,
+                    "leader": leader_name,
+                    "assigned_users": assigned_users,
+                    "date_of_assignment": date_of_assignment,
+                    "payment_mode": item['payment_mode'],
+                    "user": item['user'],
+                    "voucher_no": item['voucher_no'],
+                    "item": item['item'],
+                    "category": item['category'],
+                    "credit": "",
+                    "debit": float(item['debit']),
+                    "remaining": float(running_bal),
+                    "final_remaining": final_remaining_val,
+                    "total_overspent": total_overspent_val,
+                    "date": item['txn_date_str'] if item['txn_date_str'] != "-" else item['created_date_str'],
+                    "created_date": item['created_date_str'],
+                    "transaction_date": item['txn_date_str'],
+                    "status": item['status'],
+                    "proof_urls": item['proof_urls'],
+                    "is_credit": False,
+                })
 
         export_records.append({
             "group": group,
@@ -1770,7 +1831,7 @@ def get_advances_export_data(request):
 def export_advances_excel(request):
     """
     Exports Advances and expense vouchers data to XLSX format with custom date range support.
-    Clearly displays both voucher created date and transaction date for payment processing.
+    Clearly displays advance additions, vouchers, running balances, and proof hyperlinks.
     """
     export_records, start_date, end_date = get_advances_export_data(request)
 
@@ -1846,6 +1907,7 @@ def export_advances_excel(request):
 
     date_tag = f"_{start_date}_to_{end_date}" if start_date and end_date else "_all"
     filename = f"advances_vouchers_report{date_tag}.xlsx"
+
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -2441,6 +2503,9 @@ def new_item_form(request, user_id):
         # Ensure User 1’s expense is updated with the correct remaining amount
         expense.amount = remaining_amount  # Should be 0 if fully borrowed
         expense.save()
+
+        if item_type == 'advances' and group:
+            group.recalculate_balance()
 
         # Initialize cvamount before the block
         cvamount = 0
@@ -7328,19 +7393,7 @@ from django.http import JsonResponse
 
 def get_group_balance(request, group_id):
     group = get_object_or_404(AdvanceGroup, id=group_id)
-    
-    # 🚨 Only count real expenses, not allocations
-    used = (
-        Expense.objects.filter(
-            item_type="advances",
-            advance_group=group,
-            is_allocation=False   # <-- critical fix
-        )
-        .aggregate(total=Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-
-    remaining = group.total_advance - used
+    remaining = group.recalculate_balance()
     return JsonResponse({"remaining_balance": float(remaining)})
 
 
